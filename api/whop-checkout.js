@@ -2,10 +2,10 @@
 // Kaching tiers/variant offers and Essential Cart upsell discounts are Shopify discounts, so Shopify
 // applies them here exactly as on its own checkout. Nothing is priced by the browser or hard-coded.
 // Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_COMPANY_ID (biz_...), ALLOWED_ORIGIN, THANK_YOU_URL
-import Whop from "@whop/sdk";
 import { storefrontGql } from "../lib/shopify.js";
+import { validateShipping } from "../lib/validate.js";
+import { createCheckout } from "../lib/whop.js";
 
-const whop = new Whop({ apiKey: process.env.WHOP_API_KEY });
 const PRICE_COUNTRY = "US"; // Whop charges in this market's currency (USD)
 
 const CART_CREATE = `mutation($input: CartInput!) {
@@ -38,11 +38,11 @@ export default async function handler(req, res) {
     const items = (b.items || []).filter((i) => Number(i.quantity) > 0).slice(0, 30);
     if (!items.length) return res.status(400).json({ error: "empty_cart" });
 
-    const s = b.shipping || {};
-    for (const k of ["email", "name", "address1", "city", "zip", "country_code"])
-      if (!s[k]) return res.status(400).json({ error: "missing_shipping" });
-    const ship = Object.fromEntries(["email","name","phone","address1","address2","city","province","zip","country_code"]
-      .map((k) => [k, String(s[k] || "").trim().slice(0, 120)]));
+    const ship = Object.fromEntries(["email","first_name","last_name","phone","address1","address2","city","province","province_name","zip","country_code"]
+      .map((k) => [k, String(b.shipping?.[k] || "").trim().slice(0, 120)]));
+    ship.name = `${ship.first_name} ${ship.last_name}`.trim();
+    const bad = validateShipping(ship);
+    if (bad.length) return res.status(400).json({ error: "invalid_shipping", fields: bad });
 
     // 1) Shopify prices the cart (same lines + properties + attributes as the drawer)
     const data = await storefrontGql(CART_CREATE, { input: {
@@ -76,9 +76,8 @@ export default async function handler(req, res) {
 
     // 3) Whop checkout for that exact amount; order details ride along in metadata
     const qty = lines.reduce((sum, [, q]) => sum + q, 0);
-    const cfg = await whop.checkoutConfigurations.create({
+    const cfg = await createCheckout({
       plan: {
-        company_id: process.env.WHOP_COMPANY_ID,
         currency: currency.toLowerCase(),
         plan_type: "one_time",
         initial_price: total / 100,

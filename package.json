@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@whop/sdk": "latest"
+    "libphonenumber-js": "1.12.43"
   }
 }

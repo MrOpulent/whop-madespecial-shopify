@@ -1,14 +1,9 @@
 // api/whop-webhook.js — Whop payment succeeded -> paid Shopify order (same prices + discount as the cart).
-// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET
-import Whop from "@whop/sdk";
+// Env: lib/shopify.js vars + WHOP_WEBHOOK_SECRET
 import { adminGql } from "../lib/shopify.js";
+import { verifyWebhook } from "../lib/whop.js";
 
 export const config = { api: { bodyParser: false } }; // raw body for signature check
-
-const whop = new Whop({
-  apiKey: process.env.WHOP_API_KEY,
-  webhookKey: Buffer.from(process.env.WHOP_WEBHOOK_SECRET || "").toString("base64"),
-});
 
 const rawBody = (req) => new Promise((ok, fail) => {
   let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => ok(b)); req.on("error", fail);
@@ -24,8 +19,8 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   let evt;
-  try { evt = whop.webhooks.unwrap(await rawBody(req), { headers: req.headers }); }
-  catch { return res.status(401).json({ error: "bad_signature" }); }
+  try { evt = verifyWebhook(await rawBody(req), req.headers); }
+  catch (e) { console.error("webhook_verify", e.message); return res.status(401).json({ error: "bad_signature" }); }
 
   const type = evt.type || evt.action;
   if (!["payment.succeeded", "payment_succeeded"].includes(type)) return res.status(200).json({ skipped: type });
@@ -44,27 +39,32 @@ export default async function handler(req, res) {
     const paid = Math.round(Number(d.total ?? d.final_amount ?? d.subtotal ?? o.t / 100) * 100);
     const [first, ...rest] = (s.name || "").split(" ");
     const addr = {
-      firstName: first, lastName: rest.join(" ") || first, phone: s.phone || null,
+      firstName: s.first_name || first, lastName: s.last_name || rest.join(" ") || first, phone: s.phone || null,
       address1: s.address1, address2: s.address2 || null, city: s.city,
-      provinceCode: s.province ? s.province.toUpperCase() : null, zip: s.zip, countryCode: s.country_code,
+      provinceCode: s.province || s.province_name || null, zip: (s.zip || "").toUpperCase() || null, countryCode: s.country_code,
     };
 
-    const r = await adminGql(CREATE, {
-      order: {
-        email: s.email || d.user?.email,
-        currency: o.c,
-        lineItems: o.l.map(([v, q, u]) => ({
-          variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: money(u, o.c),
-        })),
-        ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: "BUNDLE-UPSELL", amountSet: money(o.d, o.c) } } }),
-        financialStatus: "PAID",
-        transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: money(o.t, o.c) }],
-        shippingAddress: addr, billingAddress: addr,
-        tags: ["whop", tag, ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : [])],
-        note: `Whop payment ${d.id}`,
-      },
-      options: { inventoryBehaviour: "DECREMENT_OBEYING_POLICY", sendReceipt: true },
-    });
+    const order = {
+      email: s.email || d.user?.email,
+      currency: o.c,
+      lineItems: o.l.map(([v, q, u]) => ({
+        variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: money(u, o.c),
+      })),
+      ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: "BUNDLE-UPSELL", amountSet: money(o.d, o.c) } } }),
+      financialStatus: "PAID",
+      transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: money(o.t, o.c) }],
+      shippingAddress: addr, billingAddress: addr,
+      tags: ["whop", tag, ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : [])],
+      note: `Whop payment ${d.id}`,
+    };
+    const options = { inventoryBehaviour: "DECREMENT_OBEYING_POLICY", sendReceipt: true };
+    let r = await adminGql(CREATE, { order, options });
+
+    // A region Shopify doesn't know as a province code: keep it in the address text instead and retry once
+    if (r.orderCreate.userErrors.length && addr.provinceCode) {
+      const a2 = { ...addr, provinceCode: null, address2: [addr.address2, s.province_name || s.province].filter(Boolean).join(", ") };
+      r = await adminGql(CREATE, { order: { ...order, shippingAddress: a2, billingAddress: a2 }, options });
+    }
 
     const err = r.orderCreate.userErrors;
     if (err.length) { console.error("orderCreate", JSON.stringify(err)); return res.status(500).json({ err }); }
