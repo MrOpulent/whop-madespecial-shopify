@@ -8,7 +8,12 @@ export const config = { api: { bodyParser: false } }; // raw body for signature 
 const rawBody = (req) => new Promise((ok, fail) => {
   let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => ok(b)); req.on("error", fail);
 });
-const money = (c, cur) => ({ shopMoney: { amount: (c / 100).toFixed(2), currencyCode: cur } });
+const amt = (c) => (c / 100).toFixed(2);
+// Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
+const bag = (shopC, shopCur, payC, payCur) => ({
+  shopMoney: { amount: amt(shopC), currencyCode: shopCur },
+  ...(payCur && payCur !== shopCur && { presentmentMoney: { amount: amt(payC), currencyCode: payCur } }),
+});
 
 const FIND = `query($q: String!) { orders(first: 1, query: $q) { nodes { id name } } }`;
 const CREATE = `mutation($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -36,7 +41,8 @@ export default async function handler(req, res) {
     const found = await adminGql(FIND, { q: `tag:'${tag}'` });
     if (found.orders.nodes.length) return res.status(200).json({ duplicate: found.orders.nodes[0].name });
 
-    const paid = Math.round(Number(d.total ?? d.final_amount ?? d.subtotal ?? o.t / 100) * 100);
+    const sc = o.sc || o.c; // shop currency
+    const paid = Math.round(Number(d.presentment_total ?? d.total ?? d.final_amount ?? d.subtotal ?? o.t / 100) * 100);
     const [first, ...rest] = (s.name || "").split(" ");
     const addr = {
       firstName: s.first_name || first, lastName: s.last_name || rest.join(" ") || first, phone: s.phone || null,
@@ -46,13 +52,14 @@ export default async function handler(req, res) {
 
     const order = {
       email: s.email || d.user?.email,
-      currency: o.c,
-      lineItems: o.l.map(([v, q, u]) => ({
-        variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: money(u, o.c),
+      currency: sc,
+      ...(o.c !== sc && { presentmentCurrency: o.c }),
+      lineItems: o.l.map(([v, q, u, su]) => ({
+        variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: bag(su ?? u, sc, u, o.c),
       })),
-      ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: "BUNDLE-UPSELL", amountSet: money(o.d, o.c) } } }),
+      ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: "BUNDLE-UPSELL", amountSet: bag(o.sd ?? o.d, sc, o.d, o.c) } } }),
       financialStatus: "PAID",
-      transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: money(o.t, o.c) }],
+      transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
       shippingAddress: addr, billingAddress: addr,
       tags: ["whop", tag, ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : [])],
       note: `Whop payment ${d.id}`,
