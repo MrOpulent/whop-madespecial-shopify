@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { readSession } from "../lib/session.js";
 import { validateAddress, validateContact } from "../lib/validate.js";
 import { createPayment, scopeProblem } from "../lib/whop.js";
-import { baseUrl } from "../lib/http.js";
+import { baseUrl, journey } from "../lib/http.js";
 
 const clean = (o, keys) => Object.fromEntries(keys.map((k) => [k, String(o?.[k] ?? "").trim().slice(0, 120)]));
 const ADDR = ["country_code", "first_name", "last_name", "address1", "address2", "city", "province", "zip"];
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   const bill = billSame ? null : clean(b.billing, ADDR);
   if (bill) bill.zip = bill.zip.toUpperCase();
   const bad = [...validateContact(contact), ...validateAddress(ship), ...(bill ? validateAddress(bill, "billing_") : [])];
-  if (bad.length) return res.status(400).json({ error: "invalid_fields", fields: bad });
+  if (bad.length) { journey(s.j, "pay_invalid_fields", { fields: bad }, true); return res.status(400).json({ error: "invalid_fields", fields: bad }); }
 
   try {
     const product = process.env.WHOP_PRODUCT_ID
@@ -50,6 +50,7 @@ export default async function handler(req, res) {
       metadata: {
         order: JSON.stringify(s.order),
         attrs: JSON.stringify(s.attrs || {}),
+        j: s.j || "",
         ship: JSON.stringify({ v: 2, email: contact.email, phone: contact.phone || "", marketing: contact.marketing, s: ship, b: bill }),
       },
       return_url: `${baseUrl(req)}/?return=1`,
@@ -58,6 +59,7 @@ export default async function handler(req, res) {
     if (!r.ok) {
       const msg = r.data?.error?.message || r.data?.message || "";
       const setup = scopeProblem(r.data);
+      journey(s.j, setup ? "pay_setup_problem" : r.status < 500 ? "pay_declined" : "pay_whop_error", { status: r.status, message: msg.slice(0, 200), total: s.tot, currency: s.cur }, true);
       console.error(setup ? `SETUP PROBLEM — ${setup}` : "whop_create_payment", r.status, JSON.stringify(r.data).slice(0, 800));
       // Store set-up / server problems (401/403/5xx): nothing was charged; show a calm generic message.
       if (setup || r.status === 401 || r.status === 403 || r.status >= 500) return res.status(503).json({ error: "server_error" });
@@ -65,9 +67,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ error: "payment_failed", message: msg }); // 200: a decline is a normal outcome
     }
     const p = r.data;
+    journey(s.j, "pay_created", { payment: p.id, status: p.status, needs_action: !!(p.client_secret && p.status !== "paid"), total: s.tot, currency: s.cur, country: ship.country_code });
     return res.status(200).json({ id: p.id, status: p.status, client_secret: p.client_secret || null });
   } catch (e) {
-    console.error("pay_error", e);
+    console.error("pay_error", e); journey(s.j, "pay_server_error", { error: String(e.message).slice(0, 200) }, true);
     return res.status(500).json({ error: "server_error" });
   }
 }

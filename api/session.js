@@ -20,7 +20,7 @@ export function view(s) {
   return {
     accountId: process.env.WHOP_COMPANY_ID,
     currency: s.cur, amount: s.tot, subtotal: s.gross, savings: Math.max(0, s.gross - s.tot),
-    market: s.mk, lines: s.disp.map((d, i) => ({ ...d, lineTotal: s.order.l[i][1] * s.order.l[i][2] })),
+    journey: s.j || null, market: s.mk, lines: s.disp.map((d, i) => ({ ...d, lineTotal: s.order.l[i][1] * s.order.l[i][2] })),
     expiresAt: s.exp,
     shippingTitle: SHIP_TITLE(),
     delivery: delivery(),

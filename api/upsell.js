@@ -11,7 +11,7 @@ import crypto from "node:crypto";
 import { readSession } from "../lib/session.js";
 import { priceCart } from "../lib/pricing.js";
 import { getPayment, createPayment } from "../lib/whop.js";
-import { baseUrl } from "../lib/http.js";
+import { baseUrl, journey } from "../lib/http.js";
 
 const WINDOW_MIN = Math.min(Math.max(Number(process.env.UPSELL_MINUTES) || 15, 2), 60); // offer valid this long after payment (UPSELL_MINUTES)
 
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       plan: { ...product, currency: x.line.c.toLowerCase(), plan_type: "one_time", initial_price: x.line.t / 100,
         title: `Add-on: ${d.title}`.slice(0, 30), description: `${x.line.q}× ${d.title} (post-purchase offer)`.slice(0, 250) },
       metadata: {
-        upsell_of: x.parent.id,
+        upsell_of: x.parent.id, j: x.s.j || "",
         upsell: JSON.stringify({ ...x.line, pct: x.pct, step }),
         attrs: x.parent.metadata?.attrs || "{}",
         ship: x.parent.metadata?.ship || "",
@@ -88,9 +88,11 @@ export default async function handler(req, res) {
     if (!r.ok) {
       const msg = r.data?.error?.message || r.data?.message || "";
       console.error("upsell_payment", r.status, JSON.stringify(r.data).slice(0, 600));
+      journey(x.s.j, "upsell_declined_or_error", { step, status: r.status, message: msg.slice(0, 200), saved_card: !ctok }, true);
       if (r.status === 401 || r.status === 403 || r.status >= 500) return res.status(200).json({ error: "server_error" });
       return res.status(200).json({ error: "payment_failed", message: msg, needsCard: !ctok });
     }
+    journey(x.s.j, "upsell_charged", { step, payment: r.data.id, status: r.data.status, total: x.line.t, currency: x.line.c, saved_card: !ctok });
     return res.status(200).json({ id: r.data.id, status: r.data.status, client_secret: r.data.client_secret || null });
   } catch (e) {
     console.error("upsell_error", e);

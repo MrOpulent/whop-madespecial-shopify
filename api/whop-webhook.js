@@ -5,6 +5,7 @@ import { adminGql } from "../lib/shopify.js";
 import { getPayment, verifyWebhook } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { SHIP_TITLE, delivery } from "./session.js";
+import { journey } from "../lib/http.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 // Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
@@ -83,6 +84,7 @@ export async function fulfil(d) {
       ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: o.dc || "BUNDLE-UPSELL", amountSet: bag(o.sd ?? o.d, sc, o.d, o.c) } } }),
       // Tracking (RedTrack click ID, UTMs, ad IDs) + cart attributes -> order "Additional details"
       customAttributes: [...Object.entries(attrs).map(([key, value]) => ({ key, value: String(value) })), { key: "whop_payment_id", value: String(d.id) },
+        ...(d.metadata?.j ? [{ key: "checkout_journey_id", value: String(d.metadata.j) }] : []),
         ...(eta ? [{ key: "Estimated delivery", value: eta.text }] : [])],
       financialStatus: "PAID",
       transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
@@ -134,14 +136,15 @@ export async function fulfil(d) {
     }
 
     const err = r.orderCreate.userErrors;
-    if (err.length) { console.error("orderCreate", JSON.stringify(err)); return { status: 500, body: { err } }; }
+    if (err.length) { console.error("orderCreate", JSON.stringify(err)); journey(d.metadata?.j, "order_failed", { payment: d.id, err: err.slice(0, 3) }, true); return { status: 500, body: { err } }; }
+    journey(d.metadata?.j, "order_created", { payment: d.id, order: r.orderCreate.order.name, fallback: used === "full" ? null : used }, used !== "full");
     return { status: 200, body: { order: r.orderCreate.order.name, fallback: used === "full" ? undefined : used } };
   }
 }
 
 // Tags your apps normally add: Kaching Bundles (KACHING_TAG) and the post-purchase upsell (UPSELL_TAG)
 const KACHING_TAG = () => process.env.KACHING_TAG || "Kaching Bundles";
-export const UPSELL_TAG = () => process.env.UPSELL_TAG || "Zipify OCU";
+export const UPSELL_TAG = () => process.env.UPSELL_TAG || "OCU Zipify Post-Purchase Upsell Bought";
 function appTags(o, attrs) {
   const kaching = (o.p || []).some((p) => Object.keys(p || {}).some((k) => /kaching/i.test(k))) || Object.keys(attrs || {}).some((k) => /kaching/i.test(k));
   return kaching ? KACHING_TAG().split(",").map((t) => t.trim()).filter(Boolean) : [];
@@ -198,12 +201,13 @@ async function fulfilUpsell(d) {
       } catch (e) {
         try { await adminGql(MARK_PAID, { input: { id: parent.id } }); } catch (e2) { console.error("upsell_paid", e2.message); }
       }
+      journey(d.metadata?.j, "upsell_added_to_order", { payment: d.id, order: parent.name });
       return { status: 200, body: { order: parent.name, upsell: "added_to_order" } };
     }
   }
   // Fallback: separate paid order with the same customer, address and tracking
   const o = { l: [[u.v, u.q, u.u, u.su]], c: u.c, t: u.t, d: u.q * u.u - u.t, sc: u.sc, st: u.st, sd: u.q * u.su - u.st, dc: "POST-PURCHASE" };
-  return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship },
+  return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship, j: d.metadata.j },
     _tags: [...UPSELL_TAG().split(",").map((x) => x.trim()).filter(Boolean), "upsell-separate-order"],
     _note: `Post-purchase upsell for ${parent ? parent.name : `Whop payment ${parentPay}`} (could not be added to that order)` });
 }

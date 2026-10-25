@@ -259,6 +259,19 @@
   var store = { get: function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } },
                 set: function (v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} } };
 
+  // ---------- journey log (Vercel Logs: search j=<id>) ----------
+  var tracked = {};
+  function track(step, data, once) {
+    if (once) { if (tracked[step]) return; tracked[step] = 1; }
+    var t = token; if (!t) { try { t = sessionStorage.getItem('ms-s'); } catch (e) {} }
+    var body = JSON.stringify({ s: t, step: step, data: data || {} });
+    try { if (navigator.sendBeacon && navigator.sendBeacon(API + '/api/track', body)) return; } catch (e) {}
+    try { fetch(API + '/api/track', { method: 'POST', body: body, keepalive: true }); } catch (e) {}
+  }
+  window.addEventListener('error', function (e) { track('js_error', { msg: String(e.message).slice(0, 200), at: (e.filename || '').split('/').pop() + ':' + e.lineno }); });
+  window.addEventListener('unhandledrejection', function (e) { track('js_error', { msg: String(e.reason && (e.reason.message || e.reason)).slice(0, 200) }); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && S && !tracked.thank_you) track('left_page', { stage: busy ? 'paying' : payComplete ? 'card_filled' : 'form' }); });
+
   // ---------- boot ----------
   if (params.get('return') === '1') return showReturn();
   token = params.get('s');
@@ -274,8 +287,8 @@
     fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }),
     libReady
-  ]).then(function (all) { var x = all[0]; if (!x.ok) return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); S = x.j; render(); })
-    .catch(function (e) { console.error(e); showState('error'); });
+  ]).then(function (all) { var x = all[0]; if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); })
+    .catch(function (e) { console.error(e); track('checkout_load_error', { msg: String(e && e.message).slice(0, 150) }); showState('error'); });
 
   // ---------- render ----------
   function fill(root) {
@@ -338,7 +351,7 @@
         if (seq !== repriceSeq || !j.s || !j.session) return;
         token = j.s; S = j.session;
         try { sessionStorage.setItem('ms-s', token); history.replaceState(null, '', '?s=' + encodeURIComponent(token)); } catch (e) {}
-        paintSummary(); updateWhopAmount();
+        paintSummary(); updateWhopAmount(); track('currency_changed', { country: country, currency: S.currency, total: S.amount });
       })
       .catch(function (e) { console.error('reprice', e); })   // keep the current price; checkout still works
       .then(function () { if (seq === repriceSeq) { repricing = null; setBusy(false); } });
@@ -470,20 +483,20 @@
     return Math.round(hundredths / 100 * Math.pow(10, digits));
   }
   function mountWhop() {
-    if (!window.WhopElements) { $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
+    if (!window.WhopElements) { track('payment_form_not_loaded'); $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
     try {
       whop = window.WhopElements();
       payments = whop.payments.create({
         accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
         returnUrl: location.origin + '/?return=1',
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
-        onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; }
+        onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
       });
       payments.create('payment', {
         fields: { billingDetails: 'never', phone: 'never' },
-        onChange: function (e) { payComplete = !!(e && e.complete); if (payComplete) $('#e-payment').textContent = ''; },
+        onChange: function (e) { payComplete = !!(e && e.complete); if (payComplete) { $('#e-payment').textContent = ''; track('payment_details_complete', { method: e.paymentMethod && (e.paymentMethod.displayName || e.paymentMethod.type) || null }, true); } },
         onReady: function () { $('#pay-skel').hidden = true; },
-        onError: function (e) { console.error('payment element', e); }
+        onError: function (e) { console.error('payment element', e); track('payment_form_error', { msg: String(e && (e.message || e.code || e)).slice(0, 150) }); }
       }).mount('#wh-payment');
       payments.create('branding').mount('#wh-branding');
     } catch (e) {
@@ -515,13 +528,13 @@
     if (!checkPhone()) bad.push('phone');
     bad = bad.concat(checkAddr('s'));
     if (!$('#billing_same').checked) bad = bad.concat(checkAddr('b'));
-    if (bad.length) { firstBad(); return; }
+    if (bad.length) { track('form_invalid_fields', { fields: bad.slice(0, 8) }); firstBad(); return; }
     if (!payments) { $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
-    if (!payComplete) { $('#e-payment').textContent = 'Please complete your payment details.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (!payComplete) { track('pay_clicked_card_incomplete'); $('#e-payment').textContent = 'Please complete your payment details.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
 
     var ship = readAddr('s'), billSame = $('#billing_same').checked, bill = billSame ? ship : readAddr('b');
     var email = $('#email').value.trim(), phone = phoneE164() || '';
-    setBusy(true);
+    setBusy(true); track('pay_clicked', { country: ship.country_code, phone: !!phone, billing_same: billSame });
     try {
       var tok;
       try {
@@ -531,7 +544,8 @@
         } });
       } catch (e) {
         setBusy(false);
-        if (e && (e.code === 'payment_request_cancelled' || /cancel/i.test(e.code || ''))) return; // closed Apple/Google Pay sheet
+        if (e && (e.code === 'payment_request_cancelled' || /cancel/i.test(e.code || ''))) { track('wallet_cancelled'); return; } // closed Apple/Google Pay sheet
+        track('card_details_error', { msg: String(e && (e.message || e.code)).slice(0, 150) });
         console.error('createConfirmationToken', e);
         $('#e-payment').textContent = (e && e.message) || 'Please check your payment details.'; return;
       }
@@ -543,6 +557,7 @@
       if (!r.ok || d.error) {
         setBusy(false);
         if (d.error === 'invalid_fields' && d.fields) { markServerFields(d.fields); alertMsg(MSG.invalid_fields); firstBad(); return; }
+        track(d.error === 'payment_failed' ? 'payment_declined' : 'pay_error', { error: d.error, msg: (d.message || '').slice(0, 150) });
         if (d.error === 'payment_failed') { $('#e-payment').textContent = d.message || 'Your payment was declined. Please try another card or payment method.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
         return alertMsg(MSG[d.error] || MSG.server_error);
       }
@@ -550,14 +565,16 @@
       if (d.status === 'paid' || d.status === 'succeeded') return showDone('succeeded');
       if (!d.client_secret && (d.status === 'pending' || d.status === 'processing')) return showDone('processing');
       if (!d.client_secret) { setBusy(false); $('#e-payment').textContent = 'Your payment was declined. Please try another card or payment method.'; return; }
+      track('3ds_started');
       var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + '/?return=1' });
       if (res.redirected) return;
+      track(res.status === 'succeeded' || res.status === 'paid' ? '3ds_passed' : res.status === 'processing' || res.status === 'pending' ? '3ds_pending' : '3ds_failed', { status: res.status });
       if (res.status === 'succeeded' || res.status === 'paid') return showDone('succeeded');
       if (res.status === 'processing' || res.status === 'pending') return showDone('processing');
       setBusy(false);
       $('#e-payment').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed. Please try again.';
     } catch (e) {
-      console.error(e); setBusy(false); alertMsg(MSG.server_error);
+      console.error(e); track('pay_js_error', { msg: String(e && e.message).slice(0, 150) }); setBusy(false); alertMsg(MSG.server_error);
     }
   }
   function markServerFields(fields) {
@@ -577,6 +594,7 @@
   function showDone(status) {
     var o = readOrder() || {}, s = o.ship;
     var paid = status === 'succeeded';
+    track(paid ? 'thank_you' : 'payment_processing', { payment: (o.payment || params.get('payment') || null) }, true);
     var addr = s ? esc(s.first_name + ' ' + s.last_name) + '<br>' + esc(s.address1) + (s.address2 ? ', ' + esc(s.address2) : '') + '<br>' + esc(s.city) + (s.province ? ', ' + esc(s.province) : '') + ' ' + esc(s.zip) + '<br>' + esc(countryName(s.country_code)) : '';
     var html = '<div class="center done">' +
       '<a class="logo" href="' + esc(storeUrl()) + '"><img src="' + esc((S && S.store.logo) || 'https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=350') + '" alt=""></a>' +
@@ -591,12 +609,13 @@
   }
 
   // ---------- post-purchase upsell (one click, like Zipify OCU) ----------
-  var U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, payments: null, card: false, busy: false };
+  var U; // set in upsellStart (this code can run before this line on a bank-redirect return)
   function upsState() { try { return JSON.parse(sessionStorage.getItem('ms-ups') || '{}'); } catch (e) { return {}; } }
   function upsSave(v) { try { sessionStorage.setItem('ms-ups', JSON.stringify(v)); } catch (e) {} }
   function fmt(c, cur) { var d = 2; try { d = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
     try { return new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: cur }).format(c / 100); } catch (e) { return (c / 100).toFixed(d) + ' ' + cur; } }
   function upsellStart() {
+    if (!U) U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, payments: null, card: false, busy: false };
     var o = readOrder() || {};
     try { U.tok = token || sessionStorage.getItem('ms-s'); } catch (e) { U.tok = token; }
     U.pay = o.payment || params.get('payment');
@@ -612,7 +631,7 @@
   function upsLoad() {
     fetch(API + '/api/upsell?s=' + encodeURIComponent(U.tok) + '&payment=' + encodeURIComponent(U.pay) + '&step=' + U.st.step, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(function (j) { if (j && !j.done) upsShow(j); else upsClose(); })
+      .then(function (j) { if (j && !j.done) { upsShow(j); track('upsell_shown', { step: j.step, price: j.price, currency: j.currency, one_click: j.oneClick }); } else upsClose(); })
       .catch(function () { upsClose(); });
   }
   function upsClose(msg) {
@@ -631,7 +650,7 @@
       '<button type="button" class="yes" id="ups-yes">' + esc(j.button) + ' · ' + fmt(j.price, j.currency) + '</button>' +
       '<span class="err" id="ups-err"></span><button type="button" class="no" id="ups-no">No thanks</button>';
     $('#ups-yes').addEventListener('click', upsAccept);
-    $('#ups-no').addEventListener('click', function () { if (U.busy) return; upsNext(); });
+    $('#ups-no').addEventListener('click', function () { if (U.busy) return; track('upsell_no_thanks', { step: U.st.step }); upsNext(); });
     var tick = function () { var ms = j.expiresAt - Date.now(); if (ms <= 0) return upsClose(); var m = Math.floor(ms / 60000), s2 = Math.floor(ms / 1000) % 60; $('#ups-tm').textContent = 'Offer ends in ' + m + ':' + (s2 < 10 ? '0' : '') + s2; };
     tick(); U.timer = setInterval(tick, 1000);
   }
@@ -647,7 +666,7 @@
     } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
   }
   async function upsAccept() {
-    if (U.busy) return; $('#ups-err').textContent = ''; upsBusy(true);
+    if (U.busy) return; track('upsell_yes_clicked', { step: U.st.step, card_form: U.card }); $('#ups-err').textContent = ''; upsBusy(true);
     try {
       var body = { s: U.tok, payment: U.pay, step: U.st.step };
       if (U.card) {
@@ -662,7 +681,7 @@
       if (d.error === 'needs_card' || (d.error === 'payment_failed' && d.needsCard)) {
         upsBusy(false); if (d.message) $('#ups-err').textContent = d.message + ' Please enter a card below.'; if (!U.card) upsCard(); return;
       }
-      if (d.error) { upsBusy(false); $('#ups-err').textContent = d.message || 'We could not add this item. You have not been charged.'; return; }
+      if (d.error) { track('upsell_error', { error: d.error, msg: (d.message || '').slice(0, 150) }); upsBusy(false); $('#ups-err').textContent = d.message || 'We could not add this item. You have not been charged.'; return; }
       if (d.status !== 'paid' && d.status !== 'succeeded') {
         if (!d.client_secret) { upsBusy(false); $('#ups-err').textContent = 'Your payment was declined. You have not been charged.'; return; }
         U.st.pending = U.st.step; upsSave(U.st);
@@ -671,7 +690,7 @@
         if (res.redirected) return;
         if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
       }
-      delete U.st.pending; U.st.added.push(U.st.step); upsSave(U.st);
+      delete U.st.pending; U.st.added.push(U.st.step); upsSave(U.st); track('upsell_paid', { step: U.st.step });
       var last = U.offer.last; U.st.step++; upsSave(U.st);
       upsClose('✓ ' + esc(U.offer.title) + ' was added to your order.');
       if (!last) { U.el = null; upsLoad(); }
@@ -682,6 +701,7 @@
     var st = params.get('status');
     if (st === 'succeeded' || st === 'paid') return showDone('succeeded');
     if (st === 'failed' || st === 'canceled') {
+      track('3ds_failed_after_redirect', { status: st });
       var t = null; try { t = sessionStorage.getItem('ms-s'); } catch (e) {}
       return showState('failed', t ? '/?s=' + encodeURIComponent(t) : null);
     }
