@@ -3,7 +3,7 @@
 //    (needs the API key permissions domain:read + domain:manage). Run again later to see the status.
 //  • (Legacy Whop-hosted flow only) product with shipping address:  /api/whop-setup?key=<SETUP_KEY>&product=1
 // Env: WHOP_API_KEY, WHOP_COMPANY_ID, SETUP_KEY
-import { createShippingProduct, registerApplePayDomain } from "../lib/whop.js";
+import { createShippingProduct, registerApplePayDomain, scopeProblem } from "../lib/whop.js";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -17,6 +17,7 @@ export default async function handler(req, res) {
         apple_pay: r.data?.apple_pay ?? null,
         issues: r.data?.issues ?? null,
         whop_reply: r.ok ? undefined : r.data,
+        fix: r.ok ? undefined : scopeProblem(r.data) || undefined,
         next: "apple_pay.state 'pending' = wait a few minutes and open this link again; 'ready' = done; 'action_required' = see issues.",
       });
     }

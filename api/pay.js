@@ -5,7 +5,7 @@
 import crypto from "node:crypto";
 import { readSession } from "../lib/session.js";
 import { validateAddress, validateContact } from "../lib/validate.js";
-import { createPayment } from "../lib/whop.js";
+import { createPayment, scopeProblem } from "../lib/whop.js";
 import { baseUrl } from "../lib/http.js";
 
 const clean = (o, keys) => Object.fromEntries(keys.map((k) => [k, String(o?.[k] ?? "").trim().slice(0, 120)]));
@@ -57,9 +57,12 @@ export default async function handler(req, res) {
 
     if (!r.ok) {
       const msg = r.data?.error?.message || r.data?.message || "";
-      console.error("whop_create_payment", r.status, JSON.stringify(r.data).slice(0, 800));
-      // Card declines and validation problems are shown to the buyer; anything else gets a generic message
-      return res.status(402).json({ error: "payment_failed", message: r.status < 500 && msg ? msg : "" });
+      const setup = scopeProblem(r.data);
+      console.error(setup ? `SETUP PROBLEM — ${setup}` : "whop_create_payment", r.status, JSON.stringify(r.data).slice(0, 800));
+      // Store set-up / server problems (401/403/5xx): nothing was charged; show a calm generic message.
+      if (setup || r.status === 401 || r.status === 403 || r.status >= 500) return res.status(503).json({ error: "server_error" });
+      // Card declines and validation problems are shown to the buyer
+      return res.status(200).json({ error: "payment_failed", message: msg }); // 200: a decline is a normal outcome
     }
     const p = r.data;
     return res.status(200).json({ id: p.id, status: p.status, client_secret: p.client_secret || null });
