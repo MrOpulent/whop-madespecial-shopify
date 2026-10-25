@@ -43,8 +43,8 @@
   /* phone with country code */
   .phone{display:flex;align-items:center;height:50px;border:1px solid var(--line);border-radius:var(--r);background:#fff;position:relative}
   .phone:focus-within{border-color:var(--focus);box-shadow:0 0 0 1px var(--focus)}
-  .phone .f{flex:1;margin:0}.phone .f input{border:0!important;box-shadow:none!important;height:48px}
-  .phone .cc{position:relative;display:flex;align-items:center;gap:6px;padding:0 12px 0 8px;font-size:14px;color:#333;height:100%;cursor:pointer}
+  .phone .f{flex:1;margin:0}.phone .f input{border:0!important;box-shadow:none!important;height:48px;padding-left:12px}.phone .f label{left:13px}
+  .phone .cc{position:relative;display:flex;align-items:center;gap:6px;padding:0 10px 0 12px;border-right:1px solid var(--line);flex:0 0 auto;font-size:14px;color:#333;height:100%;cursor:pointer}
   .phone .cc select{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:16px}
   .phone .cc .flag{font-size:20px;line-height:1}
   .phone .cc svg{opacity:.6}
@@ -133,8 +133,8 @@
       <h2>Contact</h2>
       <div class="f"><input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder=" " maxlength="120"><label for="email">Email</label><span class="err" id="e-email"></span></div>
       <div class="phone" id="phone-box">
-        <div class="f"><input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder=" " maxlength="20"><label for="phone">Phone (optional)</label></div>
         <label class="cc" title="Country code"><span class="flag" id="pflag"></span><span id="pdial">+1</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg><select id="phone_country" aria-label="Phone country code"></select></label>
+        <div class="f"><input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder=" " maxlength="20"><label for="phone">Phone (optional)</label></div>
       </div>
       <span class="err" id="e-phone"></span>
       <label class="chk" style="margin-top:12px"><input type="checkbox" id="marketing"> Sign up for exclusive offers and updates</label>
@@ -284,9 +284,8 @@
     var app = $('#app'); app.innerHTML = '';
     app.appendChild(document.importNode($('#tpl-checkout').content, true));
     fill(app);
-    $('.summary').appendChild(summaryHTML());
+    paintSummary();
     $$('.mbar').forEach(function (bar) {
-      $('.msum', bar).appendChild(summaryHTML());
       $('button', bar).addEventListener('click', function () {
         var open = bar.getAttribute('data-open') !== '1';
         bar.setAttribute('data-open', open ? '1' : '0'); $('.msum', bar).hidden = !open; this.setAttribute('aria-expanded', String(open));
@@ -299,6 +298,39 @@
     $('#form').addEventListener('input', saveSoon);
     $('#form').addEventListener('change', saveSoon);
     mountWhop();
+    if (F('s', 'country_code').value !== S.market) reprice(F('s', 'country_code').value);
+  }
+  function paintSummary() {
+    fill($('#app'));
+    $('.summary').innerHTML = ''; $('.summary').appendChild(summaryHTML());
+    $$('.mbar .msum').forEach(function (m) { m.innerHTML = ''; m.appendChild(summaryHTML()); });
+  }
+
+  // Delivery country changed -> charge in that country's Shopify currency (Shopify's own prices & conversion)
+  var repricing = null, repriceSeq = 0;
+  function reprice(country) {
+    if (busy && !repricing) return;   // a payment is being processed
+    var seq = ++repriceSeq;
+    setBusy(true, 'Updating prices…');
+    repricing = fetch(API + '/api/reprice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: token, country: country }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (seq !== repriceSeq || !j.s || !j.session) return;
+        token = j.s; S = j.session;
+        try { sessionStorage.setItem('ms-s', token); history.replaceState(null, '', '?s=' + encodeURIComponent(token)); } catch (e) {}
+        paintSummary(); updateWhopAmount();
+      })
+      .catch(function (e) { console.error('reprice', e); })   // keep the current price; checkout still works
+      .then(function () { if (seq === repriceSeq) { repricing = null; setBusy(false); } });
+  }
+  function updateWhopAmount() {
+    if (!payments) return;
+    try { payments.update({ currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency) }); }
+    catch (e) {   // fallback: rebuild the payment form
+      console.error('whop update', e);
+      try { payments.destroy(); } catch (x) {}
+      $('#wh-payment').innerHTML = ''; $('#wh-branding').innerHTML = ''; payComplete = false; mountWhop();
+    }
   }
 
   // address blocks
@@ -310,7 +342,7 @@
     var sel = F(p, 'country_code');
     sel.innerHTML = COUNTRIES.map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join('');
     sel.value = ISO.indexOf(S.market) > -1 ? S.market : 'US';
-    sel.addEventListener('change', function () { setCountry(p); if (p === 's' && !phoneTouched) setPhoneCountry(sel.value); });
+    sel.addEventListener('change', function () { setCountry(p); if (p === 's') { if (!phoneTouched) setPhoneCountry(sel.value); reprice(sel.value); } });
     $$('input,select', box).forEach(function (el) {
       el.addEventListener('blur', function () { if (el.getAttribute('data-k') === 'zip') formatZip(p); if (el.value || el.dataset.t) { el.dataset.t = 1; check(p, el.getAttribute('data-k')); } });
       el.addEventListener('input', function () { if (el.dataset.t) check(p, el.getAttribute('data-k')); });
@@ -395,6 +427,7 @@
   var saveT;
   function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 300); }
   function save() {
+    if (!$("#email")) return;   // checkout already finished
     var v = { email: $('#email').value, phone: $('#phone').value, phone_country: $('#phone_country').value, marketing: $('#marketing').checked, billing_same: $('#billing_same').checked, s: {}, b: {} };
     ['s', 'b'].forEach(function (p) { $$('[data-k]', A(p)).forEach(function (el) { v[p][el.getAttribute('data-k')] = el.value; }); });
     store.set(v);
@@ -446,9 +479,9 @@
     invalid_fields: 'Please check the highlighted fields.',
     server_error: 'Something went wrong on our side. You have not been charged. Please try again.'
   };
-  function setBusy(b) {
+  function setBusy(b, label) {
     busy = b; var btn = $('#pay'); btn.disabled = b;
-    btn.innerHTML = b ? '<span class="spin"></span> Processing…' : 'Complete checkout';
+    btn.innerHTML = b ? '<span class="spin"></span> ' + (label || 'Processing…') : 'Complete checkout';
   }
   function alertMsg(m) { $('#alert').textContent = m || ''; if (m) $('#alert').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   function firstBad() { var el = $('.f.bad input, .f.bad select, .phone.bad input'); if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }

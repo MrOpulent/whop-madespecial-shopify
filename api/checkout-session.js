@@ -15,6 +15,7 @@ export default async function handler(req, res) {
       mk: p.market, cur: p.currency, tot: p.total, gross: p.gross,
       disp: p.display, title: p.title, desc: p.description,
       order: p.order, attrs: orderAttributes(b.attributes, b.tracking),
+      it: p.items, ca: b.attributes || {}, // to re-price if the shopper ships to another country
     });
     return res.status(200).json({ url: `${baseUrl(req)}/?s=${token}` });
   } catch (e) {
