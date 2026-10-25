@@ -334,7 +334,7 @@
           attributes: cart.attributes || {},
           total_price: cart.total_price,
           currency: cart.currency,
-          market_country: SHOPPER_COUNTRY, // the Shopify Market whose currency the drawer shows
+          market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY, // the Shopify Market whose currency the drawer shows
           shipping: {
             email: F.email.value.trim(), first_name: first, last_name: last, name: (first + ' ' + last).trim(),
             phone: parsePhone(F.phone.value) || '',

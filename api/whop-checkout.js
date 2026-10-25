@@ -30,6 +30,23 @@ const planTitle = (name, qty) => {
   const suffix = qty > 1 ? ` ×${qty}` : "", room = 30 - suffix.length;
   return (name.length > room ? name.slice(0, room - 1).trimEnd() + "…" : name) + suffix;
 };
+// Shopify countries and the currency each one is sold in (Markets). Cached for 10 minutes.
+let countriesCache = { at: 0, list: [] };
+async function marketCountries() {
+  if (Date.now() - countriesCache.at < 600000 && countriesCache.list.length) return countriesCache.list;
+  const d = await storefrontGql(`{ localization { availableCountries { isoCode currency { isoCode } } } }`);
+  countriesCache = { at: Date.now(), list: d.localization.availableCountries };
+  return countriesCache.list;
+}
+// The market to price in = one whose currency is the drawer's currency (GBP drawer -> a GBP market).
+// Prefers the market the page reported, then the shipping country, then any country in that currency.
+async function pickMarket(pageCountry, shipCountry, drawerCurrency) {
+  const want = String(drawerCurrency || "").toUpperCase();
+  const list = await marketCountries();
+  const cur = (c) => list.find((x) => x.isoCode === c)?.currency.isoCode;
+  for (const c of [pageCountry, shipCountry]) if (c && cur(c) === want) return c;
+  return list.find((x) => x.currency.isoCode === want)?.isoCode || (ISO.includes(pageCountry) ? pageCountry : SHOP_COUNTRY);
+}
 const attrs = (o) => Object.entries(o || {})
   .filter(([, v]) => v !== null && v !== undefined && v !== "")
   .map(([key, v]) => ({ key, value: typeof v === "string" ? v : JSON.stringify(v) }));
@@ -53,7 +70,7 @@ export default async function handler(req, res) {
 
     // 1) Shopify prices the cart twice: in the shopper's market currency (what Whop charges)
     //    and in the shop's base currency (for the Shopify order's accounting). Same lines, properties, attributes.
-    const market = ISO.includes(b.market_country) ? b.market_country : SHOP_COUNTRY;
+    const market = await pickMarket(b.market_country, ship.country_code, b.currency);
     const input = (countryCode) => ({ input: {
       lines: items.map((i) => ({
         merchandiseId: `gid://shopify/ProductVariant/${Number(i.variant_id)}`,
