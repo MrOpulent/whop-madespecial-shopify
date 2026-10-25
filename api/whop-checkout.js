@@ -23,6 +23,11 @@ const CART_CREATE = `mutation($input: CartInput!) {
 }`;
 
 const cents = (x) => Math.round(Number(x) * 100);
+// Whop plan titles max 30 chars: "Margaret's Hand-Tuned Rain Drum" + " ×3" -> "Margaret's Hand-Tuned Rain… ×3"
+const planTitle = (name, qty) => {
+  const suffix = qty > 1 ? ` ×${qty}` : "", room = 30 - suffix.length;
+  return (name.length > room ? name.slice(0, room - 1).trimEnd() + "…" : name) + suffix;
+};
 const attrs = (o) => Object.entries(o || {})
   .filter(([, v]) => v !== null && v !== undefined && v !== "")
   .map(([key, v]) => ({ key, value: typeof v === "string" ? v : JSON.stringify(v) }));
@@ -76,12 +81,15 @@ export default async function handler(req, res) {
 
     // 3) Whop checkout for that exact amount; order details ride along in metadata
     const qty = lines.reduce((sum, [, q]) => sum + q, 0);
+    const nodes = out.cart.lines.nodes;
     const cfg = await createCheckout({
       plan: {
         currency: currency.toLowerCase(),
         plan_type: "one_time",
         initial_price: total / 100,
-        title: `${out.cart.lines.nodes[0].merchandise.product.title}${qty > 1 ? ` (${qty} items)` : ""}`.slice(0, 80),
+        title: planTitle(nodes[0].merchandise.product.title, qty), // Whop limit: 30 characters
+        description: nodes.map((n) => `${n.quantity}× ${n.merchandise.product.title}${
+          n.merchandise.title && n.merchandise.title !== "Default Title" ? ` (${n.merchandise.title})` : ""}`).join(", ").slice(0, 250),
       },
       metadata: {
         order: JSON.stringify({ l: lines, d: gross - total, t: total, c: currency }),
