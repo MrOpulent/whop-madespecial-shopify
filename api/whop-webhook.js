@@ -2,7 +2,7 @@
 // Self-contained on purpose (only needs lib/shopify.js + lib/whop.js). api/reconcile.js reuses fulfil().
 // Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET
 import { adminGql } from "../lib/shopify.js";
-import { getPayment, verifyWebhook } from "../lib/whop.js";
+import { getPayment, verifyWebhook, unpackMeta } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { SHIP_TITLE, delivery } from "./session.js";
 import { journey } from "../lib/http.js";
@@ -21,6 +21,7 @@ const CREATE = `mutation($order: OrderCreateOrderInput!, $options: OrderCreateOp
 
 export async function fulfil(d) {
   d = d || {};
+  if (d.metadata) d = { ...d, metadata: unpackMeta(d.metadata) }; // long values arrive split (500-character limit)
   if (d.metadata?.upsell_of) return fulfilUpsell(d); // post-purchase upsell -> add to the original order
   let o, attrs = {};
   try { o = JSON.parse(d.metadata?.order); attrs = JSON.parse(d.metadata?.attrs || "{}"); }
