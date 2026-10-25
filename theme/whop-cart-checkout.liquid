@@ -31,7 +31,7 @@
 
   // RedTrack / ad tracking: click IDs, UTMs and ad-platform IDs from cookies, storage and the page URL.
   // They are written onto the Shopify order (with the cart attributes) so RedTrack can attribute the sale.
-  var TRACK = /clickid|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$/i;
+  var TRACK = /clickid|ref_?id|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$/i;
   function trackingData() {
     var t = {};
     function put(k, v) { if (k && v && TRACK.test(k) && String(v).length <= 300) t[k] = String(v); }

@@ -4,6 +4,7 @@
 import { adminGql } from "../lib/shopify.js";
 import { getPayment, verifyWebhook } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
+import { SHIP_TITLE, delivery } from "./session.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 // Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
@@ -19,6 +20,7 @@ const CREATE = `mutation($order: OrderCreateOrderInput!, $options: OrderCreateOp
 
 export async function fulfil(d) {
   d = d || {};
+  if (d.metadata?.upsell_of) return fulfilUpsell(d); // post-purchase upsell -> add to the original order
   let o, attrs = {};
   try { o = JSON.parse(d.metadata?.order); attrs = JSON.parse(d.metadata?.attrs || "{}"); }
   catch { return { status: 200, body: { error: "no_order_metadata" } }; } // not a store order (e.g. dashboard test event)
@@ -64,25 +66,29 @@ export async function fulfil(d) {
     const addr = toAddr(sa), billAddr = toAddr(ba);
     const noAddress = !form && !p.shipping_address;
 
+    const eta = delivery(d.paid_at ? new Date(d.paid_at) : new Date());
     const order = {
       email,
       ...(phone && { phone }),
       currency: sc,
       ...(o.c !== sc && { presentmentCurrency: o.c }),
-      lineItems: o.l.map(([v, q, u, su]) => ({
+      lineItems: o.l.map(([v, q, u, su], i) => ({
         variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: bag(su ?? u, sc, u, o.c),
         requiresShipping: true, // physical product: shows as needing delivery
+        // Kaching bundle details etc. (line item properties from the cart)
+        ...(o.p?.[i] && Object.keys(o.p[i]).length && { properties: Object.entries(o.p[i]).map(([name, value]) => ({ name, value: String(value) })) }),
       })),
       // Delivery method shown on the order (free worldwide shipping). Rename via SHIPPING_TITLE if you like.
-      shippingLines: [{ title: process.env.SHIPPING_TITLE || "Standard", code: "STANDARD", source: "whop", priceSet: bag(0, sc, 0, o.c) }],
-      ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: "BUNDLE-UPSELL", amountSet: bag(o.sd ?? o.d, sc, o.d, o.c) } } }),
+      shippingLines: [{ title: SHIP_TITLE(), code: "TRACKED", source: "whop", priceSet: bag(0, sc, 0, o.c) }],
+      ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: o.dc || "BUNDLE-UPSELL", amountSet: bag(o.sd ?? o.d, sc, o.d, o.c) } } }),
       // Tracking (RedTrack click ID, UTMs, ad IDs) + cart attributes -> order "Additional details"
-      customAttributes: [...Object.entries(attrs).map(([key, value]) => ({ key, value: String(value) })), { key: "whop_payment_id", value: String(d.id) }],
+      customAttributes: [...Object.entries(attrs).map(([key, value]) => ({ key, value: String(value) })), { key: "whop_payment_id", value: String(d.id) },
+        ...(eta ? [{ key: "Estimated delivery", value: eta.text }] : [])],
       financialStatus: "PAID",
       transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
       ...(addr.address1 && { shippingAddress: addr, billingAddress: billAddr.address1 ? billAddr : addr }),
-      tags: ["whop", tag, ...(form?.marketing ? ["accepts-marketing"] : []), ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : [])],
-      note: `Whop payment ${d.id}${noAddress ? " — no shipping address from Whop, used billing address; confirm with the customer" : ""}${phoneNote}`,
+      tags: ["whop", tag, ...appTags(o, attrs), ...(d._tags || []), ...(form?.marketing ? ["accepts-marketing"] : []), ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : [])],
+      note: `${d._note ? d._note + " — " : ""}Whop payment ${d.id}${noAddress ? " — no shipping address from Whop, used billing address; confirm with the customer" : ""}${phoneNote}`,
     };
     const options = { inventoryBehaviour: "DECREMENT_OBEYING_POLICY", sendReceipt: true };
     const noRegion = (a, src) => ({ ...a, provinceCode: null, address2: [a.address2, src.state].filter(Boolean).join(", ") || null });
@@ -101,8 +107,11 @@ export async function fulfil(d) {
                            return { ...rest, note: `${order.note} — details rejected by Shopify; email: ${email || "-"} phone: ${rawPhone || "-"} address: ${JSON.stringify(sa)}` }; })()],
     ];
     let r, used;
+    // Same order without line item properties, in case Shopify refuses one of them
+    attempts.splice(1, 0, ["no line properties", { ...order, lineItems: order.lineItems.map(({ properties: _x, ...li }) => li) }]);
     for (const [label, ord] of attempts) {
-      r = await adminGql(CREATE, { order: label === "full" ? ord : { ...ord, tags: [...ord.tags, `whop-fallback-${label.replace(/ /g, "-")}`] }, options });
+      try { r = await adminGql(CREATE, { order: label === "full" ? ord : { ...ord, tags: [...ord.tags, `whop-fallback-${label.replace(/ /g, "-")}`] }, options }); }
+      catch (e) { r = { orderCreate: { order: null, userErrors: [{ field: null, message: String(e.message).slice(0, 300) }] } }; } // keep trying
       used = label;
       if (!r.orderCreate.userErrors.length) break;
       console.error(`orderCreate (${label})`, JSON.stringify(r.orderCreate.userErrors));
@@ -119,10 +128,121 @@ export async function fulfil(d) {
       try { await fetch(u); } catch (e) { console.error("redtrack_postback", e.message); }
     }
 
+    // Order risk card on the Shopify order page, from Whop's fraud screening (never blocks the order)
+    if (!r.orderCreate.userErrors.length) {
+      try { await addRisk(r.orderCreate.order.id, d, sa, ba); } catch (e) { console.error("order_risk", e.message); }
+    }
+
     const err = r.orderCreate.userErrors;
     if (err.length) { console.error("orderCreate", JSON.stringify(err)); return { status: 500, body: { err } }; }
     return { status: 200, body: { order: r.orderCreate.order.name, fallback: used === "full" ? undefined : used } };
   }
+}
+
+// Tags your apps normally add: Kaching Bundles (KACHING_TAG) and the post-purchase upsell (UPSELL_TAG)
+const KACHING_TAG = () => process.env.KACHING_TAG || "Kaching Bundles";
+export const UPSELL_TAG = () => process.env.UPSELL_TAG || "Zipify OCU";
+function appTags(o, attrs) {
+  const kaching = (o.p || []).some((p) => Object.keys(p || {}).some((k) => /kaching/i.test(k))) || Object.keys(attrs || {}).some((k) => /kaching/i.test(k));
+  return kaching ? KACHING_TAG().split(",").map((t) => t.trim()).filter(Boolean) : [];
+}
+
+const EDIT_BEGIN = `mutation($id: ID!) { orderEditBegin(id: $id) { calculatedOrder { id } userErrors { field message } } }`;
+const EDIT_ADD = `mutation($id: ID!, $variantId: ID!, $quantity: Int!) {
+  orderEditAddVariant(id: $id, variantId: $variantId, quantity: $quantity, allowDuplicates: true) { calculatedLineItem { id } userErrors { field message } } }`;
+const EDIT_DISC = `mutation($id: ID!, $lineItemId: ID!, $discount: OrderEditAppliedDiscountInput!) {
+  orderEditAddLineItemDiscount(id: $id, lineItemId: $lineItemId, discount: $discount) { userErrors { field message } } }`;
+const EDIT_COMMIT = `mutation($id: ID!, $staffNote: String) {
+  orderEditCommit(id: $id, notifyCustomer: false, staffNote: $staffNote) { order { id name } userErrors { field message } } }`;
+const TAGS_ADD = `mutation($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { field message } } }`;
+const MANUAL_PAY = `mutation($id: ID!, $name: String) { orderCreateManualPayment(id: $id, paymentMethodName: $name) { userErrors { field message } } }`;
+const MARK_PAID = `mutation($input: OrderMarkAsPaidInput!) { orderMarkAsPaid(input: $input) { userErrors { field message } } }`;
+const ue = (x) => Object.values(x || {})[0]?.userErrors || [];
+
+// Post-purchase upsell paid on the thank-you page: add it to the original Shopify order (like Zipify OCU does).
+// If the original order can't be edited, create a separate paid order linked to it. Never both, never twice.
+async function fulfilUpsell(d) {
+  let u, parentPay = d.metadata.upsell_of;
+  try { u = JSON.parse(d.metadata.upsell); } catch { return { status: 200, body: { error: "bad_upsell_metadata" } }; }
+  const tag = `whop-${d.id}`;
+  const dup = await adminGql(FIND, { q: `tag:'${tag}'` });
+  if (dup.orders.nodes.length) return { status: 200, body: { duplicate: dup.orders.nodes[0].name } };
+
+  let parent = (await adminGql(FIND, { q: `tag:'whop-${parentPay}'` })).orders.nodes[0];
+  if (!parent) { await new Promise((ok) => setTimeout(ok, 8000)); parent = (await adminGql(FIND, { q: `tag:'whop-${parentPay}'` })).orders.nodes[0]; }
+
+  if (parent) {
+    let committed = false;
+    try {
+      const b = await adminGql(EDIT_BEGIN, { id: parent.id });
+      if (ue(b).length) throw new Error(JSON.stringify(ue(b)));
+      const calc = b.orderEditBegin.calculatedOrder.id;
+      const a = await adminGql(EDIT_ADD, { id: calc, variantId: `gid://shopify/ProductVariant/${u.v}`, quantity: u.q });
+      if (ue(a).length) throw new Error(JSON.stringify(ue(a)));
+      if (u.pct > 0) {
+        const x = await adminGql(EDIT_DISC, { id: calc, lineItemId: a.orderEditAddVariant.calculatedLineItem.id, discount: { percentValue: u.pct, description: "Post-purchase offer" } });
+        if (ue(x).length) throw new Error(JSON.stringify(ue(x)));
+      }
+      const c = await adminGql(EDIT_COMMIT, { id: calc, staffNote: `Post-purchase upsell paid with Whop payment ${d.id}: ${(u.t / 100).toFixed(2)} ${u.c}` });
+      if (ue(c).length) throw new Error(JSON.stringify(ue(c)));
+      committed = true;
+    } catch (e) { console.error("upsell_order_edit", e.message); }
+
+    if (committed) {
+      // Mark it as ours first (prevents a second add on retries), then record the payment
+      try { const t = await adminGql(TAGS_ADD, { id: parent.id, tags: [tag, ...UPSELL_TAG().split(",").map((x) => x.trim()).filter(Boolean)] }); if (ue(t).length) console.error("upsell_tags", JSON.stringify(ue(t))); }
+      catch (e) { console.error("upsell_tags", e.message); }
+      try {
+        const m = await adminGql(MANUAL_PAY, { id: parent.id, name: "Whop" });
+        if (ue(m).length) { const m2 = await adminGql(MARK_PAID, { input: { id: parent.id } }); if (ue(m2).length) console.error("upsell_paid", JSON.stringify(ue(m2))); }
+      } catch (e) {
+        try { await adminGql(MARK_PAID, { input: { id: parent.id } }); } catch (e2) { console.error("upsell_paid", e2.message); }
+      }
+      return { status: 200, body: { order: parent.name, upsell: "added_to_order" } };
+    }
+  }
+  // Fallback: separate paid order with the same customer, address and tracking
+  const o = { l: [[u.v, u.q, u.u, u.su]], c: u.c, t: u.t, d: u.q * u.u - u.t, sc: u.sc, st: u.st, sd: u.q * u.su - u.st, dc: "POST-PURCHASE" };
+  return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship },
+    _tags: [...UPSELL_TAG().split(",").map((x) => x.trim()).filter(Boolean), "upsell-separate-order"],
+    _note: `Post-purchase upsell for ${parent ? parent.name : `Whop payment ${parentPay}`} (could not be added to that order)` });
+}
+
+const RISK = `mutation($i: OrderRiskAssessmentCreateInput!) {
+  orderRiskAssessmentCreate(orderRiskAssessmentInput: $i) { userErrors { field message } }
+}`;
+// Whop's risk score, 3-D Secure, CVC/AVS checks and IP -> Shopify "Order risk" (High / Medium / Low)
+async function addRisk(orderId, d, sa, ba) {
+  let p = d;
+  if (p.risk_score === undefined || p.verification_checks === undefined) {
+    try { p = { ...d, ...(await getPayment(d.id)) }; } catch (e) { console.error("risk getPayment", e.message); }
+  }
+  const facts = [], add = (description, sentiment) => facts.push({ description: description.slice(0, 256), sentiment });
+  const score = typeof p.risk_score === "number" ? p.risk_score : null;
+  let level = score === null ? "LOW" : score >= 75 ? "HIGH" : score >= 40 ? "MEDIUM" : "LOW";
+  if (score !== null) add(`Whop risk score ${score}/100`, score >= 75 ? "NEGATIVE" : score >= 40 ? "NEUTRAL" : "POSITIVE");
+  if (p.three_ds_verified === true) add("Card verified with 3-D Secure", "POSITIVE");
+  const v = p.verification_checks || {}, bad = [];
+  const chk = (val, label) => {
+    if (!val) return;
+    const x = String(val).toLowerCase();
+    if (/^(pass|match|y|yes|true)/.test(x)) add(`${label} matched`, "POSITIVE");
+    else if (/^(fail|mismatch|no_match|n|no|false)/.test(x)) { add(`${label} did not match`, "NEGATIVE"); bad.push(label); }
+    else add(`${label}: ${val}`, "NEUTRAL");
+  };
+  chk(v.card_security_code, "Card security code (CVC)");
+  chk(v.address_line1, "Billing street address (AVS)");
+  chk(v.zip_code, "Billing postal code (AVS)");
+  chk(v.card_holder_name, "Cardholder name");
+  if (bad.includes("Card security code (CVC)") || bad.length >= 2) level = level === "HIGH" ? "HIGH" : "MEDIUM";
+  if (sa.country && ba.country && String(sa.country).toUpperCase() !== String(ba.country).toUpperCase())
+    add(`Billing country (${ba.country}) differs from shipping country (${sa.country})`, "NEUTRAL");
+  const card = p.payment_instrument?.card;
+  if (p.payment_instrument) add(`Paid with ${p.payment_instrument.display_name || p.payment_instrument.payment_method_type}${card?.last4 ? ` •••• ${card.last4}` : ""}`, "NEUTRAL");
+  if (p.ip_address) add(`Customer IP address ${p.ip_address}`, "NEUTRAL");
+  if (!facts.length) add("Paid through Whop (no risk details returned)", "NEUTRAL");
+  const r = await adminGql(RISK, { i: { orderId, riskLevel: level, facts: facts.slice(0, 20) } });
+  if (r.orderRiskAssessmentCreate.userErrors.length) console.error("order_risk", JSON.stringify(r.orderRiskAssessmentCreate.userErrors));
 }
 
 export const config = { api: { bodyParser: false } }; // raw body for signature check

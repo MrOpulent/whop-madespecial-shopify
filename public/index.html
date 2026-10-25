@@ -53,7 +53,7 @@
   /* shipping method */
   .ship{border:1px solid var(--focus);background:var(--sel);border-radius:var(--r);display:flex;align-items:center;gap:12px;padding:11px 20px}
   .ship .dot{width:16px;height:16px;border-radius:50%;border:5px solid var(--focus);background:#fff;flex:none}
-  .ship .nm{flex:1;font-size:16px}.ship .pr{font-weight:600}
+  .ship .nm{flex:1;font-size:16px}.ship .eta{display:block;font-size:13px;color:var(--muted)}.ship .eta:empty{display:none}.ship .pr{font-weight:600}
   /* payment */
   .pay-box{position:relative;min-height:160px}
   .skel{border:1px solid #eee;border-radius:var(--r);padding:16px}
@@ -109,6 +109,21 @@
   /* states */
   .center{max-width:490px;margin:40px auto;padding:0 16px;text-align:center}
   .done{text-align:left}
+  .ups{border:2px solid var(--accent);border-radius:12px;padding:18px;margin:18px 0;background:#fff}
+  .ups .hd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+  .ups h2{font-size:19px;margin:0;line-height:1.25}
+  .ups .tm{font-size:13px;font-weight:600;color:#b91c1c;white-space:nowrap;background:#fef2f2;border-radius:6px;padding:4px 8px}
+  .ups .pr{display:flex;gap:14px;align-items:center}
+  .ups .pr img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none}
+  .ups .nm{font-weight:600;font-size:15px}.ups small{display:block;color:var(--muted);font-size:13px}
+  .ups .px{margin-top:6px;font-size:17px;font-weight:700}.ups .px s{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px}
+  .ups .px em{font-style:normal;font-size:12px;font-weight:600;color:#15803d;background:#dcfce7;border-radius:4px;padding:2px 6px;margin-left:6px}
+  .ups p.tx{margin:12px 0 0;font-size:14px}
+  .ups .yes{width:100%;height:54px;margin-top:14px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-size:17px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+  .ups .yes:disabled{opacity:.7;cursor:default}
+  .ups .no{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);text-decoration:underline;font:inherit;font-size:14px;cursor:pointer}
+  .ups .err{display:block;color:var(--err);font-size:13px;margin-top:8px}.ups .card{margin-top:14px}
+  .ups .ok2{color:#15803d;font-weight:600;font-size:15px}
   .done .ok{width:56px;height:56px;border-radius:50%;border:2px solid #16a34a;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
   .done h1{font-size:22px;font-weight:600;margin:0 0 6px}
   .done p{margin:0 0 6px;color:#374151;font-size:15px}
@@ -143,7 +158,7 @@
       <div data-addr="s"></div>
 
       <h2>Shipping method</h2>
-      <div class="ship"><span class="dot"></span><span class="nm" data-text="shippingTitle"></span><span class="pr">FREE</span></div>
+      <div class="ship"><span class="dot"></span><span class="nm"><span data-text="shippingTitle"></span><small class="eta" data-text="eta"></small></span><span class="pr">FREE</span></div>
 
       <h2>Billing address</h2>
       <label class="chk"><input type="checkbox" id="billing_same" checked> Billing address same as shipping address</label>
@@ -266,9 +281,14 @@
   function fill(root) {
     $$('[data-href]', root).forEach(function (a) { a.href = get(S, a.getAttribute('data-href')) || '#'; });
     $$('[data-src]', root).forEach(function (i) { i.src = get(S, i.getAttribute('data-src')); i.alt = S.store.name; });
-    var vals = { total: money(S.amount), subtotal: money(S.subtotal), savingsNeg: '-' + money(S.savings), currency: S.currency, shippingTitle: S.shippingTitle };
+    var vals = { total: money(S.amount), subtotal: money(S.subtotal), savingsNeg: '-' + money(S.savings), currency: S.currency, shippingTitle: S.shippingTitle, eta: eta() };
     $$('[data-text]', root).forEach(function (e) { e.textContent = vals[e.getAttribute('data-text')]; });
     $$('[data-if]', root).forEach(function (e) { e.hidden = !S[e.getAttribute('data-if')]; });
+  }
+  function eta() {
+    var d = S.delivery; if (!d) return '';
+    var f = function (x) { try { return new Date(x + 'T12:00:00Z').toLocaleDateString(navigator.language || 'en', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); } catch (e) { return x; } };
+    return 'Delivered by ' + (d.min === d.max ? f(d.min) : f(d.min) + ' – ' + f(d.max));
   }
   function summaryHTML() {
     var t = document.importNode($('#tpl-summary').content, true);
@@ -564,9 +584,98 @@
               '<h1>Thank you' + (s ? ', ' + esc(s.first_name) : '') + '!</h1><p>Your order is confirmed.</p>' +
               (o.email ? '<p>A confirmation email is on its way to <strong>' + esc(o.email) + '</strong>.</p>' : '')
             : '<h1>Your payment is being confirmed</h1><p>This can take a few minutes. We will email you as soon as it is confirmed — there is no need to pay again.</p>') +
-      (addr ? '<div class="box"><strong>Shipping to</strong><br>' + addr + '<br><br><strong>Shipping method</strong><br>' + esc((S && S.shippingTitle) || 'Free Standard Shipping') + '</div>' : '') +
+      (addr ? '<div class="box"><strong>Shipping to</strong><br>' + addr + '<br><br><strong>Shipping method</strong><br>' + esc((S && S.shippingTitle) || 'Tracked Shipping') + (S && S.delivery ? '<br>' + esc(eta()) : '') + '</div>' : '') +
       '<a class="btn2" href="' + esc(storeUrl()) + '/cart/clear?return_to=%2F">Continue shopping</a></div>';
     $('#app').innerHTML = html; window.scrollTo(0, 0);
+    if (paid) upsellStart();
+  }
+
+  // ---------- post-purchase upsell (one click, like Zipify OCU) ----------
+  var U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, payments: null, card: false, busy: false };
+  function upsState() { try { return JSON.parse(sessionStorage.getItem('ms-ups') || '{}'); } catch (e) { return {}; } }
+  function upsSave(v) { try { sessionStorage.setItem('ms-ups', JSON.stringify(v)); } catch (e) {} }
+  function fmt(c, cur) { var d = 2; try { d = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
+    try { return new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: cur }).format(c / 100); } catch (e) { return (c / 100).toFixed(d) + ' ' + cur; } }
+  function upsellStart() {
+    var o = readOrder() || {};
+    try { U.tok = token || sessionStorage.getItem('ms-s'); } catch (e) { U.tok = token; }
+    U.pay = o.payment || params.get('payment');
+    if (!U.tok || !U.pay) return;
+    var st = upsState(); if (st.pay !== U.pay) st = { pay: U.pay, step: 0, added: [] };
+    // back from a bank / 3D Secure step for an upsell payment
+    if (params.get('upsell') === '1') {
+      if (st.pending != null && (params.get('status') === 'succeeded' || params.get('status') === 'paid')) { st.added.push(st.pending); st.step = st.pending + 1; }
+      delete st.pending;
+    }
+    U.st = st; upsSave(st); upsLoad();
+  }
+  function upsLoad() {
+    fetch(API + '/api/upsell?s=' + encodeURIComponent(U.tok) + '&payment=' + encodeURIComponent(U.pay) + '&step=' + U.st.step, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && !j.done) upsShow(j); else upsClose(); })
+      .catch(function () { upsClose(); });
+  }
+  function upsClose(msg) {
+    clearInterval(U.timer); try { U.payments && U.payments.destroy(); } catch (e) {} U.payments = null; U.card = false;
+    if (U.el) { if (msg) U.el.innerHTML = '<div class="ok2">' + msg + '</div>'; else U.el.remove(); if (!msg) U.el = null; }
+  }
+  function upsShow(j) {
+    U.offer = j; U.busy = false; clearInterval(U.timer); try { U.payments && U.payments.destroy(); } catch (e) {} U.payments = null; U.card = false;
+    if (!U.el) { U.el = document.createElement('div'); U.el.className = 'ups'; var ref = $('.done h1').nextElementSibling || $('.done h1'); ref.parentNode.insertBefore(U.el, ref.nextSibling); }
+    U.el.innerHTML = '<div class="hd"><h2>' + esc(j.headline) + '</h2><span class="tm" id="ups-tm"></span></div>' +
+      '<div class="pr">' + (j.image ? '<img src="' + esc(j.image) + '" alt="">' : '') + '<div><div class="nm">' + (j.qty > 1 ? j.qty + ' × ' : '') + esc(j.title) + '</div>' +
+      j.options.map(function (o) { return '<small>' + esc(o) + '</small>'; }).join('') +
+      '<div class="px">' + fmt(j.price, j.currency) + (j.compare > j.price ? '<s>' + fmt(j.compare, j.currency) + '</s>' : '') + (j.discount ? '<em>' + j.discount + '% OFF</em>' : '') + '</div></div></div>' +
+      (j.text ? '<p class="tx">' + esc(j.text) + '</p>' : '') +
+      '<div class="card" id="ups-card" hidden><div id="ups-pay"></div><div id="ups-brand" style="margin-top:8px"></div></div>' +
+      '<button type="button" class="yes" id="ups-yes">' + esc(j.button) + ' · ' + fmt(j.price, j.currency) + '</button>' +
+      '<span class="err" id="ups-err"></span><button type="button" class="no" id="ups-no">No thanks</button>';
+    $('#ups-yes').addEventListener('click', upsAccept);
+    $('#ups-no').addEventListener('click', function () { if (U.busy) return; upsNext(); });
+    var tick = function () { var ms = j.expiresAt - Date.now(); if (ms <= 0) return upsClose(); var m = Math.floor(ms / 60000), s2 = Math.floor(ms / 1000) % 60; $('#ups-tm').textContent = 'Offer ends in ' + m + ':' + (s2 < 10 ? '0' : '') + s2; };
+    tick(); U.timer = setInterval(tick, 1000);
+  }
+  function upsNext() { U.st.step++; upsSave(U.st); if (U.offer && U.offer.last) return upsClose(); upsLoad(); }
+  function upsBusy(b, label) { U.busy = b; var y = $('#ups-yes'); if (!y) return; y.disabled = b; y.innerHTML = b ? '<span class="spin"></span> ' + (label || 'Adding…') : esc(U.offer.button) + ' · ' + fmt(U.offer.price, U.offer.currency); }
+  function upsCard() {
+    U.card = true; $('#ups-card').hidden = false;
+    try {
+      U.payments = window.WhopElements().payments.create({ accountId: U.offer.accountId, currency: U.offer.currency.toLowerCase(), amount: minorUnits(U.offer.price, U.offer.currency),
+        returnUrl: location.origin + '/?return=1&upsell=1', appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
+      U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
+      U.payments.create('branding').mount('#ups-brand');
+    } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
+  }
+  async function upsAccept() {
+    if (U.busy) return; $('#ups-err').textContent = ''; upsBusy(true);
+    try {
+      var body = { s: U.tok, payment: U.pay, step: U.st.step };
+      if (U.card) {
+        var o = readOrder() || {}, a = o.ship || {}, tk;
+        try { tk = await U.payments.createConfirmationToken({ billingDetails: { email: o.email, name: ((a.first_name || '') + ' ' + (a.last_name || '')).trim(),
+          address: { country: a.country_code, line1: a.address1, line2: a.address2 || undefined, city: a.city, state: a.province || undefined, postal_code: a.zip || undefined } } }); }
+        catch (e) { upsBusy(false); if (!(e && e.code === 'payment_request_cancelled')) $('#ups-err').textContent = (e && e.message) || 'Please check your card details.'; return; }
+        body.confirmationToken = tk.confirmationToken;
+      }
+      var r = await fetch(API + '/api/upsell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      var d = await r.json().catch(function () { return { error: 'server_error' }; });
+      if (d.error === 'needs_card' || (d.error === 'payment_failed' && d.needsCard)) {
+        upsBusy(false); if (d.message) $('#ups-err').textContent = d.message + ' Please enter a card below.'; if (!U.card) upsCard(); return;
+      }
+      if (d.error) { upsBusy(false); $('#ups-err').textContent = d.message || 'We could not add this item. You have not been charged.'; return; }
+      if (d.status !== 'paid' && d.status !== 'succeeded') {
+        if (!d.client_secret) { upsBusy(false); $('#ups-err').textContent = 'Your payment was declined. You have not been charged.'; return; }
+        U.st.pending = U.st.step; upsSave(U.st);
+        var w = (U.payments || window.WhopElements().payments);
+        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + '/?return=1&upsell=1' });
+        if (res.redirected) return;
+        if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
+      }
+      delete U.st.pending; U.st.added.push(U.st.step); upsSave(U.st);
+      var last = U.offer.last; U.st.step++; upsSave(U.st);
+      upsClose('✓ ' + esc(U.offer.title) + ' was added to your order.');
+      if (!last) { U.el = null; upsLoad(); }
+    } catch (e) { console.error(e); upsBusy(false); $('#ups-err').textContent = 'Something went wrong. You have not been charged.'; }
   }
   function showReturn() {
     // Whop brings the buyer back here after a bank / 3D Secure step, with ?payment=&status=

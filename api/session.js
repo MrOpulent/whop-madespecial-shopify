@@ -2,6 +2,18 @@
 // Env: WHOP_COMPANY_ID, optional STORE_NAME / STORE_URL / STORE_LOGO_URL / SHIPPING_TITLE
 import { readSession } from "../lib/session.js";
 
+// Shipping name shown on the checkout and on the Shopify order (Vercel: SHIPPING_TITLE)
+export const SHIP_TITLE = () => process.env.SHIPPING_TITLE || "Tracked Shipping";
+// Estimated delivery, from SHIPPING_DAYS = "min-max" business days (e.g. "7-12"). Not set = no estimate shown.
+export function delivery(from = new Date()) {
+  const m = String(process.env.SHIPPING_DAYS || "").match(/^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/);
+  if (!m) return null;
+  const add = (n) => { const d = new Date(from); while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); if (d.getUTCDay() % 6) n--; } return d; };
+  const min = add(+m[1]), max = add(+(m[2] || m[1]));
+  const f = (d) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return { min: min.toISOString().slice(0, 10), max: max.toISOString().slice(0, 10), text: +m[1] === +(m[2] || m[1]) ? f(min) : `${f(min)} – ${f(max)}` };
+}
+
 // What the checkout page needs (also returned by api/reprice.js)
 export function view(s) {
   const store = (process.env.STORE_URL || "https://madespecial.store").replace(/\/$/, "");
@@ -10,7 +22,8 @@ export function view(s) {
     currency: s.cur, amount: s.tot, subtotal: s.gross, savings: Math.max(0, s.gross - s.tot),
     market: s.mk, lines: s.disp.map((d, i) => ({ ...d, lineTotal: s.order.l[i][1] * s.order.l[i][2] })),
     expiresAt: s.exp,
-    shippingTitle: process.env.SHIPPING_TITLE || "Free Standard Shipping",
+    shippingTitle: SHIP_TITLE(),
+    delivery: delivery(),
     store: {
       name: process.env.STORE_NAME || "MadeSpecial.Store",
       url: store,
