@@ -1,9 +1,10 @@
 // api/whop-checkout.js — prices the cart with Shopify, then creates a Whop checkout for that exact total.
 // Kaching tiers/variant offers and Essential Cart upsell discounts are Shopify discounts, so Shopify
 // applies them here exactly as on its own checkout. Nothing is priced by the browser or hard-coded.
-// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_COMPANY_ID (biz_...), ALLOWED_ORIGIN, THANK_YOU_URL
+// Whop's own checkout collects the buyer's email, card, billing AND shipping address (product setting).
+// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_COMPANY_ID (biz_...), WHOP_PRODUCT_ID, ALLOWED_ORIGIN, THANK_YOU_URL
 import { storefrontGql } from "../lib/shopify.js";
-import { validateShipping, ISO } from "../lib/validate.js";
+import { ISO } from "../lib/validate.js";
 import { createCheckout } from "../lib/whop.js";
 
 // Shop's base market (its own currency, e.g. USD). Each checkout is charged in the SHOPPER's market currency
@@ -62,15 +63,14 @@ export default async function handler(req, res) {
     const items = (b.items || []).filter((i) => Number(i.quantity) > 0).slice(0, 30);
     if (!items.length) return res.status(400).json({ error: "empty_cart" });
 
-    const ship = Object.fromEntries(["email","first_name","last_name","phone","address1","address2","city","province","province_name","zip","country_code"]
-      .map((k) => [k, String(b.shipping?.[k] || "").trim().slice(0, 120)]));
-    ship.name = `${ship.first_name} ${ship.last_name}`.trim();
-    const bad = validateShipping(ship);
-    if (bad.length) return res.status(400).json({ error: "invalid_shipping", fields: bad });
+    if (!process.env.WHOP_PRODUCT_ID) {
+      console.error("WHOP_PRODUCT_ID missing: run /api/whop-setup once (guide Part 7)");
+      return res.status(500).json({ error: "server_error" });
+    }
 
     // 1) Shopify prices the cart twice: in the shopper's market currency (what Whop charges)
     //    and in the shop's base currency (for the Shopify order's accounting). Same lines, properties, attributes.
-    const market = await pickMarket(b.market_country, ship.country_code, b.currency);
+    const market = await pickMarket(b.market_country, null, b.currency);
     const input = (countryCode) => ({ input: {
       lines: items.map((i) => ({
         merchandiseId: `gid://shopify/ProductVariant/${Number(i.variant_id)}`,
@@ -118,6 +118,7 @@ export default async function handler(req, res) {
     const qty = lines.reduce((sum, [, q]) => sum + q, 0);
     const cfg = await createCheckout({
       plan: {
+        product_id: process.env.WHOP_PRODUCT_ID, // product with "collect shipping address" on
         currency: currency.toLowerCase(),
         plan_type: "one_time",
         initial_price: total / 100,
@@ -127,7 +128,6 @@ export default async function handler(req, res) {
       },
       metadata: {
         order: JSON.stringify({ l: lines, c: currency, t: total, d: gross - total, sc: shopCurrency, st: shopTotal, sd: shopGross - shopTotal }),
-        ship: JSON.stringify(ship),
       },
       redirect_url: process.env.THANK_YOU_URL || "https://madespecial.store/pages/thank-you",
     });

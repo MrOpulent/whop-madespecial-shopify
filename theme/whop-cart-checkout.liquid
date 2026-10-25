@@ -1,332 +1,52 @@
 {%- comment -%}
-  Essential Cart drawer / cart page "Checkout" -> validated worldwide shipping popup -> Whop payment.
+  Essential Cart drawer / cart page "Checkout" -> straight to Whop's checkout.
+  Whop collects email, card, billing and shipping address (and phone, if enabled in Whop).
   Kaching + Essential discounts stay as they are; the server re-prices the cart with Shopify.
   Paste in theme.liquid just before </body>. Set ENDPOINT to your deployed /api/whop-checkout URL.
 {%- endcomment -%}
-<dialog id="wh-ship" aria-labelledby="wh-title">
-  <form id="wh-form" novalidate>
-    <header class="wh-head">
-      <div>
-        <h2 id="wh-title">Shipping details</h2>
-        <ol class="wh-steps"><li class="on">1 · Shipping</li><li>2 · Secure payment</li></ol>
-      </div>
-      <button type="button" class="wh-x" id="wh-cancel" aria-label="Close">&times;</button>
-    </header>
-
-    <details class="wh-sum" id="wh-sum">
-      <summary><span>Order summary</span><strong id="wh-sum-total"></strong></summary>
-      <ul id="wh-lines"></ul>
-      <dl>
-        <div><dt>Subtotal</dt><dd id="wh-sub"></dd></div>
-        <div id="wh-disc-row" hidden><dt>Bundle &amp; upsell savings</dt><dd id="wh-disc"></dd></div>
-        <div><dt>Shipping (worldwide)</dt><dd>Free</dd></div>
-        <div class="wh-tot"><dt>Total</dt><dd id="wh-tot"></dd></div>
-      </dl>
-    </details>
-
-    <div class="wh-grid">
-      <label class="wh-f wh-full">Email <span class="wh-req">*</span>
-        <input name="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f">First name <span class="wh-req">*</span>
-        <input name="first_name" autocomplete="given-name" maxlength="60" required>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f">Last name <span class="wh-req">*</span>
-        <input name="last_name" autocomplete="family-name" maxlength="60" required>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f wh-full">Country / region <span class="wh-req">*</span>
-        <select name="country_code" autocomplete="country" required></select>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f wh-full">Address <span class="wh-req">*</span>
-        <input name="address1" autocomplete="address-line1" maxlength="120" placeholder="Street and house number" required>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f wh-full">Apartment, suite, etc. <span class="wh-opt">(optional)</span>
-        <input name="address2" autocomplete="address-line2" maxlength="120">
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f">City <span class="wh-req">*</span>
-        <input name="city" autocomplete="address-level2" maxlength="60" required>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f" id="wh-prov-wrap"><span id="wh-prov-label">State</span> <span class="wh-req" id="wh-prov-req">*</span><span class="wh-opt" id="wh-prov-opt">(if applicable)</span>
-        <select name="province" autocomplete="address-level1"></select>
-        <input name="province_text" autocomplete="address-level1" maxlength="60">
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f" id="wh-zip-wrap"><span id="wh-zip-label">Postal code</span> <span class="wh-req">*</span>
-        <input name="zip" autocomplete="postal-code" maxlength="12" required>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-      <label class="wh-f">Phone <span class="wh-req">*</span> <span class="wh-opt">(for the courier)</span>
-        <div class="wh-tel"><span id="wh-dial">+1</span><input name="phone" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="20" required></div>
-        <small class="wh-e" aria-live="polite"></small>
-      </label>
-    </div>
-
-    <p class="wh-alert" id="wh-err" role="alert"></p>
-    <button type="submit" class="wh-pay" id="wh-pay">Continue to secure payment</button>
-    <p class="wh-trust">&#128274; You'll pay on Whop's encrypted checkout. Free worldwide shipping · 30 days to decide.</p>
-  </form>
-</dialog>
-
+<div id="wh-load" role="status" aria-live="polite" hidden>
+  <div class="wh-box">
+    <div class="wh-spin" aria-hidden="true"></div>
+    <p id="wh-msg">Taking you to secure checkout…</p>
+    <button type="button" id="wh-close" hidden>Close</button>
+  </div>
+</div>
 <style>
-  #wh-ship{--wh-ink:#1a1a1a;--wh-mute:#6b6b6b;--wh-line:#dcdcdc;--wh-bg:#fff;--wh-soft:#f6f6f4;--wh-acc:#1a1a1a;--wh-err:#c0262d;
-    width:min(560px,100%);max-height:94vh;border:0;border-radius:16px;padding:0;color:var(--wh-ink);background:var(--wh-bg);
-    box-shadow:0 20px 60px rgba(0,0,0,.25);z-index:2147483647;font:15px/1.45 inherit}
-  #wh-ship::backdrop{background:rgba(0,0,0,.55)}
-  #wh-form{padding:20px 22px 18px;overflow:auto;max-height:94vh;box-sizing:border-box}
-  .wh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
-  .wh-head h2{margin:0 0 6px;font-size:20px;line-height:1.2}
-  .wh-steps{display:flex;gap:14px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--wh-mute)}
-  .wh-steps .on{color:var(--wh-ink);font-weight:600}
-  .wh-x{border:0;background:none;font-size:28px;line-height:1;cursor:pointer;color:var(--wh-mute);padding:0 4px}
-  .wh-sum{background:var(--wh-soft);border-radius:10px;padding:10px 14px;margin-bottom:16px}
-  .wh-sum summary{display:flex;justify-content:space-between;cursor:pointer;font-weight:600;list-style:none}
-  .wh-sum summary::-webkit-details-marker{display:none}
-  .wh-sum summary span::after{content:" ▾";font-weight:400;color:var(--wh-mute)}
-  .wh-sum[open] summary span::after{content:" ▴"}
-  .wh-sum ul{list-style:none;margin:10px 0 6px;padding:0}
-  .wh-sum li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--wh-line);font-size:14px}
-  .wh-sum li small{display:block;color:var(--wh-mute)}
-  .wh-sum dl{margin:6px 0 0}
-  .wh-sum dl div{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
-  .wh-sum dt,.wh-sum dd{margin:0}
-  #wh-disc{color:#1d7a3a}
-  .wh-tot{font-weight:700;font-size:15px!important;padding-top:6px!important}
-  .wh-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 12px}
-  .wh-full{grid-column:1/-1}
-  .wh-f{display:block;font-size:13px;font-weight:600}
-  .wh-f[hidden],.wh-f [hidden]{display:none!important}
-  .wh-f>input,.wh-f>select,.wh-f>.wh-tel{margin-top:5px}
-  .wh-f>select{display:block}
-  .wh-req{color:var(--wh-err)} .wh-opt{font-weight:400;color:var(--wh-mute)}
-  .wh-f input,.wh-f select,.wh-tel{font:inherit;font-size:16px;font-weight:400;padding:11px 12px;border:1px solid var(--wh-line);
-    border-radius:8px;background:#fff;color:var(--wh-ink);width:100%;box-sizing:border-box;outline:none}
-  .wh-f input:focus,.wh-f select:focus,.wh-tel:focus-within{border-color:var(--wh-acc);box-shadow:0 0 0 3px rgba(0,0,0,.08)}
-  .wh-tel{display:flex;align-items:center;gap:8px;padding:0 12px}
-  .wh-tel span{color:var(--wh-mute);font-size:15px;white-space:nowrap}
-  .wh-tel input{border:0!important;box-shadow:none!important;padding:11px 0;margin:0}
-  .wh-f [aria-invalid="true"],.wh-tel.bad{border-color:var(--wh-err)!important}
-  .wh-e{display:block;margin-top:4px;color:var(--wh-err);font-weight:400;font-size:12.5px}
-  .wh-e:empty{display:none}
-  .wh-alert{color:var(--wh-err);background:#fdeeee;border-radius:8px;padding:10px 12px;margin:14px 0 0;font-size:14px}
-  .wh-alert:empty{display:none}
-  .wh-pay{margin-top:16px;width:100%;padding:15px;border:0;border-radius:10px;background:var(--wh-acc);color:#fff;font:inherit;
-    font-size:16px;font-weight:700;cursor:pointer}
-  .wh-pay[disabled]{opacity:.6;cursor:wait}
-  .wh-trust{margin:10px 0 0;text-align:center;font-size:12.5px;color:var(--wh-mute)}
-  @media (max-width:600px){
-    #wh-ship{margin:auto 0 0;width:100%;max-width:100%;border-radius:16px 16px 0 0}
-    .wh-grid{grid-template-columns:1fr}
-  }
+  #wh-load{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+  #wh-load[hidden]{display:none}
+  #wh-load .wh-box{background:#fff;color:#1a1a1a;border-radius:14px;padding:24px 22px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);font:15px/1.45 inherit}
+  #wh-load .wh-spin{width:34px;height:34px;margin:0 auto 12px;border:3px solid #e3e3e3;border-top-color:#1a1a1a;border-radius:50%;animation:whspin .8s linear infinite}
+  #wh-load.err .wh-spin{display:none}
+  #wh-load.err #wh-msg{color:#c0262d}
+  #wh-load p{margin:0}
+  #wh-close{margin-top:14px;padding:10px 18px;border:0;border-radius:8px;background:#1a1a1a;color:#fff;font:inherit;cursor:pointer}
+  @keyframes whspin{to{transform:rotate(360deg)}}
 </style>
-
 <script>
 (function () {
   var ENDPOINT = 'https://YOUR-PROJECT.vercel.app/api/whop-checkout';
   // Essential Cart drawer checkout button + theme cart page. Add the drawer button's class if it isn't caught.
   var SEL = '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], button[onclick*="checkout"], .es-checkout-button';
-  var PHONE_LIB = 'https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.43/bundle/libphonenumber-min.js';
   var SHOPPER_COUNTRY = {{ localization.country.iso_code | default: 'US' | json }};
 
-  // ---- Countries (ISO 3166-1; sanctioned/uninhabited ones left out) ----
-  var ISO = ('AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IS IT JE JM JO JP KE KG KH KI KM KN KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW').split(' ');
-  // Countries without postal codes: the postcode field is hidden for them
-  var NO_ZIP = ' AE AG AI AO AW BF BI BJ BO BQ BS BW BZ CD CF CG CI CK CM CW DJ DM ER FJ GA GD GH GM GQ GY HK KI KM KN LY ML MO MR MW NR NU QA RW SB SC SL SO SR SS ST SX TD TF TG TK TL TO TV UG VU YE ZW ';
-  // Postal code formats for the main countries; any other country gets a general check
-  var ZIP = {
-    US:/^\d{5}(-\d{4})?$/, CA:/^[A-CEGHJ-NPR-TVXY]\d[A-CEGHJ-NPR-TV-Z] ?\d[A-CEGHJ-NPR-TV-Z]\d$/i, GB:/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i,
-    AU:/^\d{4}$/, NZ:/^\d{4}$/, IN:/^\d{6}$/, DE:/^\d{5}$/, FR:/^\d{5}$/, IT:/^\d{5}$/, ES:/^\d{5}$/, NL:/^\d{4} ?[A-Z]{2}$/i,
-    BE:/^\d{4}$/, CH:/^\d{4}$/, AT:/^\d{4}$/, DK:/^\d{4}$/, NO:/^\d{4}$/, SE:/^\d{3} ?\d{2}$/, FI:/^\d{5}$/, PL:/^\d{2}-\d{3}$/,
-    PT:/^\d{4}-\d{3}$/, IE:/^[A-Z]\d[\dW] ?[A-Z\d]{4}$/i, JP:/^\d{3}-?\d{4}$/, BR:/^\d{5}-?\d{3}$/, MX:/^\d{5}$/, SG:/^\d{6}$/,
-    ZA:/^\d{4}$/, CN:/^\d{6}$/, KR:/^\d{5}$/, MY:/^\d{5}$/, PH:/^\d{4}$/, TH:/^\d{5}$/, ID:/^\d{5}$/, IL:/^\d{7}$/, SA:/^\d{5}(-\d{4})?$/,
-    TR:/^\d{5}$/, RU:/^\d{6}$/, UA:/^\d{5}$/, GR:/^\d{3} ?\d{2}$/, CZ:/^\d{3} ?\d{2}$/, SK:/^\d{3} ?\d{2}$/, HU:/^\d{4}$/, RO:/^\d{6}$/,
-    BG:/^\d{4}$/, HR:/^\d{5}$/, SI:/^\d{4}$/, LU:/^\d{4}$/, CL:/^\d{7}$/, CO:/^\d{6}$/, PE:/^\d{5}$/, PK:/^\d{5}$/, BD:/^\d{4}$/,
-    LK:/^\d{5}$/, NP:/^\d{5}$/, EG:/^\d{5}$/, MA:/^\d{5}$/, KE:/^\d{5}$/, NG:/^\d{6}$/, VN:/^\d{6}$/, AR:/^([A-Z]\d{4}[A-Z]{3}|\d{4})$/i
-  };
-  var ZIP_ANY = /^[A-Z0-9][A-Z0-9 -]{1,9}$/i;
-  var ZIP_LABEL = { US:'ZIP code', IN:'PIN code' };
-  // State dropdowns (Shopify province codes) where couriers need them; elsewhere a free-text region field
-  var PROV = {
-    US: ['State', 'AL Alabama|AK Alaska|AZ Arizona|AR Arkansas|CA California|CO Colorado|CT Connecticut|DE Delaware|DC District of Columbia|FL Florida|GA Georgia|HI Hawaii|ID Idaho|IL Illinois|IN Indiana|IA Iowa|KS Kansas|KY Kentucky|LA Louisiana|ME Maine|MD Maryland|MA Massachusetts|MI Michigan|MN Minnesota|MS Mississippi|MO Missouri|MT Montana|NE Nebraska|NV Nevada|NH New Hampshire|NJ New Jersey|NM New Mexico|NY New York|NC North Carolina|ND North Dakota|OH Ohio|OK Oklahoma|OR Oregon|PA Pennsylvania|RI Rhode Island|SC South Carolina|SD South Dakota|TN Tennessee|TX Texas|UT Utah|VT Vermont|VA Virginia|WA Washington|WV West Virginia|WI Wisconsin|WY Wyoming|PR Puerto Rico|AA Armed Forces Americas|AE Armed Forces Europe|AP Armed Forces Pacific'],
-    CA: ['Province', 'AB Alberta|BC British Columbia|MB Manitoba|NB New Brunswick|NL Newfoundland and Labrador|NS Nova Scotia|NT Northwest Territories|NU Nunavut|ON Ontario|PE Prince Edward Island|QC Quebec|SK Saskatchewan|YT Yukon'],
-    AU: ['State', 'ACT Australian Capital Territory|NSW New South Wales|NT Northern Territory|QLD Queensland|SA South Australia|TAS Tasmania|VIC Victoria|WA Western Australia']
-  };
-
-  var dlg = document.getElementById('wh-ship'), form = document.getElementById('wh-form'),
-      errEl = document.getElementById('wh-err'), btn = document.getElementById('wh-pay'), F = form.elements, cart = null;
-  var KEY = 'wh-ship-v2', touched = {}, lib = null, libLoading = null;
-
-  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
-  function money(c) { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: (cart && cart.currency) || 'USD' }).format(c / 100); } catch (e) { return (c / 100).toFixed(2); } }
-  function country() { return F.country_code.value; }
-  function countryName(code) { return (F.country_code.querySelector('option[value="' + code + '"]') || {}).text || code; }
-  function hasZip(code) { return NO_ZIP.indexOf(' ' + code + ' ') === -1; }
-
-  // ---- Phone library (loaded only when the popup opens) ----
-  function loadLib() {
-    if (lib || libLoading) return libLoading;
-    libLoading = new Promise(function (ok) {
-      var s = document.createElement('script'); s.src = PHONE_LIB; s.async = true;
-      s.onload = function () { lib = window.libphonenumber || null; updateDial(); if (touched.phone) check('phone'); ok(); };
-      s.onerror = function () { ok(); };
-      document.head.appendChild(s);
-    });
-    return libLoading;
-  }
-  function updateDial() {
-    var d = '';
-    try { if (lib) d = '+' + lib.getCountryCallingCode(country()); } catch (e) {}
-    document.getElementById('wh-dial').textContent = d || '+';
-  }
-  function parsePhone(v) {
-    v = String(v || '').trim(); if (!v) return null;
-    if (lib) {
-      try { var p = lib.parsePhoneNumberFromString(v, country()); return p && p.isValid() ? p.number : false; } catch (e) { return false; }
-    }
-    var d = v.replace(/\D/g, ''); return d.length >= 6 && d.length <= 15 ? (v.charAt(0) === '+' ? '+' + d : d) : false;
-  }
-
-  // ---- Country select ----
-  (function buildCountries() {
-    var names = null; try { names = new Intl.DisplayNames([document.documentElement.lang || 'en', 'en'], { type: 'region' }); } catch (e) {}
-    var list = ISO.map(function (c) { return [c, (names && names.of(c)) || c]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
-    F.country_code.innerHTML = '<option value="">Select a country…</option>' + list.map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join('');
-    F.country_code.value = ISO.indexOf(SHOPPER_COUNTRY) > -1 ? SHOPPER_COUNTRY : '';
-  })();
-
-  function setCountry() {
-    var c = country(), p = PROV[c];
-    var zipWrap = document.getElementById('wh-zip-wrap');
-    zipWrap.hidden = !!c && !hasZip(c);
-    document.getElementById('wh-zip-label').textContent = ZIP_LABEL[c] || 'Postal code';
-    F.province.hidden = !p; F.province_text.hidden = !!p;
-    document.getElementById('wh-prov-label').textContent = p ? p[0] : 'State / province / region';
-    document.getElementById('wh-prov-req').hidden = !p;
-    document.getElementById('wh-prov-opt').hidden = !!p;
-    if (p) {
-      var prev = F.province.value;
-      F.province.innerHTML = '<option value="">Select…</option>' + p[1].split('|').map(function (x) { var i = x.indexOf(' '); return '<option value="' + x.slice(0, i) + '">' + esc(x.slice(i + 1)) + '</option>'; }).join('');
-      F.province.value = prev;
-    } else { F.province.innerHTML = ''; }
-    updateDial();
-    ['zip', 'province', 'province_text', 'phone'].forEach(function (n) { if (touched[n]) check(n); });
-  }
-
-  var LETTERS = /^[\p{L}][\p{L}\p{M}' .,-]{0,59}$/u;
-  var RULES = {
-    email: function (v) { return !v ? 'Enter your email.' : !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v) ? 'Enter a valid email, like name@example.com.' : ''; },
-    first_name: function (v) { return !v ? 'Enter your first name.' : !LETTERS.test(v) ? 'Use letters only.' : ''; },
-    last_name: function (v) { return !v ? 'Enter your last name.' : !LETTERS.test(v) ? 'Use letters only.' : ''; },
-    country_code: function (v) { return ISO.indexOf(v) > -1 ? '' : 'Select your country.'; },
-    address1: function (v) { return !v ? 'Enter your street address.' : v.length < 4 || !/\p{L}/u.test(v) ? 'Enter your full street address.' : ''; },
-    address2: function () { return ''; },
-    city: function (v) { return !v ? 'Enter your city.' : !/^[\p{L}][\p{L}\p{M}' .,()-]{1,59}$/u.test(v) ? 'Enter a valid city name.' : ''; },
-    province: function (v) { return PROV[country()] && !v ? 'Select your ' + PROV[country()][0].toLowerCase() + '.' : ''; },
-    province_text: function (v) { return !PROV[country()] && v && !/^[\p{L}\d][\p{L}\p{M}\d' .,()-]{0,59}$/u.test(v) ? 'Enter a valid region name.' : ''; },
-    zip: function (v) {
-      var c = country(); if (!c || !hasZip(c)) return '';
-      var label = ZIP_LABEL[c] || 'postal code';
-      return !v ? 'Enter your ' + label + '.' : !(ZIP[c] || ZIP_ANY).test(v) ? 'Enter a valid ' + label + ' for ' + countryName(c) + '.' : '';
-    },
-    phone: function (v) { return !v ? 'Enter a phone number so the courier can reach you.' : parsePhone(v) === false ? 'Enter a valid phone number for ' + (countryName(country()) || 'your country') + '.' : ''; }
-  };
-
-  function check(name) {
-    var el = F[name]; if (!el || !RULES[name]) return true;
-    var msg = RULES[name](el.value.trim());
-    if (name === 'phone') el.parentNode.classList.toggle('bad', !!msg); else el.setAttribute('aria-invalid', msg ? 'true' : 'false');
-    el.closest('.wh-f').querySelector('.wh-e').textContent = msg;
-    return !msg;
-  }
-
-  function formatZip() {
-    var v = F.zip.value.trim().toUpperCase().replace(/\s+/g, ' ');
-    var k = country();
-    if ((k === 'CA' || k === 'GB') && v.indexOf(' ') === -1 && v.length >= 5) v = v.slice(0, -3) + ' ' + v.slice(-3);
-    F.zip.value = v;
-  }
-
-  var FIELDS = ['email','first_name','last_name','country_code','address1','address2','city','province','province_text','zip','phone'];
-  function save() { try { var o = {}; FIELDS.forEach(function (n) { o[n] = F[n].value; }); localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
-  function load() {
-    try {
-      var o = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!o) return;
-      if (ISO.indexOf(o.country_code) > -1) F.country_code.value = o.country_code;
-      setCountry();
-      FIELDS.forEach(function (n) { if (n !== 'country_code' && o[n] != null) F[n].value = o[n]; });
-    } catch (e) {}
-  }
-
-  function renderSummary() {
-    var gross = cart.items.reduce(function (s, i) { return s + i.original_line_price; }, 0), disc = gross - cart.total_price;
-    document.getElementById('wh-lines').innerHTML = cart.items.map(function (i) {
-      return '<li><span>' + esc(i.product_title) + (i.variant_title ? '<small>' + esc(i.variant_title) + '</small>' : '') + '<small>Qty ' + i.quantity + '</small></span><span>' + money(i.final_line_price) + '</span></li>';
-    }).join('');
-    document.getElementById('wh-sub').textContent = money(gross);
-    document.getElementById('wh-disc-row').hidden = disc <= 0;
-    document.getElementById('wh-disc').textContent = '−' + money(disc);
-    document.getElementById('wh-tot').textContent = money(cart.total_price);
-    document.getElementById('wh-sum-total').textContent = money(cart.total_price);
-    btn.textContent = 'Continue to secure payment · ' + money(cart.total_price);
-  }
-
-  async function openPopup() {
-    errEl.textContent = '';
-    loadLib();
-    try { cart = await (await fetch('/cart.js', { cache: 'no-store' })).json(); } catch (e) { cart = null; }
-    if (!cart || !cart.item_count) { alert('Your cart is empty.'); return; }
-    renderSummary();
-    dlg.showModal();
-    var first = ['email','first_name','last_name','country_code','address1','city','zip','phone'].map(function (n) { return F[n]; }).filter(function (el) { return !el.value && !el.closest('[hidden]'); })[0];
-    (first || F.email).focus();
-  }
-
-  setCountry(); load();
-
-  document.addEventListener('click', function (e) {
-    if (!e.target.closest(SEL)) return;
-    e.preventDefault(); e.stopImmediatePropagation();
-    openPopup();
-  }, true);
-  document.getElementById('wh-cancel').onclick = function () { dlg.close(); };
-  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
-
-  F.country_code.addEventListener('change', function () { touched.country_code = true; check('country_code'); setCountry(); save(); });
-  Object.keys(RULES).forEach(function (n) {
-    var el = F[n]; if (!el || n === 'country_code') return;
-    el.addEventListener('blur', function () { if (n === 'zip') formatZip(); if (el.value || touched[n]) { touched[n] = true; check(n); } save(); });
-    el.addEventListener('input', function () { if (touched[n]) check(n); });
-    el.addEventListener('change', function () { touched[n] = true; check(n); save(); });
-  });
-  F.phone.addEventListener('input', function () { F.phone.value = F.phone.value.replace(/[^\d\s()+.-]/g, ''); });
-
+  var box = document.getElementById('wh-load'), msg = document.getElementById('wh-msg'), closeBtn = document.getElementById('wh-close'), busy = false;
   var MSG = {
-    price_mismatch: 'Your cart was just updated. Please close this window, check your cart, and try again.',
-    invalid_shipping: 'Please check the highlighted fields.',
+    price_mismatch: 'Your cart was just updated. Please check your cart and try again.',
     empty_cart: 'Your cart is empty.',
     cart_invalid: 'An item in your cart is no longer available. Please update your cart.'
   };
+  function show(text, isErr) { msg.textContent = text; box.classList.toggle('err', !!isErr); closeBtn.hidden = !isErr; box.hidden = false; }
+  closeBtn.onclick = function () { box.hidden = true; };
+  window.addEventListener('pageshow', function () { busy = false; box.hidden = true; }); // back button from Whop
 
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    formatZip();
-    await loadLib();
-    var names = Object.keys(RULES);
-    names.forEach(function (n) { touched[n] = true; });
-    var bad = names.filter(function (n) { return !check(n); });
-    if (bad.length) { errEl.textContent = MSG.invalid_shipping; F[bad[0]].focus(); return; }
-
-    btn.disabled = true; var label = btn.textContent; btn.textContent = 'Preparing secure payment…'; errEl.textContent = '';
+  document.addEventListener('click', async function (e) {
+    if (!e.target.closest(SEL)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (busy) return; busy = true;
+    show('Taking you to secure checkout…');
     try {
-      cart = await (await fetch('/cart.js', { cache: 'no-store' })).json();
+      var cart = await (await fetch('/cart.js', { cache: 'no-store' })).json();
       if (!cart.item_count) throw { code: 'empty_cart' };
-      var c = country(), first = F.first_name.value.trim(), last = F.last_name.value.trim();
       var r = await fetch(ENDPOINT, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -334,31 +54,17 @@
           attributes: cart.attributes || {},
           total_price: cart.total_price,
           currency: cart.currency,
-          market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY, // the Shopify Market whose currency the drawer shows
-          shipping: {
-            email: F.email.value.trim(), first_name: first, last_name: last, name: (first + ' ' + last).trim(),
-            phone: parsePhone(F.phone.value) || '',
-            address1: F.address1.value.trim(), address2: F.address2.value.trim(), city: F.city.value.trim(),
-            province: PROV[c] ? F.province.value : '', province_name: PROV[c] ? '' : F.province_text.value.trim(),
-            zip: hasZip(c) ? F.zip.value.trim() : '', country_code: c
-          }
+          market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY // the Shopify Market whose currency the drawer shows
         })
       });
       var d = await r.json();
-      if (d.fields) d.fields.forEach(function (n) {
-        var el = F[n === 'province_name' ? 'province_text' : n]; if (!el) return;
-        (n === 'phone' ? el.parentNode : el).setAttribute('aria-invalid', 'true');
-        if (n === 'phone') el.parentNode.classList.add('bad');
-        el.closest('.wh-f').querySelector('.wh-e').textContent = 'Please check this field.';
-      });
       if (!d.url) throw { code: d.error };
-      save();
       window.location.href = d.url;
     } catch (err) {
       console.error('Whop checkout', err);
-      errEl.textContent = MSG[err && err.code] || 'Checkout is unavailable right now. Please try again in a moment.';
-      btn.disabled = false; btn.textContent = label;
+      show(MSG[err && err.code] || 'Checkout is unavailable right now. Please try again in a moment.', true);
+      busy = false;
     }
-  });
+  }, true);
 })();
 </script>
