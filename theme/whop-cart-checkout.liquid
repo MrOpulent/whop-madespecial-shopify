@@ -29,6 +29,18 @@
   var SEL = '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], button[onclick*="checkout"], .es-checkout-button';
   var SHOPPER_COUNTRY = {{ localization.country.iso_code | default: 'US' | json }};
 
+  // RedTrack / ad tracking: click IDs, UTMs and ad-platform IDs from cookies, storage and the page URL.
+  // They are written onto the Shopify order (with the cart attributes) so RedTrack can attribute the sale.
+  var TRACK = /clickid|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$/i;
+  function trackingData() {
+    var t = {};
+    function put(k, v) { if (k && v && TRACK.test(k) && String(v).length <= 300) t[k] = String(v); }
+    try { document.cookie.split(';').forEach(function (c) { var i = c.indexOf('='); if (i > 0) put(decodeURIComponent(c.slice(0, i).trim()), decodeURIComponent(c.slice(i + 1).trim())); }); } catch (e) {}
+    try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); put(k, localStorage.getItem(k)); } } catch (e) {}
+    try { new URLSearchParams(location.search).forEach(function (v, k) { put(k, v); }); } catch (e) {}
+    return t;
+  }
+
   var box = document.getElementById('wh-load'), msg = document.getElementById('wh-msg'), closeBtn = document.getElementById('wh-close'), busy = false;
   var MSG = {
     price_mismatch: 'Your cart was just updated. Please check your cart and try again.',
@@ -54,7 +66,8 @@
           attributes: cart.attributes || {},
           total_price: cart.total_price,
           currency: cart.currency,
-          market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY // the Shopify Market whose currency the drawer shows
+          market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY, // the Shopify Market whose currency the drawer shows
+          tracking: trackingData()
         })
       });
       var d = await r.json();

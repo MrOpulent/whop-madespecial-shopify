@@ -32,8 +32,8 @@ export default async function handler(req, res) {
   if (!["payment.succeeded", "payment_succeeded"].includes(type)) return res.status(200).json({ skipped: type });
 
   const d = evt.data || {};
-  let o;
-  try { o = JSON.parse(d.metadata?.order); }
+  let o, attrs = {};
+  try { o = JSON.parse(d.metadata?.order); attrs = JSON.parse(d.metadata?.attrs || "{}"); }
   catch { return res.status(200).json({ error: "no_order_metadata" }); } // e.g. dashboard test event
 
   try {
@@ -76,8 +76,13 @@ export default async function handler(req, res) {
       ...(o.c !== sc && { presentmentCurrency: o.c }),
       lineItems: o.l.map(([v, q, u, su]) => ({
         variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: bag(su ?? u, sc, u, o.c),
+        requiresShipping: true, // physical product: shows as needing delivery
       })),
+      // Delivery method shown on the order (free worldwide shipping). Rename via SHIPPING_TITLE if you like.
+      shippingLines: [{ title: process.env.SHIPPING_TITLE || "Standard", code: "STANDARD", source: "whop", priceSet: bag(0, sc, 0, o.c) }],
       ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: "BUNDLE-UPSELL", amountSet: bag(o.sd ?? o.d, sc, o.d, o.c) } } }),
+      // Tracking (RedTrack click ID, UTMs, ad IDs) + cart attributes -> order "Additional details"
+      customAttributes: [...Object.entries(attrs).map(([key, value]) => ({ key, value: String(value) })), { key: "whop_payment_id", value: String(d.id) }],
       financialStatus: "PAID",
       transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
       ...(addr.address1 && { shippingAddress: addr, billingAddress: addr }),
@@ -107,6 +112,16 @@ export default async function handler(req, res) {
       console.error(`orderCreate (${label})`, JSON.stringify(r.orderCreate.userErrors));
     }
     if (used !== "full") console.error("order created with fallback:", used);
+
+    // Optional: report the sale to RedTrack directly (only if its Shopify integration doesn't pick these orders up)
+    const clickid = Object.entries(attrs).find(([k]) => /clickid/i.test(k))?.[1];
+    if (process.env.REDTRACK_POSTBACK_URL && clickid && !r.orderCreate.userErrors.length) {
+      const u = new URL(process.env.REDTRACK_POSTBACK_URL);
+      u.searchParams.set("clickid", clickid);
+      u.searchParams.set("sum", amt(o.st ?? o.t));
+      u.searchParams.set("type", process.env.REDTRACK_EVENT || "Purchase");
+      try { await fetch(u); } catch (e) { console.error("redtrack_postback", e.message); }
+    }
 
     const err = r.orderCreate.userErrors;
     if (err.length) { console.error("orderCreate", JSON.stringify(err)); return res.status(500).json({ err }); }

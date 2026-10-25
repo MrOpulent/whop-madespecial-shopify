@@ -48,6 +48,28 @@ async function pickMarket(pageCountry, shipCountry, drawerCurrency) {
   for (const c of [pageCountry, shipCountry]) if (c && cur(c) === want) return c;
   return list.find((x) => x.currency.isoCode === want)?.isoCode || (ISO.includes(pageCountry) ? pageCountry : SHOP_COUNTRY);
 }
+// Note attributes for the Shopify order: the cart's own attributes (as your tracking scripts saved them) plus
+// tracking values from the browser. Exactly ONE click-ID field, as RedTrack requires.
+const CLICKID_KEY = process.env.REDTRACK_CLICKID_KEY || "__clickid";
+const CLICKID_SOURCES = ["__clickid", "rtkclickid-store", "rtkclickid", "clickid", "rtkcid", "cid"];
+function orderAttributes(cartAttrs, tracking) {
+  const out = {};
+  for (const [k, v] of Object.entries(cartAttrs || {})) if (v !== null && v !== undefined && v !== "") out[k] = String(v).slice(0, 500);
+  const t = tracking && typeof tracking === "object" ? tracking : {};
+  const hasClickId = Object.keys(out).some((k) => /clickid/i.test(k));
+  if (!hasClickId) {
+    const src = CLICKID_SOURCES.find((k) => t[k]) || Object.keys(t).find((k) => /clickid/i.test(k));
+    if (src) out[CLICKID_KEY] = String(t[src]).slice(0, 200);
+  }
+  for (const [k, v] of Object.entries(t)) {
+    if (/clickid|^rtk/i.test(k) || k in out) continue; // never a second click-ID field
+    out[k] = String(v).slice(0, 300);
+  }
+  // keep metadata small: drop the longest values first if needed
+  let json = JSON.stringify(out);
+  while (json.length > 1800) { const longest = Object.keys(out).sort((a, b) => out[b].length - out[a].length)[0]; delete out[longest]; json = JSON.stringify(out); }
+  return out;
+}
 const attrs = (o) => Object.entries(o || {})
   .filter(([, v]) => v !== null && v !== undefined && v !== "")
   .map(([key, v]) => ({ key, value: typeof v === "string" ? v : JSON.stringify(v) }));
@@ -128,6 +150,7 @@ export default async function handler(req, res) {
       },
       metadata: {
         order: JSON.stringify({ l: lines, c: currency, t: total, d: gross - total, sc: shopCurrency, st: shopTotal, sd: shopGross - shopTotal }),
+        attrs: JSON.stringify(orderAttributes(b.attributes, b.tracking)),
       },
       redirect_url: process.env.THANK_YOU_URL || "https://madespecial.store/pages/thank-you",
     });
