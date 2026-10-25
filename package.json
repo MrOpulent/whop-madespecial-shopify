@@ -1,0 +1,8 @@
+{
+  "name": "whop-shopify-checkout",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@whop/sdk": "latest"
+  }
+}

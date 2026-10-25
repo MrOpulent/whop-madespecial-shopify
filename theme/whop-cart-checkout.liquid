@@ -1,0 +1,84 @@
+{%- comment -%}
+  Essential Cart drawer / cart page "Checkout" -> shipping form -> Whop.
+  Kaching + Essential discounts stay as they are; the server re-prices the cart with Shopify.
+  Paste in theme.liquid just before </body>. Set ENDPOINT to your deployed /api/whop-checkout URL.
+{%- endcomment -%}
+<dialog id="wh-ship">
+  <form id="wh-form" method="dialog">
+    <strong>Shipping details</strong>
+    <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+    <input name="name" placeholder="Full name" autocomplete="name" required>
+    <input name="phone" type="tel" placeholder="Phone" autocomplete="tel">
+    <input name="address1" placeholder="Address" autocomplete="address-line1" required>
+    <input name="address2" placeholder="Apartment, suite (optional)" autocomplete="address-line2">
+    <input name="city" placeholder="City" autocomplete="address-level2" required>
+    <input name="province" placeholder="State code (e.g. CA)" maxlength="3" autocomplete="address-level1">
+    <input name="zip" placeholder="ZIP / Postcode" autocomplete="postal-code" required>
+    <select name="country_code" autocomplete="country" required>
+      <option value="US">United States</option><option value="GB">United Kingdom</option>
+      <option value="CA">Canada</option><option value="AU">Australia</option>
+    </select>
+    <p id="wh-err" role="alert"></p>
+    <button type="submit" class="button button--primary">Continue to payment</button>
+    <button type="button" id="wh-cancel" class="button button--secondary">Cancel</button>
+  </form>
+</dialog>
+<style>
+  #wh-ship{max-width:420px;width:92%;border:0;border-radius:12px;padding:20px;z-index:2147483647}
+  #wh-ship::backdrop{background:rgba(0,0,0,.5)}
+  #wh-form{display:grid;gap:10px}
+  #wh-form strong{font-size:18px}
+  #wh-form input,#wh-form select{padding:12px;border:1px solid #ccc;border-radius:8px;font-size:16px}
+  #wh-err{color:#b00020;margin:0;font-size:14px}
+  #wh-err:empty{display:none}
+</style>
+<script>
+(function () {
+  var ENDPOINT = 'https://YOUR-PROJECT.vercel.app/api/whop-checkout';
+  // Essential Cart drawer checkout button + theme cart page. Add the drawer button's class if it isn't caught.
+  var SEL = '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], button[onclick*="checkout"], .es-checkout-button';
+  var dlg = document.getElementById('wh-ship'), form = document.getElementById('wh-form'),
+      errEl = document.getElementById('wh-err'), btn = form.querySelector('[type=submit]');
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest(SEL)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    errEl.textContent = ''; dlg.showModal();
+  }, true);
+  document.getElementById('wh-cancel').onclick = function () { dlg.close(); };
+
+  var MSG = {
+    price_mismatch: 'Your cart was just updated. Please close this, check your cart, and try again.',
+    missing_shipping: 'Please fill in all required fields.',
+    empty_cart: 'Your cart is empty.'
+  };
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    btn.disabled = true; btn.textContent = 'Loading…'; errEl.textContent = '';
+    try {
+      var cart = await (await fetch('/cart.js', { cache: 'no-store' })).json();
+      if (!cart.item_count) throw { code: 'empty_cart' };
+      var r = await fetch(ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.items.map(function (i) {
+            return { variant_id: i.variant_id, quantity: i.quantity, properties: i.properties || {} };
+          }),
+          attributes: cart.attributes || {},
+          total_price: cart.total_price,
+          currency: cart.currency,
+          shipping: Object.fromEntries(new FormData(form))
+        })
+      });
+      var d = await r.json();
+      if (!d.url) throw { code: d.error };
+      window.location.href = d.url;
+    } catch (err) {
+      console.error('Whop checkout', err);
+      errEl.textContent = MSG[err && err.code] || 'Checkout is unavailable right now. Please try again.';
+      btn.disabled = false; btn.textContent = 'Continue to payment';
+    }
+  });
+})();
+</script>
