@@ -2,6 +2,7 @@
 // Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET
 import { adminGql } from "../lib/shopify.js";
 import { verifyWebhook, getPayment } from "../lib/whop.js";
+import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 
 export const config = { api: { bodyParser: false } }; // raw body for signature check
 
@@ -50,7 +51,15 @@ export default async function handler(req, res) {
     }
     const sa = p.shipping_address || p.billing_address || {};
     const email = p.customer_email || p.user?.email || p.email || null;
-    const phone = p.customer_phone || p.member?.phone || p.membership?.phone_number || null;
+    const rawPhone = p.customer_phone || p.member?.phone || p.membership?.phone_number || null;
+    // Shopify only accepts valid international numbers (+447911123456). Fix the format, or keep the raw number in the note.
+    const phone = (() => {
+      if (!rawPhone) return null;
+      const s = String(rawPhone).trim(), cc = sa.country ? String(sa.country).toUpperCase() : undefined;
+      const n = parsePhoneNumberFromString(s, cc) || parsePhoneNumberFromString(s.startsWith("+") ? s : `+${s.replace(/\D/g, "")}`);
+      return n && n.isValid() ? n.number : null;
+    })();
+    const phoneNote = rawPhone && !phone ? ` — phone from Whop (not valid for Shopify): ${rawPhone}` : "";
     const [first, ...rest] = String(sa.name || p.user?.name || "").trim().split(/\s+/);
     const addr = {
       firstName: first || null, lastName: rest.join(" ") || first || null, phone,
@@ -73,16 +82,31 @@ export default async function handler(req, res) {
       transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
       ...(addr.address1 && { shippingAddress: addr, billingAddress: addr }),
       tags: ["whop", tag, ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : [])],
-      note: `Whop payment ${d.id}${noAddress ? " — no shipping address from Whop, used billing address; confirm with the customer" : ""}`,
+      note: `Whop payment ${d.id}${noAddress ? " — no shipping address from Whop, used billing address; confirm with the customer" : ""}${phoneNote}`,
     };
     const options = { inventoryBehaviour: "DECREMENT_OBEYING_POLICY", sendReceipt: true };
-    let r = await adminGql(CREATE, { order, options });
-
-    // A region Shopify doesn't know as a province code: keep it in the address text instead and retry once
-    if (r.orderCreate.userErrors.length && addr.provinceCode) {
-      const a2 = { ...addr, provinceCode: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") };
-      r = await adminGql(CREATE, { order: { ...order, shippingAddress: a2, billingAddress: a2 }, options });
+    // Try the full order; if Shopify rejects a detail (region code, phone format, address), retry with less
+    // so a paid order is never lost. Each fallback is noted on the order.
+    const attempts = [
+      ["full", order],
+      ["no region code", { ...order, ...(addr.address1 && { shippingAddress: { ...addr, provinceCode: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") || null },
+                                                           billingAddress: { ...addr, provinceCode: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") || null } }) }],
+      ["no phone", (() => { const a2 = { ...addr, provinceCode: null, phone: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") || null };
+                            const { phone: _p, ...rest } = order; return { ...rest, ...(addr.address1 && { shippingAddress: a2, billingAddress: a2 }) }; })()],
+      ["no address", (() => { const { phone: _p, shippingAddress: _s, billingAddress: _b, ...rest } = order;
+                              return { ...rest, note: `${order.note} — Shopify rejected the address; Whop address: ${JSON.stringify(sa)} phone: ${rawPhone || "-"}` }; })()],
+      // Last resort: no customer details at all, everything kept in the note. A paid order must always exist.
+      ["minimal", (() => { const { phone: _p, email: _e, shippingAddress: _s, billingAddress: _b, ...rest } = order;
+                           return { ...rest, note: `${order.note} — details rejected by Shopify; email: ${email || "-"} phone: ${rawPhone || "-"} address: ${JSON.stringify(sa)}` }; })()],
+    ];
+    let r, used;
+    for (const [label, ord] of attempts) {
+      r = await adminGql(CREATE, { order: label === "full" ? ord : { ...ord, tags: [...ord.tags, `whop-fallback-${label.replace(/ /g, "-")}`] }, options });
+      used = label;
+      if (!r.orderCreate.userErrors.length) break;
+      console.error(`orderCreate (${label})`, JSON.stringify(r.orderCreate.userErrors));
     }
+    if (used !== "full") console.error("order created with fallback:", used);
 
     const err = r.orderCreate.userErrors;
     if (err.length) { console.error("orderCreate", JSON.stringify(err)); return res.status(500).json({ err }); }
