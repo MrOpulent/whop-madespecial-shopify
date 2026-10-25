@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   try {
     const p = await priceCart({
       items: s.it.map(([variant_id, quantity, properties]) => ({ variant_id, quantity, properties })),
-      attributes: s.ca, market_country: country, ship_country: country,
+      attributes: s.ca, discount_codes: s.dc || [], market_country: country, ship_country: country,
     }, { checkDrawer: false });
     if (p.market === s.mk) return res.status(200).json({ unchanged: true });
     // Same products and quantities as the original cart, or refuse

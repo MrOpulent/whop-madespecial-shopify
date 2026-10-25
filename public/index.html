@@ -27,6 +27,16 @@
   .logo img{max-width:220px;max-height:80px;width:auto;height:auto}
   h2{font-size:20px;font-weight:500;margin:28px 0 14px;line-height:1.2}
   h2:first-of-type{margin-top:0}
+  #express{margin:0 0 4px}
+  #express .xh{text-align:center;font-size:14px;color:var(--muted);margin:0 0 10px}
+  .xbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+  .xbtns button{height:48px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 12px;font:inherit;font-weight:600;background-repeat:no-repeat;background-position:center;background-size:auto 55%}
+  .xbtns button.hl{box-shadow:0 0 0 3px var(--focus);animation:xpulse 1.2s ease-in-out 3}
+  @keyframes xpulse{50%{box-shadow:0 0 0 6px rgba(59,130,246,.35)}}
+  .xbtns button:disabled{opacity:.6;cursor:default}
+  #express .or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:18px 0 6px}
+  #express .or:before,#express .or:after{content:"";flex:1;height:1px;background:var(--line)}
+  #express ~ h2{margin-top:18px}
   /* fields with floating labels */
   .f{position:relative;margin-bottom:12px}
   .row{display:flex;gap:12px}.row>.f{flex:1;min-width:0}
@@ -145,6 +155,12 @@
     <div class="mbar" data-mbar="top"><button type="button" aria-expanded="false"><span>Order summary <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></span><strong data-text="total"></strong></button><div class="msum" hidden></div></div>
 
     <form id="form" novalidate autocomplete="on">
+      <div id="express" hidden>
+        <p class="xh">Express checkout</p>
+        <div class="xbtns" id="xbtns"></div>
+        <span class="err" id="e-express"></span>
+        <div class="or"><span>OR</span></div>
+      </div>
       <h2>Contact</h2>
       <div class="f"><input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder=" " maxlength="120"><label for="email">Email</label><span class="err" id="e-email"></span></div>
       <div class="phone" id="phone-box">
@@ -330,7 +346,7 @@
     $('#form').addEventListener('submit', onSubmit);
     $('#form').addEventListener('input', saveSoon);
     $('#form').addEventListener('change', saveSoon);
-    mountWhop();
+    mountWhop(); setupExpress();
     if (F('s', 'country_code').value !== S.market) reprice(F('s', 'country_code').value);
   }
   function paintSummary() {
@@ -351,7 +367,7 @@
         if (seq !== repriceSeq || !j.s || !j.session) return;
         token = j.s; S = j.session;
         try { sessionStorage.setItem('ms-s', token); history.replaceState(null, '', '?s=' + encodeURIComponent(token)); } catch (e) {}
-        paintSummary(); updateWhopAmount(); track('currency_changed', { country: country, currency: S.currency, total: S.amount });
+        paintSummary(); updateWhopAmount(); setupExpress(); track('currency_changed', { country: country, currency: S.currency, total: S.amount });
       })
       .catch(function (e) { console.error('reprice', e); })   // keep the current price; checkout still works
       .then(function () { if (seq === repriceSeq) { repricing = null; setBusy(false); } });
@@ -504,6 +520,86 @@
     }
   }
 
+  // ---------- express checkout: Apple Pay / Google Pay / PayPal sheet collects email, phone and address ----------
+  var expressTok = null, pr = null;
+  var XLABEL = { apple_pay: 'Apple Pay', google_pay: 'Google Pay', paypal_express: 'PayPal' };
+  function setupExpress() {
+    var box = $('#express'); if (!box || !whop || !whop.payments || !whop.payments.paymentRequest) return;
+    var req = null;
+    try {
+      req = whop.payments.paymentRequest.create({
+        accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
+        requestPayerEmail: true, requestPayerPhone: true, requestShipping: true, countryCode: S.market,
+        lineItems: S.lines.map(function (l) { return { label: (l.qty > 1 ? l.qty + ' × ' : '') + l.title, amount: minorUnits(l.lineTotal, S.currency) }; })
+          .concat(S.savings ? [{ label: 'Savings', amount: -minorUnits(S.savings, S.currency) }] : []),
+        shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }]
+      });
+    } catch (e) { console.error('express', e); box.hidden = true; return; }
+    pr = req;
+    if (typeof req.onShippingAddressChange === 'function') req.onShippingAddressChange(function (ev) {
+      var c = String(ev.address && ev.address.country || '').toUpperCase();
+      if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can’t ship to this country.' }] });
+      ev.updateWith({ amount: minorUnits(S.amount, S.currency), shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }] });
+    });
+    req.canMakePayment().then(function (av) {
+      if (pr !== req) return; // replaced by a newer one (currency changed)
+      var order = (av && av.order) || ['apple_pay', 'google_pay', 'paypal_express'];
+      var ok = { apple_pay: av && av.applePay, google_pay: av && av.googlePay, paypal_express: av && av.payPal };
+      var types = order.filter(function (t) { return ok[t]; });
+      if (!types.length) { box.hidden = true; return; }
+      var wrap = $('#xbtns'); wrap.innerHTML = '';
+      types.forEach(function (t) {
+        var art = av.wallets && av.wallets[t] && av.wallets[t].button && av.wallets[t].button.light;
+        var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Pay with ' + XLABEL[t]); b.dataset.type = t;
+        if (art && art.image) { b.style.backgroundColor = art.color; b.style.backgroundImage = 'url("' + art.image + '")'; if (/^#?f{3,6}$|white/i.test(art.color || '')) b.style.borderColor = 'var(--line)'; }
+        else { b.textContent = XLABEL[t]; b.style.background = t === 'google_pay' ? '#fff' : t === 'paypal_express' ? '#ffc439' : '#000'; b.style.color = t === 'apple_pay' ? '#fff' : '#111'; b.style.borderColor = 'var(--line)'; }
+        b.addEventListener('click', function () { expressPay(req, t); });
+        wrap.appendChild(b);
+      });
+      box.hidden = false;
+      track('express_shown', { wallets: types }, true);
+      var want = params.get('x'); var hb = want && $('#xbtns [data-type="' + want + '"]');
+      if (hb) { hb.classList.add('hl'); box.scrollIntoView({ block: 'center' }); }
+    }).catch(function (e) { console.error('express', e); if (pr === req) box.hidden = true; });
+  }
+  function expressPay(req, type) {
+    if (busy) return; $('#e-express').textContent = '';
+    var email = $('#email').value.trim();
+    var p;
+    try { p = req.show(type, /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { email: email } : undefined); } // must run inside the tap
+    catch (e) { $('#e-express').textContent = 'This payment method is not available right now. Please pay by card below.'; track('express_error', { type: type, msg: String(e && e.message).slice(0, 120) }); return; }
+    track('express_opened', { type: type });
+    p.then(function (res) { fillFromWallet(res); track('express_authorized', { type: type, country: res.shipping && res.shipping.address && res.shipping.address.country }); expressTok = res.ctok; onSubmit({ preventDefault: function () {} }); })
+     .catch(function (e) {
+       var code = e && (e.code || e.name) || '';
+       if (/cancel|abort|dismiss/i.test(code + ' ' + (e && e.message))) { track('express_cancelled', { type: type }); return; }
+       track('express_error', { type: type, msg: String(e && (e.message || code)).slice(0, 120) });
+       $('#e-express').textContent = 'That didn’t work. Please try again or pay by card below.';
+     });
+  }
+  // Put the wallet's details into the form (so the buyer sees them, and anything Shopify can't accept can be fixed)
+  function fillFromWallet(res) {
+    var payer = res.payer || {}, a = (res.shipping && res.shipping.address) || (res.billing && res.billing.address) || {};
+    if (payer.email) $('#email').value = payer.email;
+    var c = String(a.country || payer.country || '').toUpperCase();
+    if (ISO.indexOf(c) > -1) { F('s', 'country_code').value = c; setCountry('s'); if (!phoneTouched) setPhoneCountry(c); }
+    var nm = String(a.name || payer.name || '').trim().split(/\s+/);
+    F('s', 'first_name').value = nm[0] || ''; F('s', 'last_name').value = nm.slice(1).join(' ') || '';
+    F('s', 'address1').value = a.line1 || ''; F('s', 'address2').value = a.line2 || ''; F('s', 'city').value = a.city || '';
+    var st = String(a.state || '').trim(), pv = PROV[c];
+    if (pv) {
+      var code = '', low = st.toLowerCase();
+      pv[1].split('|').forEach(function (x) { var i = x.indexOf(' '), k = x.slice(0, i), n = x.slice(i + 1); if (k.toLowerCase() === low || n.toLowerCase() === low) code = k; });
+      F('s', 'province').value = code;
+    } else F('s', 'province_text').value = st;
+    F('s', 'zip').value = a.postal_code || '';
+    var ph = a.phone || payer.phone || '';
+    if (ph) { $('#phone').value = ph; if (!checkPhone()) { $('#phone').value = ''; setPhoneErr(''); } }
+    $('#billing_same').checked = true; $('#billing-box').hidden = true;
+    $$('[data-k]', A('s')).forEach(function (el) { el.dataset.t = 1; });
+    saveSoon();
+  }
+
   // ---------- submit ----------
   var MSG = {
     session_expired: 'This checkout has expired. Please return to your cart and check out again.',
@@ -528,16 +624,17 @@
     if (!checkPhone()) bad.push('phone');
     bad = bad.concat(checkAddr('s'));
     if (!$('#billing_same').checked) bad = bad.concat(checkAddr('b'));
-    if (bad.length) { track('form_invalid_fields', { fields: bad.slice(0, 8) }); firstBad(); return; }
+    if (bad.length) { track('form_invalid_fields', { fields: bad.slice(0, 8), express: !!expressTok }); if (expressTok) alertMsg('Please check the highlighted details, then tap Complete checkout to finish paying.'); firstBad(); return; }
     if (!payments) { $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
-    if (!payComplete) { track('pay_clicked_card_incomplete'); $('#e-payment').textContent = 'Please complete your payment details.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (!payComplete && !expressTok) { track('pay_clicked_card_incomplete'); $('#e-payment').textContent = 'Please complete your payment details.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
 
     var ship = readAddr('s'), billSame = $('#billing_same').checked, bill = billSame ? ship : readAddr('b');
     var email = $('#email').value.trim(), phone = phoneE164() || '';
     setBusy(true); track('pay_clicked', { country: ship.country_code, phone: !!phone, billing_same: billSame });
     try {
       var tok;
-      try {
+      if (expressTok) tok = { confirmationToken: expressTok };
+      else try {
         tok = await payments.createConfirmationToken({ billingDetails: {
           email: email, name: (bill.first_name + ' ' + bill.last_name).trim(), phone: phone || undefined,
           address: { country: bill.country_code, line1: bill.address1, line2: bill.address2 || undefined, city: bill.city, state: bill.province || undefined, postal_code: bill.zip || undefined }
@@ -554,6 +651,7 @@
           contact: { email: email, phone: phone, phone_country: $('#phone_country').value, marketing: $('#marketing').checked },
           shipping: ship, billing_same: billSame, billing: billSame ? null : bill }) });
       var d = await r.json().catch(function () { return { error: 'server_error' }; });
+      if (d.error !== 'invalid_fields') expressTok = null; // a wallet token is single-use once sent for charging
       if (!r.ok || d.error) {
         setBusy(false);
         if (d.error === 'invalid_fields' && d.fields) { markServerFields(d.fields); alertMsg(MSG.invalid_fields); firstBad(); return; }

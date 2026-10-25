@@ -73,9 +73,9 @@ export async function fulfil(d) {
       ...(phone && { phone }),
       currency: sc,
       ...(o.c !== sc && { presentmentCurrency: o.c }),
-      lineItems: o.l.map(([v, q, u, su], i) => ({
+      lineItems: o.l.map(([v, q, u, su, ns], i) => ({
         variantId: `gid://shopify/ProductVariant/${v}`, quantity: q, priceSet: bag(su ?? u, sc, u, o.c),
-        requiresShipping: true, // physical product: shows as needing delivery
+        requiresShipping: !ns, // the drum ships; shipping protection doesn't
         // Kaching bundle details etc. (line item properties from the cart)
         ...(o.p?.[i] && Object.keys(o.p[i]).length && { properties: Object.entries(o.p[i]).map(([name, value]) => ({ name, value: String(value) })) }),
       })),

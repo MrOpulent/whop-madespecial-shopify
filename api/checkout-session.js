@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       mk: p.market, cur: p.currency, tot: p.total, gross: p.gross,
       disp: p.display, title: p.title, desc: p.description,
       order: p.order, attrs: orderAttributes(b.attributes, b.tracking),
-      j, it: p.items, ca: b.attributes || {}, // to re-price if the shopper ships to another country
+      j, it: p.items, ...(p.codes.length && { dc: p.codes }), ca: b.attributes || {}, // to re-price if the shopper ships to another country
     });
     const at = orderAttributes(b.attributes, b.tracking);
     journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: Object.entries(at).find(([k]) => /clickid/i.test(k))?.[1] || null });
