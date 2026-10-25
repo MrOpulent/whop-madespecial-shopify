@@ -1,0 +1,6 @@
+{
+  "headers": [
+    { "source": "/.well-known/apple-developer-merchantid-domain-association", "headers": [{ "key": "Content-Type", "value": "text/plain" }] },
+    { "source": "/", "headers": [{ "key": "Cache-Control", "value": "no-store" }, { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }] }
+  ]
+}

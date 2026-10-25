@@ -44,14 +44,19 @@ export default async function handler(req, res) {
 
     const sc = o.sc || o.c; // shop currency
     const paid = Math.round(Number(d.presentment_total ?? d.total ?? d.final_amount ?? d.subtotal ?? o.t / 100) * 100);
-    // Shipping address, phone and email come from Whop's checkout. If the webhook lacks them, read the payment.
+    // Branded checkout (api/pay.js) sends the buyer's details in metadata.ship (v2). Otherwise (Whop-hosted
+    // checkout) they come from Whop's payment; if the webhook lacks them, read the payment.
+    let form = null; try { const x = JSON.parse(d.metadata?.ship || "null"); if (x && x.v === 2 && x.s) form = x; } catch {}
     let p = d;
-    if (!p.shipping_address || !(p.customer_email || p.user?.email)) {
+    if (!form && (!p.shipping_address || !(p.customer_email || p.user?.email))) {
       try { p = { ...d, ...(await getPayment(d.id)) }; } catch (e) { console.error("getPayment", e.message); }
     }
-    const sa = p.shipping_address || p.billing_address || {};
-    const email = p.customer_email || p.user?.email || p.email || null;
-    const rawPhone = p.customer_phone || p.member?.phone || p.membership?.phone_number || null;
+    const fromForm = (a) => a && { name: `${a.first_name} ${a.last_name}`.trim(), first: a.first_name, last: a.last_name,
+      line1: a.address1, line2: a.address2, city: a.city, state: a.province, postal_code: a.zip, country: a.country_code };
+    const sa = form ? fromForm(form.s) : (p.shipping_address || p.billing_address || {});
+    const ba = form ? (fromForm(form.b) || sa) : sa;
+    const email = (form && form.email) || p.customer_email || p.user?.email || p.email || null;
+    const rawPhone = (form && form.phone) || p.customer_phone || p.member?.phone || p.membership?.phone_number || null;
     // Shopify only accepts valid international numbers (+447911123456). Fix the format, or keep the raw number in the note.
     const phone = (() => {
       if (!rawPhone) return null;
@@ -59,15 +64,18 @@ export default async function handler(req, res) {
       const n = parsePhoneNumberFromString(s, cc) || parsePhoneNumberFromString(s.startsWith("+") ? s : `+${s.replace(/\D/g, "")}`);
       return n && n.isValid() ? n.number : null;
     })();
-    const phoneNote = rawPhone && !phone ? ` — phone from Whop (not valid for Shopify): ${rawPhone}` : "";
-    const [first, ...rest] = String(sa.name || p.user?.name || "").trim().split(/\s+/);
-    const addr = {
-      firstName: first || null, lastName: rest.join(" ") || first || null, phone,
-      address1: sa.line1 || null, address2: sa.line2 || null, city: sa.city || null,
-      provinceCode: sa.state || null, zip: sa.postal_code ? String(sa.postal_code).toUpperCase() : null,
-      countryCode: sa.country ? String(sa.country).toUpperCase() : null,
+    const phoneNote = rawPhone && !phone ? ` — phone (not valid for Shopify): ${rawPhone}` : "";
+    const toAddr = (x) => {
+      const [first, ...rest] = String(x.name || p.user?.name || "").trim().split(/\s+/);
+      return {
+        firstName: x.first || first || null, lastName: x.last || rest.join(" ") || first || null, phone,
+        address1: x.line1 || null, address2: x.line2 || null, city: x.city || null,
+        provinceCode: x.state || null, zip: x.postal_code ? String(x.postal_code).toUpperCase() : null,
+        countryCode: x.country ? String(x.country).toUpperCase() : null,
+      };
     };
-    const noAddress = !p.shipping_address;
+    const addr = toAddr(sa), billAddr = toAddr(ba);
+    const noAddress = !form && !p.shipping_address;
 
     const order = {
       email,
@@ -85,19 +93,20 @@ export default async function handler(req, res) {
       customAttributes: [...Object.entries(attrs).map(([key, value]) => ({ key, value: String(value) })), { key: "whop_payment_id", value: String(d.id) }],
       financialStatus: "PAID",
       transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
-      ...(addr.address1 && { shippingAddress: addr, billingAddress: addr }),
-      tags: ["whop", tag, ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : [])],
+      ...(addr.address1 && { shippingAddress: addr, billingAddress: billAddr.address1 ? billAddr : addr }),
+      tags: ["whop", tag, ...(form?.marketing ? ["accepts-marketing"] : []), ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : [])],
       note: `Whop payment ${d.id}${noAddress ? " — no shipping address from Whop, used billing address; confirm with the customer" : ""}${phoneNote}`,
     };
     const options = { inventoryBehaviour: "DECREMENT_OBEYING_POLICY", sendReceipt: true };
+    const noRegion = (a, src) => ({ ...a, provinceCode: null, address2: [a.address2, src.state].filter(Boolean).join(", ") || null });
     // Try the full order; if Shopify rejects a detail (region code, phone format, address), retry with less
     // so a paid order is never lost. Each fallback is noted on the order.
     const attempts = [
       ["full", order],
-      ["no region code", { ...order, ...(addr.address1 && { shippingAddress: { ...addr, provinceCode: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") || null },
-                                                           billingAddress: { ...addr, provinceCode: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") || null } }) }],
-      ["no phone", (() => { const a2 = { ...addr, provinceCode: null, phone: null, address2: [addr.address2, sa.state].filter(Boolean).join(", ") || null };
-                            const { phone: _p, ...rest } = order; return { ...rest, ...(addr.address1 && { shippingAddress: a2, billingAddress: a2 }) }; })()],
+      ["no region code", { ...order, ...(addr.address1 && { shippingAddress: noRegion(addr, sa), billingAddress: noRegion(billAddr.address1 ? billAddr : addr, billAddr.address1 ? ba : sa) }) }],
+      ["no phone", (() => { const { phone: _p, ...rest } = order;
+                            return { ...rest, ...(addr.address1 && { shippingAddress: { ...noRegion(addr, sa), phone: null },
+                                                                     billingAddress: { ...noRegion(billAddr.address1 ? billAddr : addr, billAddr.address1 ? ba : sa), phone: null } }) }; })()],
       ["no address", (() => { const { phone: _p, shippingAddress: _s, billingAddress: _b, ...rest } = order;
                               return { ...rest, note: `${order.note} — Shopify rejected the address; Whop address: ${JSON.stringify(sa)} phone: ${rawPhone || "-"}` }; })()],
       // Last resort: no customer details at all, everything kept in the note. A paid order must always exist.

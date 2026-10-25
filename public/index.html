@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<meta name="robots" content="noindex">
+<title>Secure Checkout</title>
+<link rel="icon" href="https://madespecial.store/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.whop.com/elements/amber/elements.js" data-whop-elements></script>
+<style>
+  :root{--ink:#000;--muted:#6b7280;--line:#d1d5db;--soft:#e6edf4;--accent:#0000ff;--focus:#3b82f6;--err:#dc2626;--sel:#f3f5fe;--r:8px}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#fff;color:var(--ink);font:16px/1.4 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  button{font:inherit}
+  [hidden]{display:none!important}
+  /* layout */
+  .page{display:flex;min-height:100vh}
+  .main{flex:1 1 55%;display:flex;justify-content:flex-end;padding:24px 32px 40px}
+  .main-in{width:100%;max-width:490px}
+  .side{flex:1 1 45%;background:var(--soft);border-left:1px solid #dfe5ec;padding:24px 32px}
+  .side-in{width:100%;max-width:395px;position:sticky;top:24px}
+  .logo{display:block;text-align:center;margin:0 0 28px}
+  .logo img{max-width:220px;max-height:80px;width:auto;height:auto}
+  h2{font-size:20px;font-weight:500;margin:28px 0 14px;line-height:1.2}
+  h2:first-of-type{margin-top:0}
+  /* fields with floating labels */
+  .f{position:relative;margin-bottom:12px}
+  .row{display:flex;gap:12px}.row>.f{flex:1;min-width:0}
+  .f input,.f select{width:100%;height:50px;border:1px solid var(--line);border-radius:var(--r);background:#fff;color:var(--ink);
+    font:inherit;font-size:14px;padding:20px 14px 6px;outline:none;-webkit-appearance:none;appearance:none}
+  .f select{padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+  .f label{position:absolute;left:15px;top:15px;font-size:14px;color:var(--muted);pointer-events:none;transition:all .12s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 30px)}
+  .f input:focus,.f select:focus{border-color:var(--focus);box-shadow:0 0 0 1px var(--focus)}
+  .f input:focus+label,.f input:not(:placeholder-shown)+label,.f select+label,.f.filled label{top:6px;font-size:11px}
+  .f input:placeholder-shown:not(:focus){padding:13px 14px}
+  .f.bad input,.f.bad select,.phone.bad{border-color:var(--err)!important;box-shadow:0 0 0 1px var(--err)}
+  .err{color:var(--err);font-size:12.5px;margin:5px 2px 0;display:block}
+  .err:empty{display:none}
+  /* phone with country code */
+  .phone{display:flex;align-items:center;height:50px;border:1px solid var(--line);border-radius:var(--r);background:#fff;position:relative}
+  .phone:focus-within{border-color:var(--focus);box-shadow:0 0 0 1px var(--focus)}
+  .phone .f{flex:1;margin:0}.phone .f input{border:0!important;box-shadow:none!important;height:48px}
+  .phone .cc{position:relative;display:flex;align-items:center;gap:6px;padding:0 12px 0 8px;font-size:14px;color:#333;height:100%;cursor:pointer}
+  .phone .cc select{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:16px}
+  .phone .cc .flag{font-size:20px;line-height:1}
+  .phone .cc svg{opacity:.6}
+  .chk{display:flex;align-items:center;gap:10px;font-size:14px;margin:4px 0 0;cursor:pointer;user-select:none}
+  .chk input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
+  /* shipping method */
+  .ship{border:1px solid var(--focus);background:var(--sel);border-radius:var(--r);display:flex;align-items:center;gap:12px;padding:11px 20px}
+  .ship .dot{width:16px;height:16px;border-radius:50%;border:5px solid var(--focus);background:#fff;flex:none}
+  .ship .nm{flex:1;font-size:16px}.ship .pr{font-weight:600}
+  /* payment */
+  .pay-box{position:relative;min-height:160px}
+  .skel{border:1px solid #eee;border-radius:var(--r);padding:16px}
+  .skel i{display:block;height:44px;border-radius:6px;background:linear-gradient(90deg,#f2f2f2 25%,#e9e9e9 37%,#f2f2f2 63%);background-size:400% 100%;animation:sh 1.2s infinite;margin-bottom:10px}
+  .skel i:last-child{margin:0;width:60%}
+  @keyframes sh{0%{background-position:100% 50%}100%{background-position:0 50%}}
+  #wh-branding{margin-top:14px}
+  .alert{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:var(--r);padding:12px 14px;font-size:14px;margin:16px 0 0}
+  .alert:empty{display:none}
+  .cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:55px;margin-top:22px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-size:16px;font-weight:500;cursor:pointer}
+  .cta[disabled]{opacity:.65;cursor:wait}
+  .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:rot .8s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .secure{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted);font-size:12.5px;margin-top:10px}
+  .foot{border-top:1px solid #e5e7eb;margin-top:32px;padding-top:22px;text-align:center}
+  .cards{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:18px}
+  .cards span{display:inline-flex;align-items:center;justify-content:center;height:24px;min-width:38px;padding:0 6px;border:1px solid #e5e7eb;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.2px;color:#374151;background:#fff}
+  .links{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;font-size:12.5px}
+  .links a{color:var(--muted);text-decoration:underline}
+  /* order summary */
+  .cont{display:flex;justify-content:flex-end;align-items:center;gap:8px;font-size:16px;text-decoration:none;margin:4px 0 18px}
+  .items{list-style:none;margin:0 0 22px;padding:0}
+  .item{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px}
+  .thumb{position:relative;flex:none;width:60px;height:60px;border-radius:8px;background:#fff;border:1px solid rgba(0,0,0,.08)}
+  .thumb img{width:100%;height:100%;object-fit:cover;border-radius:8px;display:block}
+  .thumb b{position:absolute;top:-8px;right:-8px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#111;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  .it-t{flex:1;min-width:0;font-size:14px;font-weight:500}
+  .it-t small{display:block;font-weight:400;font-size:12px;color:#555;margin-top:2px}
+  .it-p{font-size:14px;white-space:nowrap}
+  .sums{font-size:14px}
+  .sums div{display:flex;justify-content:space-between;margin:6px 0}
+  .sums .sv{color:#047857}
+  .tot{display:flex;justify-content:space-between;align-items:baseline;font-size:18px;font-weight:500;margin-top:16px}
+  .tot small{font-size:12px;color:var(--muted);font-weight:500;margin-right:6px}
+  /* mobile */
+  .mbar{display:none}
+  @media (max-width:999px){
+    .page{flex-direction:column}
+    .side{display:none}
+    .main{padding:0 16px 24px;justify-content:center}
+    .main-in{max-width:560px}
+    .logo{margin:20px 0}
+    .mbar{display:block;background:var(--soft);margin:0 -16px 22px;border-top:1px solid #dfe5ec;border-bottom:1px solid #dfe5ec}
+    .mbar.bottom{margin:28px -16px 0}
+    .mbar button{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-size:14px;cursor:pointer}
+    .mbar button span{display:flex;align-items:center;gap:6px}
+    .mbar .msum{padding:4px 16px 16px}
+    .mbar[data-open="1"] .chev{transform:rotate(180deg)}
+    .row.r2{flex-direction:column;gap:0}
+  }
+  /* states */
+  .center{max-width:490px;margin:40px auto;padding:0 16px;text-align:center}
+  .done{text-align:left}
+  .done .ok{width:56px;height:56px;border-radius:50%;border:2px solid #16a34a;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .done h1{font-size:22px;font-weight:600;margin:0 0 6px}
+  .done p{margin:0 0 6px;color:#374151;font-size:15px}
+  .box{border:1px solid #e5e7eb;border-radius:var(--r);padding:16px;margin:18px 0;font-size:14px;line-height:1.5}
+  .btn2{display:inline-flex;align-items:center;justify-content:center;height:50px;padding:0 22px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-weight:500;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="center" id="boot"><div class="skel" style="border:0"><i></i><i></i><i></i></div></div>
+</div>
+
+<!-- ============ CHECKOUT ============ -->
+<template id="tpl-checkout">
+<div class="page">
+  <main class="main"><div class="main-in">
+    <a class="logo" data-href="store.url"><img data-src="store.logo" alt=""></a>
+
+    <div class="mbar" data-mbar="top"><button type="button" aria-expanded="false"><span>Order summary <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></span><strong data-text="total"></strong></button><div class="msum" hidden></div></div>
+
+    <form id="form" novalidate autocomplete="on">
+      <h2>Contact</h2>
+      <div class="f"><input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder=" " maxlength="120"><label for="email">Email</label><span class="err" id="e-email"></span></div>
+      <div class="phone" id="phone-box">
+        <div class="f"><input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder=" " maxlength="20"><label for="phone">Phone (optional)</label></div>
+        <label class="cc" title="Country code"><span class="flag" id="pflag"></span><span id="pdial">+1</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg><select id="phone_country" aria-label="Phone country code"></select></label>
+      </div>
+      <span class="err" id="e-phone"></span>
+      <label class="chk" style="margin-top:12px"><input type="checkbox" id="marketing"> Sign up for exclusive offers and updates</label>
+
+      <h2>Delivery</h2>
+      <div data-addr="s"></div>
+
+      <h2>Shipping method</h2>
+      <div class="ship"><span class="dot"></span><span class="nm" data-text="shippingTitle"></span><span class="pr">FREE</span></div>
+
+      <h2>Billing address</h2>
+      <label class="chk"><input type="checkbox" id="billing_same" checked> Billing address same as shipping address</label>
+      <div id="billing-box" hidden style="margin-top:14px"><div data-addr="b"></div></div>
+
+      <h2>Payment method</h2>
+      <div class="pay-box">
+        <div class="skel" id="pay-skel"><i></i><i></i><i></i></div>
+        <div id="wh-payment"></div>
+        <div id="wh-branding"></div>
+      </div>
+      <span class="err" id="e-payment"></span>
+
+      <p class="alert" id="alert" role="alert"></p>
+      <button class="cta" id="pay" type="submit">Complete checkout</button>
+      <div class="secure"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>All transactions are secure and encrypted.</div>
+    </form>
+
+    <div class="mbar bottom" data-mbar="bottom"><button type="button" aria-expanded="false"><span>Order summary <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></span><strong data-text="total"></strong></button><div class="msum" hidden></div></div>
+
+    <div class="foot">
+      <div class="cards"><span>Apple Pay</span><span>G Pay</span><span>PayPal</span><span>VISA</span><span>Mastercard</span><span>AMEX</span><span>Discover</span></div>
+      <div class="links"><a data-href="store.policies.refund" target="_blank" rel="noopener">Refund policy</a><a data-href="store.policies.shipping" target="_blank" rel="noopener">Shipping policy</a><a data-href="store.policies.privacy" target="_blank" rel="noopener">Privacy policy</a><a data-href="store.policies.terms" target="_blank" rel="noopener">Terms of service</a></div>
+    </div>
+  </div></main>
+
+  <aside class="side"><div class="side-in">
+    <a class="cont" data-href="store.cart"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.2a1.5 1.5 0 0 0 1.5 1.2h9.4a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/></svg>Continue shopping</a>
+    <h2>Order summary</h2>
+    <div class="summary"></div>
+  </div></aside>
+</div>
+</template>
+
+<!-- one address block (used for shipping "s" and billing "b") -->
+<template id="tpl-addr">
+  <div class="f filled"><select data-k="country_code" autocomplete="country"></select><label>Country</label><span class="err"></span></div>
+  <div class="row r2">
+    <div class="f"><input data-k="first_name" autocomplete="given-name" placeholder=" " maxlength="60"><label>First name</label><span class="err"></span></div>
+    <div class="f"><input data-k="last_name" autocomplete="family-name" placeholder=" " maxlength="60"><label>Last name</label><span class="err"></span></div>
+  </div>
+  <div class="f"><input data-k="address1" autocomplete="address-line1" placeholder=" " maxlength="120"><label>Address</label><span class="err"></span></div>
+  <div class="f"><input data-k="address2" autocomplete="address-line2" placeholder=" " maxlength="120"><label>Apt, suite, etc. (optional)</label><span class="err"></span></div>
+  <div class="f"><input data-k="city" autocomplete="address-level2" placeholder=" " maxlength="60"><label>City</label><span class="err"></span></div>
+  <div class="row r2">
+    <div class="f filled" data-prov="select"><select data-k="province" autocomplete="address-level1"></select><label>State</label><span class="err"></span></div>
+    <div class="f" data-prov="text"><input data-k="province_text" autocomplete="address-level1" placeholder=" " maxlength="60"><label>State/province (optional)</label><span class="err"></span></div>
+    <div class="f" data-zip><input data-k="zip" autocomplete="postal-code" placeholder=" " maxlength="12"><label>Postal code</label><span class="err"></span></div>
+  </div>
+</template>
+
+<template id="tpl-summary">
+  <ul class="items"></ul>
+  <div class="sums">
+    <div><span>Subtotal</span><span data-text="subtotal"></span></div>
+    <div data-if="savings" class="sv"><span>Savings</span><span data-text="savingsNeg"></span></div>
+    <div><span>Shipping</span><span>FREE</span></div>
+  </div>
+  <div class="tot"><span>Total</span><span><small data-text="currency"></small><span data-text="total"></span></span></div>
+</template>
+
+<script>
+(function () {
+  "use strict";
+  var API = "";                       // same origin as this page
+  var KEY = "ms-checkout-v1";         // remembered form fields (this browser only)
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var params = new URLSearchParams(location.search);
+  var S = null, token = null, payments = null, whop = null, payComplete = false, busy = false;
+
+  // ---------- data ----------
+  var ISO = ('AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IS IT JE JM JO JP KE KG KH KI KM KN KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW').split(' ');
+  var NO_ZIP = ' AE AG AI AO AW BF BI BJ BO BQ BS BW BZ CD CF CG CI CK CM CW DJ DM ER FJ GA GD GH GM GQ GY HK KI KM KN LY ML MO MR MW NR NU QA RW SB SC SL SO SR SS ST SX TD TF TG TK TL TO TV UG VU YE ZW ';
+  var ZIP = { US:/^\d{5}(-\d{4})?$/, CA:/^[A-CEGHJ-NPR-TVXY]\d[A-CEGHJ-NPR-TV-Z] ?\d[A-CEGHJ-NPR-TV-Z]\d$/i, GB:/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i,
+    AU:/^\d{4}$/, NZ:/^\d{4}$/, IN:/^\d{6}$/, DE:/^\d{5}$/, FR:/^\d{5}$/, IT:/^\d{5}$/, ES:/^\d{5}$/, NL:/^\d{4} ?[A-Z]{2}$/i,
+    BE:/^\d{4}$/, CH:/^\d{4}$/, AT:/^\d{4}$/, DK:/^\d{4}$/, NO:/^\d{4}$/, SE:/^\d{3} ?\d{2}$/, FI:/^\d{5}$/, PL:/^\d{2}-\d{3}$/,
+    PT:/^\d{4}-\d{3}$/, IE:/^[A-Z]\d[\dW] ?[A-Z\d]{4}$/i, JP:/^\d{3}-?\d{4}$/, BR:/^\d{5}-?\d{3}$/, MX:/^\d{5}$/, SG:/^\d{6}$/,
+    ZA:/^\d{4}$/, CN:/^\d{6}$/, KR:/^\d{5}$/, MY:/^\d{5}$/, PH:/^\d{4}$/, TH:/^\d{5}$/, ID:/^\d{5}$/, IL:/^\d{7}$/, SA:/^\d{5}(-\d{4})?$/,
+    TR:/^\d{5}$/, RU:/^\d{6}$/, UA:/^\d{5}$/, GR:/^\d{3} ?\d{2}$/, CZ:/^\d{3} ?\d{2}$/, SK:/^\d{3} ?\d{2}$/, HU:/^\d{4}$/, RO:/^\d{6}$/,
+    BG:/^\d{4}$/, HR:/^\d{5}$/, SI:/^\d{4}$/, LU:/^\d{4}$/, CL:/^\d{7}$/, CO:/^\d{6}$/, PE:/^\d{5}$/, PK:/^\d{5}$/, BD:/^\d{4}$/,
+    LK:/^\d{5}$/, NP:/^\d{5}$/, EG:/^\d{5}$/, MA:/^\d{5}$/, KE:/^\d{5}$/, NG:/^\d{6}$/, VN:/^\d{6}$/, AR:/^([A-Z]\d{4}[A-Z]{3}|\d{4})$/i };
+  var ZIP_ANY = /^[A-Z0-9][A-Z0-9 -]{1,9}$/i, ZIP_LABEL = { US:'ZIP code', IN:'PIN code' };
+  var PROV = {
+    US: ['State', 'AL Alabama|AK Alaska|AZ Arizona|AR Arkansas|CA California|CO Colorado|CT Connecticut|DE Delaware|DC District of Columbia|FL Florida|GA Georgia|HI Hawaii|ID Idaho|IL Illinois|IN Indiana|IA Iowa|KS Kansas|KY Kentucky|LA Louisiana|ME Maine|MD Maryland|MA Massachusetts|MI Michigan|MN Minnesota|MS Mississippi|MO Missouri|MT Montana|NE Nebraska|NV Nevada|NH New Hampshire|NJ New Jersey|NM New Mexico|NY New York|NC North Carolina|ND North Dakota|OH Ohio|OK Oklahoma|OR Oregon|PA Pennsylvania|RI Rhode Island|SC South Carolina|SD South Dakota|TN Tennessee|TX Texas|UT Utah|VT Vermont|VA Virginia|WA Washington|WV West Virginia|WI Wisconsin|WY Wyoming|PR Puerto Rico|AA Armed Forces Americas|AE Armed Forces Europe|AP Armed Forces Pacific'],
+    CA: ['Province', 'AB Alberta|BC British Columbia|MB Manitoba|NB New Brunswick|NL Newfoundland and Labrador|NS Nova Scotia|NT Northwest Territories|NU Nunavut|ON Ontario|PE Prince Edward Island|QC Quebec|SK Saskatchewan|YT Yukon'],
+    AU: ['State/territory', 'ACT Australian Capital Territory|NSW New South Wales|NT Northern Territory|QLD Queensland|SA South Australia|TAS Tasmania|VIC Victoria|WA Western Australia']
+  };
+  var LETTERS = /^[\p{L}][\p{L}\p{M}' .,-]{0,59}$/u;
+  var names = null; try { names = new Intl.DisplayNames([document.documentElement.lang || 'en', 'en'], { type: 'region' }); } catch (e) {}
+  var countryName = function (c) { return (names && names.of(c)) || c; };
+  var COUNTRIES = ISO.map(function (c) { return [c, countryName(c)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
+  var flag = function (c) { return String.fromCodePoint.apply(null, c.split('').map(function (ch) { return 127397 + ch.charCodeAt(0); })); };
+  var esc = function (s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+  var money = function (c) { try { return new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: S.currency }).format(c / 100); } catch (e) { return (c / 100).toFixed(2) + ' ' + S.currency; } };
+  var hasZip = function (c) { return NO_ZIP.indexOf(' ' + c + ' ') === -1; };
+  var get = function (o, path) { return path.split('.').reduce(function (a, k) { return a && a[k]; }, o); };
+  var store = { get: function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } },
+                set: function (v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} } };
+
+  // ---------- boot ----------
+  if (params.get('return') === '1') return showReturn();
+  token = params.get('s');
+  if (!token) return showState('expired');
+  try { sessionStorage.setItem('ms-s', token); } catch (e) {}
+  var libReady = new Promise(function (ok) {
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.43/bundle/libphonenumber-min.js';
+    sc.onload = sc.onerror = function () { ok(); }; document.head.appendChild(sc);
+    setTimeout(ok, 4000); // never block checkout on it
+  });
+  Promise.all([
+    fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }),
+    libReady
+  ]).then(function (all) { var x = all[0]; if (!x.ok) return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); S = x.j; render(); })
+    .catch(function (e) { console.error(e); showState('error'); });
+
+  // ---------- render ----------
+  function fill(root) {
+    $$('[data-href]', root).forEach(function (a) { a.href = get(S, a.getAttribute('data-href')) || '#'; });
+    $$('[data-src]', root).forEach(function (i) { i.src = get(S, i.getAttribute('data-src')); i.alt = S.store.name; });
+    var vals = { total: money(S.amount), subtotal: money(S.subtotal), savingsNeg: '-' + money(S.savings), currency: S.currency, shippingTitle: S.shippingTitle };
+    $$('[data-text]', root).forEach(function (e) { e.textContent = vals[e.getAttribute('data-text')]; });
+    $$('[data-if]', root).forEach(function (e) { e.hidden = !S[e.getAttribute('data-if')]; });
+  }
+  function summaryHTML() {
+    var t = document.importNode($('#tpl-summary').content, true);
+    $('.items', t).innerHTML = S.lines.map(function (l) {
+      return '<li class="item"><div class="thumb">' + (l.image ? '<img src="' + esc(l.image) + '" alt="">' : '') + '<b>' + l.qty + '</b></div>' +
+        '<div class="it-t">' + esc(l.title) + l.options.map(function (o) { return '<small>' + esc(o) + '</small>'; }).join('') + '</div>' +
+        '<div class="it-p">' + money(l.lineTotal) + '</div></li>';
+    }).join('');
+    fill(t); return t;
+  }
+  function render() {
+    document.title = 'Checkout - ' + S.store.name;
+    var app = $('#app'); app.innerHTML = '';
+    app.appendChild(document.importNode($('#tpl-checkout').content, true));
+    fill(app);
+    $('.summary').appendChild(summaryHTML());
+    $$('.mbar').forEach(function (bar) {
+      $('.msum', bar).appendChild(summaryHTML());
+      $('button', bar).addEventListener('click', function () {
+        var open = bar.getAttribute('data-open') !== '1';
+        bar.setAttribute('data-open', open ? '1' : '0'); $('.msum', bar).hidden = !open; this.setAttribute('aria-expanded', String(open));
+      });
+    });
+    buildAddr('s'); buildAddr('b'); buildPhone();
+    restore();
+    $('#billing_same').addEventListener('change', function () { $('#billing-box').hidden = this.checked; saveSoon(); });
+    $('#form').addEventListener('submit', onSubmit);
+    $('#form').addEventListener('input', saveSoon);
+    $('#form').addEventListener('change', saveSoon);
+    mountWhop();
+  }
+
+  // address blocks
+  function A(p) { return $('[data-addr="' + p + '"]'); }
+  function F(p, k) { return $('[data-k="' + k + '"]', A(p)); }
+  function buildAddr(p) {
+    var box = A(p); box.appendChild(document.importNode($('#tpl-addr').content, true));
+    $$('[data-k]', box).forEach(function (el) { el.id = p + '_' + el.getAttribute('data-k'); var lb = el.nextElementSibling; if (lb) lb.setAttribute('for', el.id); });
+    var sel = F(p, 'country_code');
+    sel.innerHTML = COUNTRIES.map(function (c) { return '<option value="' + c[0] + '">' + esc(c[1]) + '</option>'; }).join('');
+    sel.value = ISO.indexOf(S.market) > -1 ? S.market : 'US';
+    sel.addEventListener('change', function () { setCountry(p); if (p === 's' && !phoneTouched) setPhoneCountry(sel.value); });
+    $$('input,select', box).forEach(function (el) {
+      el.addEventListener('blur', function () { if (el.getAttribute('data-k') === 'zip') formatZip(p); if (el.value || el.dataset.t) { el.dataset.t = 1; check(p, el.getAttribute('data-k')); } });
+      el.addEventListener('input', function () { if (el.dataset.t) check(p, el.getAttribute('data-k')); });
+    });
+    setCountry(p);
+  }
+  function setCountry(p) {
+    var c = F(p, 'country_code').value, pv = PROV[c], box = A(p);
+    var selWrap = $('[data-prov="select"]', box), txtWrap = $('[data-prov="text"]', box), zipWrap = $('[data-zip]', box);
+    selWrap.hidden = !pv; txtWrap.hidden = !!pv; zipWrap.hidden = !hasZip(c);
+    if (pv) {
+      var prev = F(p, 'province').value;
+      F(p, 'province').innerHTML = '<option value="">Select…</option>' + pv[1].split('|').map(function (x) { var i = x.indexOf(' '); return '<option value="' + x.slice(0, i) + '">' + esc(x.slice(i + 1)) + '</option>'; }).join('');
+      F(p, 'province').value = prev; $('label', selWrap).textContent = pv[0];
+    }
+    $('label', zipWrap).textContent = ZIP_LABEL[c] || 'Postal code';
+    ['province', 'province_text', 'zip'].forEach(function (k) { if (F(p, k).dataset.t) check(p, k); });
+  }
+  function formatZip(p) {
+    var el = F(p, 'zip'), v = el.value.trim().toUpperCase().replace(/\s+/g, ' '), c = F(p, 'country_code').value;
+    if ((c === 'CA' || c === 'GB') && v.indexOf(' ') === -1 && v.length >= 5) v = v.slice(0, -3) + ' ' + v.slice(-3);
+    el.value = v;
+  }
+  var RULES = {
+    first_name: function (v) { return !v ? 'Enter a first name' : !LETTERS.test(v) ? 'Use letters only' : ''; },
+    last_name: function (v) { return !v ? 'Enter a last name' : !LETTERS.test(v) ? 'Use letters only' : ''; },
+    address1: function (v) { return !v ? 'Enter an address' : (v.length < 4 || !/\p{L}/u.test(v)) ? 'Enter your full street address' : ''; },
+    address2: function () { return ''; },
+    city: function (v) { return !v ? 'Enter a city' : !/^[\p{L}][\p{L}\p{M}' .,()-]{1,59}$/u.test(v) ? 'Enter a valid city name' : ''; },
+    country_code: function (v) { return ISO.indexOf(v) > -1 ? '' : 'Select a country'; },
+    province: function (v, c) { return PROV[c] && !v ? 'Select a ' + PROV[c][0].toLowerCase() : ''; },
+    province_text: function (v, c) { return !PROV[c] && v && !/^[\p{L}\d][\p{L}\p{M}\d' .,()-]{0,59}$/u.test(v) ? 'Enter a valid region name' : ''; },
+    zip: function (v, c) { if (!hasZip(c)) return ''; var l = ZIP_LABEL[c] || 'postal code'; return !v ? 'Enter a ' + l : !(ZIP[c] || ZIP_ANY).test(v) ? 'Enter a valid ' + l + ' for ' + countryName(c) : ''; }
+  };
+  function setErr(el, msg, wrap) {
+    var f = wrap || el.closest('.f'); if (!f) return;
+    f.classList.toggle('bad', !!msg); el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    var e = $('.err', f); if (e) e.textContent = msg;
+  }
+  function check(p, k) {
+    var el = F(p, k); if (!el || el.closest('[hidden]')) return true;
+    var msg = RULES[k](el.value.trim(), F(p, 'country_code').value); setErr(el, msg); return !msg;
+  }
+  function checkAddr(p) { return Object.keys(RULES).filter(function (k) { F(p, k).dataset.t = 1; return !check(p, k); }); }
+  function readAddr(p) {
+    var c = F(p, 'country_code').value;
+    return { country_code: c, first_name: F(p, 'first_name').value.trim(), last_name: F(p, 'last_name').value.trim(),
+      address1: F(p, 'address1').value.trim(), address2: F(p, 'address2').value.trim(), city: F(p, 'city').value.trim(),
+      province: PROV[c] ? F(p, 'province').value : F(p, 'province_text').value.trim(), zip: hasZip(c) ? F(p, 'zip').value.trim() : '' };
+  }
+
+  // contact
+  var phoneTouched = false;
+  function buildPhone() {
+    var sel = $('#phone_country');
+    var lib = window.libphonenumber;
+    var dial = function (c) { try { return lib ? '+' + lib.getCountryCallingCode(c) : ''; } catch (e) { return ''; } };
+    sel.innerHTML = COUNTRIES.map(function (c) { var d = dial(c[0]); return '<option value="' + c[0] + '">' + esc(c[1]) + (d ? ' (' + d + ')' : '') + '</option>'; }).join('');
+    sel.addEventListener('change', function () { phoneTouched = true; setPhoneCountry(sel.value); if ($('#phone').dataset.t) checkPhone(); });
+    setPhoneCountry(F('s', 'country_code').value);
+    $('#email').addEventListener('blur', function () { if (this.value || this.dataset.t) { this.dataset.t = 1; checkEmail(); } });
+    $('#email').addEventListener('input', function () { if (this.dataset.t) checkEmail(); });
+    $('#phone').addEventListener('blur', function () { if (this.value) { this.dataset.t = 1; checkPhone(); } else setPhoneErr(''); });
+    $('#phone').addEventListener('input', function () { this.value = this.value.replace(/[^\d\s()+.-]/g, ''); if (this.dataset.t) checkPhone(); });
+  }
+  function setPhoneCountry(c) {
+    $('#phone_country').value = c; $('#pflag').textContent = flag(c);
+    var d = ''; try { d = window.libphonenumber ? '+' + window.libphonenumber.getCountryCallingCode(c) : ''; } catch (e) {}
+    $('#pdial').textContent = d;
+  }
+  function checkEmail() { var v = $('#email').value.trim(); var m = !v ? 'Enter an email' : !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v) ? 'Enter a valid email' : ''; setErr($('#email'), m); return !m; }
+  function phoneE164() {
+    var v = $('#phone').value.trim(); if (!v) return '';
+    var lib = window.libphonenumber, c = $('#phone_country').value;
+    if (lib) { try { var n = lib.parsePhoneNumberFromString(v, c); return n && n.isValid() ? n.number : null; } catch (e) { return null; } }
+    var d = v.replace(/\D/g, ''); return d.length >= 6 && d.length <= 15 ? v : null;
+  }
+  function setPhoneErr(m) { $('#phone-box').classList.toggle('bad', !!m); $('#e-phone').textContent = m; }
+  function checkPhone() { var r = phoneE164(); var m = r === null ? 'Enter a valid phone number for ' + countryName($('#phone_country').value) + ', or leave it empty' : ''; setPhoneErr(m); return !m; }
+
+  // remember fields (this browser only)
+  var saveT;
+  function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 300); }
+  function save() {
+    var v = { email: $('#email').value, phone: $('#phone').value, phone_country: $('#phone_country').value, marketing: $('#marketing').checked, billing_same: $('#billing_same').checked, s: {}, b: {} };
+    ['s', 'b'].forEach(function (p) { $$('[data-k]', A(p)).forEach(function (el) { v[p][el.getAttribute('data-k')] = el.value; }); });
+    store.set(v);
+  }
+  function restore() {
+    var v = store.get(); if (!v || !v.s) return;
+    $('#email').value = v.email || ''; $('#phone').value = v.phone || ''; $('#marketing').checked = !!v.marketing;
+    $('#billing_same').checked = v.billing_same !== false; $('#billing-box').hidden = $('#billing_same').checked;
+    ['s', 'b'].forEach(function (p) {
+      var o = v[p] || {}; if (o.country_code && ISO.indexOf(o.country_code) > -1) { F(p, 'country_code').value = o.country_code; setCountry(p); }
+      Object.keys(o).forEach(function (k) { var el = F(p, k); if (el && k !== 'country_code' && o[k] != null) el.value = o[k]; });
+    });
+    if (v.phone_country) { phoneTouched = true; setPhoneCountry(v.phone_country); } else setPhoneCountry(F('s', 'country_code').value);
+  }
+
+  // ---------- Whop payment element ----------
+  // Session amounts are hundredths of the currency's major unit; Whop wants real minor units (JPY has none)
+  function minorUnits(hundredths, cur) {
+    var digits = 2; try { digits = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
+    return Math.round(hundredths / 100 * Math.pow(10, digits));
+  }
+  function mountWhop() {
+    if (!window.WhopElements) { $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
+    try {
+      whop = window.WhopElements();
+      payments = whop.payments.create({
+        accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
+        returnUrl: location.origin + '/?return=1',
+        appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
+        onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; }
+      });
+      payments.create('payment', {
+        fields: { billingDetails: 'never', phone: 'never' },
+        onChange: function (e) { payComplete = !!(e && e.complete); if (payComplete) $('#e-payment').textContent = ''; },
+        onReady: function () { $('#pay-skel').hidden = true; },
+        onError: function (e) { console.error('payment element', e); }
+      }).mount('#wh-payment');
+      payments.create('branding').mount('#wh-branding');
+    } catch (e) {
+      console.error(e); $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.';
+    }
+  }
+
+  // ---------- submit ----------
+  var MSG = {
+    session_expired: 'This checkout has expired. Please return to your cart and check out again.',
+    session_invalid: 'This checkout link is not valid. Please return to your cart and check out again.',
+    payment_details_missing: 'Please complete your payment details.',
+    invalid_fields: 'Please check the highlighted fields.',
+    server_error: 'Something went wrong on our side. You have not been charged. Please try again.'
+  };
+  function setBusy(b) {
+    busy = b; var btn = $('#pay'); btn.disabled = b;
+    btn.innerHTML = b ? '<span class="spin"></span> Processing…' : 'Complete checkout';
+  }
+  function alertMsg(m) { $('#alert').textContent = m || ''; if (m) $('#alert').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  function firstBad() { var el = $('.f.bad input, .f.bad select, .phone.bad input'); if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
+
+  async function onSubmit(ev) {
+    ev.preventDefault(); if (busy) return; alertMsg('');
+    $('#email').dataset.t = 1;
+    formatZip('s'); if (!$('#billing_same').checked) formatZip('b');
+    var bad = [];
+    if (!checkEmail()) bad.push('email');
+    if (!checkPhone()) bad.push('phone');
+    bad = bad.concat(checkAddr('s'));
+    if (!$('#billing_same').checked) bad = bad.concat(checkAddr('b'));
+    if (bad.length) { firstBad(); return; }
+    if (!payments) { $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
+    if (!payComplete) { $('#e-payment').textContent = 'Please complete your payment details.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+
+    var ship = readAddr('s'), billSame = $('#billing_same').checked, bill = billSame ? ship : readAddr('b');
+    var email = $('#email').value.trim(), phone = phoneE164() || '';
+    setBusy(true);
+    try {
+      var tok;
+      try {
+        tok = await payments.createConfirmationToken({ billingDetails: {
+          email: email, name: (bill.first_name + ' ' + bill.last_name).trim(), phone: phone || undefined,
+          address: { country: bill.country_code, line1: bill.address1, line2: bill.address2 || undefined, city: bill.city, state: bill.province || undefined, postal_code: bill.zip || undefined }
+        } });
+      } catch (e) {
+        setBusy(false);
+        if (e && (e.code === 'payment_request_cancelled' || /cancel/i.test(e.code || ''))) return; // closed Apple/Google Pay sheet
+        console.error('createConfirmationToken', e);
+        $('#e-payment').textContent = (e && e.message) || 'Please check your payment details.'; return;
+      }
+      var r = await fetch(API + '/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ s: token, confirmationToken: tok.confirmationToken,
+          contact: { email: email, phone: phone, phone_country: $('#phone_country').value, marketing: $('#marketing').checked },
+          shipping: ship, billing_same: billSame, billing: billSame ? null : bill }) });
+      var d = await r.json().catch(function () { return { error: 'server_error' }; });
+      if (!r.ok) {
+        setBusy(false);
+        if (d.error === 'invalid_fields' && d.fields) { markServerFields(d.fields); alertMsg(MSG.invalid_fields); firstBad(); return; }
+        if (d.error === 'payment_failed') { $('#e-payment').textContent = d.message || 'Your payment was declined. Please try another card or payment method.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        return alertMsg(MSG[d.error] || MSG.server_error);
+      }
+      saveOrder({ email: email, ship: ship, payment: d.id });
+      if (d.status === 'paid' || d.status === 'succeeded') return showDone('succeeded');
+      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + '/?return=1' });
+      if (res.redirected) return;
+      if (res.status === 'succeeded' || res.status === 'paid') return showDone('succeeded');
+      if (res.status === 'processing' || res.status === 'pending') return showDone('processing');
+      setBusy(false);
+      $('#e-payment').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed. Please try again.';
+    } catch (e) {
+      console.error(e); setBusy(false); alertMsg(MSG.server_error);
+    }
+  }
+  function markServerFields(fields) {
+    fields.forEach(function (n) {
+      if (n === 'email') return setErr($('#email'), 'Enter a valid email');
+      if (n === 'phone') return setPhoneErr('Enter a valid phone number, or leave it empty');
+      var p = n.indexOf('billing_') === 0 ? 'b' : 's', k = n.replace(/^billing_/, '');
+      if (k === 'province' && !PROV[F(p, 'country_code').value]) k = 'province_text';
+      var el = F(p, k); if (el) setErr(el, 'Please check this field');
+    });
+  }
+
+  // ---------- result pages ----------
+  function saveOrder(o) { try { sessionStorage.setItem('ms-order', JSON.stringify(o)); } catch (e) {} }
+  function readOrder() { try { return JSON.parse(sessionStorage.getItem('ms-order') || 'null'); } catch (e) { return null; } }
+  function storeUrl() { return (S && S.store && S.store.url) || 'https://madespecial.store'; }
+  function showDone(status) {
+    var o = readOrder() || {}, s = o.ship;
+    var paid = status === 'succeeded';
+    var addr = s ? esc(s.first_name + ' ' + s.last_name) + '<br>' + esc(s.address1) + (s.address2 ? ', ' + esc(s.address2) : '') + '<br>' + esc(s.city) + (s.province ? ', ' + esc(s.province) : '') + ' ' + esc(s.zip) + '<br>' + esc(countryName(s.country_code)) : '';
+    var html = '<div class="center done">' +
+      '<a class="logo" href="' + esc(storeUrl()) + '"><img src="' + esc((S && S.store.logo) || 'https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=350') + '" alt=""></a>' +
+      (paid ? '<div class="ok"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><path d="M5 12l5 5L20 7"/></svg></div>' +
+              '<h1>Thank you' + (s ? ', ' + esc(s.first_name) : '') + '!</h1><p>Your order is confirmed.</p>' +
+              (o.email ? '<p>A confirmation email is on its way to <strong>' + esc(o.email) + '</strong>.</p>' : '')
+            : '<h1>Your payment is being confirmed</h1><p>This can take a few minutes. We will email you as soon as it is confirmed — there is no need to pay again.</p>') +
+      (addr ? '<div class="box"><strong>Shipping to</strong><br>' + addr + '<br><br><strong>Shipping method</strong><br>' + esc((S && S.shippingTitle) || 'Free Standard Shipping') + '</div>' : '') +
+      '<a class="btn2" href="' + esc(storeUrl()) + '/cart/clear?return_to=%2F">Continue shopping</a></div>';
+    $('#app').innerHTML = html; window.scrollTo(0, 0);
+  }
+  function showReturn() {
+    // Whop brings the buyer back here after a bank / 3D Secure step, with ?payment=&status=
+    var st = params.get('status');
+    if (st === 'succeeded' || st === 'paid') return showDone('succeeded');
+    if (st === 'failed' || st === 'canceled') {
+      var t = null; try { t = sessionStorage.getItem('ms-s'); } catch (e) {}
+      return showState('failed', t ? '/?s=' + encodeURIComponent(t) : null);
+    }
+    return showDone('processing');
+  }
+  function showState(kind, retry) {
+    var T = {
+      expired: ['This checkout has expired', 'For your security, checkout links expire after a few hours. Your cart is still saved — please check out again.'],
+      invalid: ['This checkout link is not valid', 'Please return to your cart and check out again.'],
+      error: ['We could not load your checkout', 'Please check your connection and refresh the page.'],
+      failed: ['Your payment did not go through', 'No money was taken. Please try again with another card or payment method.']
+    }[kind];
+    $('#app').innerHTML = '<div class="center"><a class="logo" href="https://madespecial.store"><img src="https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=350" alt="MadeSpecial"></a>' +
+      '<h1 style="font-size:22px;font-weight:600;margin:0 0 8px">' + T[0] + '</h1><p style="color:#374151;margin:0 0 18px">' + T[1] + '</p>' +
+      '<a class="btn2" href="' + (retry || 'https://madespecial.store/cart') + '">' + (retry ? 'Try again' : 'Return to cart') + '</a></div>';
+  }
+})();
+</script>
+</body>
+</html>

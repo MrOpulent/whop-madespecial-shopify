@@ -1,0 +1,70 @@
+// api/pay.js — "Complete checkout": validates the buyer's details, then charges the Whop confirmation token
+// (card / wallet collected by Whop's secure payment element) for the session's exact Shopify-priced total.
+// The Shopify order is created by api/whop-webhook.js when Whop confirms the payment.
+// Env: WHOP_API_KEY, WHOP_COMPANY_ID, optional WHOP_PRODUCT_ID / STORE_NAME
+import crypto from "node:crypto";
+import { readSession } from "../lib/session.js";
+import { validateAddress, validateContact } from "../lib/validate.js";
+import { createPayment } from "../lib/whop.js";
+import { baseUrl } from "../lib/http.js";
+
+const clean = (o, keys) => Object.fromEntries(keys.map((k) => [k, String(o?.[k] ?? "").trim().slice(0, 120)]));
+const ADDR = ["country_code", "first_name", "last_name", "address1", "address2", "city", "province", "zip"];
+
+export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "POST") return res.status(405).end();
+  const b = req.body || {};
+  let s;
+  try { s = readSession(String(b.s || "")); }
+  catch (e) { return res.status(400).json({ error: e.code || "session_invalid" }); }
+
+  if (typeof b.confirmationToken !== "string" || !b.confirmationToken.startsWith("ctok_"))
+    return res.status(400).json({ error: "payment_details_missing" });
+
+  // Same rules as the page; the server never trusts the browser alone
+  const contact = { ...clean(b.contact, ["email", "phone", "phone_country"]), marketing: !!b.contact?.marketing };
+  const ship = clean(b.shipping, ADDR);
+  ship.zip = ship.zip.toUpperCase();
+  const billSame = b.billing_same !== false;
+  const bill = billSame ? null : clean(b.billing, ADDR);
+  if (bill) bill.zip = bill.zip.toUpperCase();
+  const bad = [...validateContact(contact), ...validateAddress(ship), ...(bill ? validateAddress(bill, "billing_") : [])];
+  if (bad.length) return res.status(400).json({ error: "invalid_fields", fields: bad });
+
+  try {
+    const product = process.env.WHOP_PRODUCT_ID
+      ? { product_id: process.env.WHOP_PRODUCT_ID }
+      : { product: { external_identifier: "madespecial-branded-checkout", title: `${process.env.STORE_NAME || "MadeSpecial"} order`, visibility: "hidden" } };
+    const r = await createPayment({
+      confirmation_token: b.confirmationToken,
+      email: contact.email,
+      plan: {
+        ...product,
+        currency: s.cur.toLowerCase(),
+        plan_type: "one_time",
+        initial_price: s.tot / 100,
+        title: s.title,
+        description: s.desc,
+      },
+      metadata: {
+        order: JSON.stringify(s.order),
+        attrs: JSON.stringify(s.attrs || {}),
+        ship: JSON.stringify({ v: 2, email: contact.email, phone: contact.phone || "", marketing: contact.marketing, s: ship, b: bill }),
+      },
+      return_url: `${baseUrl(req)}/?return=1`,
+    }, crypto.createHash("sha256").update(b.confirmationToken).digest("hex"));
+
+    if (!r.ok) {
+      const msg = r.data?.error?.message || r.data?.message || "";
+      console.error("whop_create_payment", r.status, JSON.stringify(r.data).slice(0, 800));
+      // Card declines and validation problems are shown to the buyer; anything else gets a generic message
+      return res.status(402).json({ error: "payment_failed", message: r.status < 500 && msg ? msg : "" });
+    }
+    const p = r.data;
+    return res.status(200).json({ id: p.id, status: p.status, client_secret: p.client_secret || null });
+  } catch (e) {
+    console.error("pay_error", e);
+    return res.status(500).json({ error: "server_error" });
+  }
+}

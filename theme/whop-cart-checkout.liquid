@@ -1,8 +1,8 @@
 {%- comment -%}
-  Essential Cart drawer / cart page "Checkout" -> straight to Whop's checkout.
-  Whop collects email, card, billing and shipping address (and phone, if enabled in Whop).
+  Essential Cart drawer / cart page "Checkout" -> your branded checkout page (checkout.madespecial.store),
+  where the buyer enters contact + delivery details and pays with Whop's secure payment form.
   Kaching + Essential discounts stay as they are; the server re-prices the cart with Shopify.
-  Paste in theme.liquid just before </body>. Set ENDPOINT to your deployed /api/whop-checkout URL.
+  Paste in theme.liquid just before </body>. Set ENDPOINT to https://<your checkout domain>/api/checkout-session.
 {%- endcomment -%}
 <div id="wh-load" role="status" aria-live="polite" hidden>
   <div class="wh-box">
@@ -24,7 +24,7 @@
 </style>
 <script>
 (function () {
-  var ENDPOINT = 'https://YOUR-PROJECT.vercel.app/api/whop-checkout';
+  var ENDPOINT = 'https://checkout.madespecial.store/api/checkout-session';
   // Essential Cart drawer checkout button + theme cart page. Add the drawer button's class if it isn't caught.
   var SEL = '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], button[onclick*="checkout"], .es-checkout-button';
   var SHOPPER_COUNTRY = {{ localization.country.iso_code | default: 'US' | json }};
