@@ -29,18 +29,10 @@
   .top-row{position:relative;flex:none;height:80px;padding:0 32px;background:#fff;display: flex;
     align-items: center;
     justify-content: center;border-bottom: 1px solid #dfe5ec;}
-  .top-container{
-        max-width: 1040px;
-    margin: auto;
-    display:flex;align-items:center;
-    justify-content: space-between;
-    width: 100%;
-  }
-  .top-row .logo{margin:0;width: 100%;
-    display: flex;
-    justify-content: center;}
+  .top-container{position:relative;max-width:1040px;margin:0 auto;display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+  .top-row .logo{margin:0;width:auto;display:flex;justify-content:center}
   .top-row .logo img{max-width:168px;max-height:54px;width:auto;height:auto;display:block}
-  .top-row .cont{margin:0;line-height:0}
+  .top-row .cont{position:absolute;top:50%;right:0;transform:translateY(-50%);margin:0;line-height:0;z-index:1}
   .logo{display:block;text-align:center;margin:0 0 28px}
   .logo img{max-width:220px;max-height:80px;width:auto;height:auto}
   h2{font-size:20px;font-weight:500;margin:28px 0 14px;line-height:1.2}
@@ -126,7 +118,6 @@
     .main{padding:0 16px 24px;justify-content:center}
     .main-in{max-width:560px}
     .top-row{height:64px;padding:0 16px}
-    .top-row .cont{right:16px}
     .top-row .logo img{max-width:148px;max-height:32px}
     .logo{margin:20px 0}
     .mbar{display:block;background:var(--soft);margin:0 -16px 22px;border-top:1px solid #dfe5ec;border-bottom:1px solid #dfe5ec}
@@ -187,7 +178,7 @@
 
     <div class="mbar" data-mbar="top"><button type="button" aria-expanded="false"><span>Order summary <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></span><strong data-text="total"></strong></button><div class="msum" hidden></div></div>
 
-    <form id="form" novalidate autocomplete="on">
+    <form id="form" novalidate autocomplete="on" data-clarity-mask="true">
       <div id="express" hidden>
         <p class="xh">Express checkout</p>
         <div class="xbtns" id="xbtns"></div>
@@ -308,10 +299,24 @@
   var store = { get: function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } },
                 set: function (v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} } };
 
+  // ---------- Microsoft Clarity: same project as the store, so the store session continues here ----------
+  function clarityStart(cfg) {
+    if (!cfg || !cfg.id || window.clarity) return;
+    try { sessionStorage.setItem('ms-clarity', JSON.stringify(cfg)); } catch (e) {}
+    (function (c, l, a, r, i, t, y) { c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+      t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i; y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y); })(window, document, 'clarity', 'script', cfg.id);
+    var k = cfg.consent; // the shopper's cookie choice from the store
+    if (k && (k.a != null || k.m != null)) clarity('consentv2', { ad_Storage: k.m ? 'granted' : 'denied', analytics_Storage: k.a ? 'granted' : 'denied', source: 101 });
+    if (cfg.journey) clarity('set', 'journey', cfg.journey);
+    clarity('set', 'page_type', 'whop_checkout');
+  }
+  function cl() { try { if (window.clarity) clarity.apply(null, arguments); } catch (e) {} }
+
   // ---------- journey log (Vercel Logs: search j=<id>) ----------
   var tracked = {};
   function track(step, data, once) {
     if (once) { if (tracked[step]) return; tracked[step] = 1; }
+    cl('event', step); // each checkout step is a Clarity event too (filter recordings / build funnels)
     var t = token; if (!t) { try { t = sessionStorage.getItem('ms-s'); } catch (e) {} }
     var body = JSON.stringify({ s: t, step: step, data: data || {} });
     try { if (navigator.sendBeacon && navigator.sendBeacon(API + '/api/track', body)) return; } catch (e) {}
@@ -322,7 +327,7 @@
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && S && !tracked.thank_you) track('left_page', { stage: busy ? 'paying' : payComplete ? 'card_filled' : 'form' }); });
 
   // ---------- boot ----------
-  if (params.get('return') === '1') return showReturn();
+  if (params.get('return') === '1') { try { clarityStart(JSON.parse(sessionStorage.getItem('ms-clarity') || 'null')); } catch (e) {} return showReturn(); }
   token = params.get('s');
   if (!token) return showState('expired');
   try { sessionStorage.setItem('ms-s', token); } catch (e) {}
@@ -336,7 +341,7 @@
     fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }),
     libReady
-  ]).then(function (all) { var x = all[0]; if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); })
+  ]).then(function (all) { var x = all[0]; if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && { id: S.clarity.id, consent: S.clarity.consent, journey: S.journey }); render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); })
     .catch(function (e) { console.error(e); track('checkout_load_error', { msg: String(e && e.message).slice(0, 150) }); showState('error'); });
 
   // ---------- render ----------
@@ -685,7 +690,7 @@
         $('#e-payment').textContent = (e && e.message) || 'Please check your payment details.'; return;
       }
       var r = await fetch(API + '/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ s: token, confirmationToken: tok.confirmationToken,
+        body: JSON.stringify({ s: token, account: S.accountId, confirmationToken: tok.confirmationToken,
           contact: { email: email, phone: phone, phone_country: $('#phone_country').value, marketing: $('#marketing').checked },
           shipping: ship, billing_same: billSame, billing: billSame ? null : bill }) });
       var d = await r.json().catch(function () { return { error: 'server_error' }; });
@@ -731,6 +736,7 @@
     var o = readOrder() || {}, s = o.ship;
     var paid = status === 'succeeded';
     track(paid ? 'thank_you' : 'payment_processing', { payment: (o.payment || params.get('payment') || null) }, true);
+    if (paid) { cl('set', 'purchase', 'yes'); cl('upgrade', 'purchase'); } // keep every purchase recording
     var addr = s ? esc(s.first_name + ' ' + s.last_name) + '<br>' + esc(s.address1) + (s.address2 ? ', ' + esc(s.address2) : '') + '<br>' + esc(s.city) + (s.province ? ', ' + esc(s.province) : '') + ' ' + esc(s.zip) + '<br>' + esc(countryName(s.country_code)) : '';
     var html = '<div class="center done">' +
       '<a class="logo" href="' + esc(storeUrl()) + '"><img src="' + esc((S && S.store.logo) || 'https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=350') + '" alt=""></a>' +

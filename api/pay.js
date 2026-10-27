@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   if (bad.length) { journey(s.j, "pay_invalid_fields", { fields: bad }, true); return res.status(400).json({ error: "invalid_fields", fields: bad }); }
 
   try {
-    const product = process.env.WHOP_PRODUCT_ID
+    const product = process.env.WHOP_PRODUCT_ID && b.account !== process.env.WHOP_COMPANY_ID_OLD
       ? { product_id: process.env.WHOP_PRODUCT_ID }
       : { product: { external_identifier: "madespecial-branded-checkout", title: `${process.env.STORE_NAME || "MadeSpecial"} order`, visibility: "hidden" } };
     const r = await createPayment({
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         ship: JSON.stringify({ v: 2, email: contact.email, phone: contact.phone || "", marketing: contact.marketing, s: ship, b: bill }),
       },
       return_url: `${baseUrl(req)}/?return=1`,
-    }, crypto.createHash("sha256").update(b.confirmationToken).digest("hex"));
+    }, crypto.createHash("sha256").update(b.confirmationToken).digest("hex"), typeof b.account === "string" ? b.account : undefined);
 
     if (!r.ok) {
       const msg = r.data?.error?.message || r.data?.message || "";

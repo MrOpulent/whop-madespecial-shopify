@@ -57,14 +57,14 @@ export default async function handler(req, res) {
       headline: x.cfg.headline || "Wait! Special one-time offer", text: x.cfg.text || "", button: x.cfg.button || "Yes, add to my order",
       title: d.title, options: d.options, image: d.image, qty: x.line.q,
       currency: x.line.c, compare: x.p.total, price: x.line.t, discount: x.pct,
-      oneClick: !!(x.parent.member_id && x.parent.payment_method_id), expiresAt: x.expiresAt,
+      oneClick: !!(x.parent.member_id && x.parent.payment_method_id && !x.parent._old), expiresAt: x.expiresAt,
     });
   }
   if (req.method !== "POST") return res.status(405).end();
 
   // Charge: saved card (one click) or a card the shopper just entered
   const ctok = typeof b.confirmationToken === "string" && b.confirmationToken.startsWith("ctok_") ? b.confirmationToken : null;
-  const saved = x.parent.member_id && x.parent.payment_method_id;
+  const saved = x.parent.member_id && x.parent.payment_method_id && !x.parent._old; // saved cards belong to one Whop account
   if (!ctok && !saved) return res.status(200).json({ error: "needs_card" });
   let ship = {}; try { ship = JSON.parse(x.parent.metadata?.ship || "{}"); } catch {}
   const product = process.env.WHOP_PRODUCT_ID
