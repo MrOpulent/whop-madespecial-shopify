@@ -11,18 +11,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.whop.com/elements/amber/elements.js" data-whop-elements></script>
 <style>
-  :root{--ink:#000;--muted:#6b7280;--line:#d1d5db;--soft:#e6edf4;--accent:#0000ff;--focus:#3b82f6;--err:#dc2626;--sel:#f3f5fe;--r:8px}
+  :root{--ink:#000;--muted:#6b7280;--line:#d1d5db;--soft:#f5f5f5;--accent:#0000ff;--focus:#3b82f6;--err:#dc2626;--sel:#f3f5fe;--r:8px}
   *{box-sizing:border-box}
   html,body{margin:0;background:#fff;color:var(--ink);font:16px/1.4 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
   a{color:inherit}
   button{font:inherit}
   [hidden]{display:none!important}
   /* layout */
-  .page{display:flex;min-height:100vh}
+  #app:has(.top-row){display:flex;flex-direction:column;min-height:100vh}
+  .page{display:flex;flex:1;min-height:100vh}
+  #app:has(.top-row) .page{min-height:0}
   .main{flex:1 1 55%;display:flex;justify-content:flex-end;padding:24px 32px 40px}
   .main-in{width:100%;max-width:490px}
   .side{flex:1 1 45%;background:var(--soft);border-left:1px solid #dfe5ec;padding:24px 32px}
   .side-in{width:100%;max-width:395px;position:sticky;top:24px}
+  /* header bar: logo centered, cart icon on the right (icon markup is set separately) */
+  .top-row{position:relative;display:flex;align-items:center;justify-content:center;flex:none;height:80px;padding:0 32px;background:#fff}
+  .top-row .logo{margin:0}
+  .top-row .logo img{max-width:168px;max-height:36px;width:auto;height:auto;display:block}
+  .top-row .cont{position:absolute;top:50%;right:32px;transform:translateY(-50%);margin:0;line-height:0}
   .logo{display:block;text-align:center;margin:0 0 28px}
   .logo img{max-width:220px;max-height:80px;width:auto;height:auto}
   h2{font-size:20px;font-weight:500;margin:28px 0 14px;line-height:1.2}
@@ -30,7 +37,7 @@
   #express{margin:0 0 4px}
   #express .xh{text-align:center;font-size:14px;color:var(--muted);margin:0 0 10px}
   .xbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
-  .xbtns button{height:48px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 12px;font:inherit;font-weight:600;background-repeat:no-repeat;background-position:center;background-size:auto 55%}
+  .xbtns button{height:48px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 12px;font:inherit;font-weight:600;background-repeat:no-repeat;background-position:center;background-size:auto 100%}
   .xbtns button.hl{box-shadow:0 0 0 3px var(--focus);animation:xpulse 1.2s ease-in-out 3}
   @keyframes xpulse{50%{box-shadow:0 0 0 6px rgba(59,130,246,.35)}}
   .xbtns button:disabled{opacity:.6;cursor:default}
@@ -107,6 +114,9 @@
     .side{display:none}
     .main{padding:0 16px 24px;justify-content:center}
     .main-in{max-width:560px}
+    .top-row{height:64px;padding:0 16px}
+    .top-row .cont{right:16px}
+    .top-row .logo img{max-width:148px;max-height:32px}
     .logo{margin:20px 0}
     .mbar{display:block;background:var(--soft);margin:0 -16px 22px;border-top:1px solid #dfe5ec;border-bottom:1px solid #dfe5ec}
     .mbar.bottom{margin:28px -16px 0}
@@ -148,9 +158,14 @@
 
 <!-- ============ CHECKOUT ============ -->
 <template id="tpl-checkout">
+  <div class="top-row">
+     <a class="logo" data-href="store.url"><img data-src="store.logo" alt=""></a>
+     <a class="cont" data-href="store.cart"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.2a1.5 1.5 0 0 0 1.5 1.2h9.4a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/></svg></a>
+  </div>
 <div class="page">
+  
   <main class="main"><div class="main-in">
-    <a class="logo" data-href="store.url"><img data-src="store.logo" alt=""></a>
+   
 
     <div class="mbar" data-mbar="top"><button type="button" aria-expanded="false"><span>Order summary <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></span><strong data-text="total"></strong></button><div class="msum" hidden></div></div>
 
@@ -202,7 +217,7 @@
   </div></main>
 
   <aside class="side"><div class="side-in">
-    <a class="cont" data-href="store.cart"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.2a1.5 1.5 0 0 0 1.5 1.2h9.4a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/></svg>Continue shopping</a>
+    
     <h2>Order summary</h2>
     <div class="summary"></div>
   </div></aside>
