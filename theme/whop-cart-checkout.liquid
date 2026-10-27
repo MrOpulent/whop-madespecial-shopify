@@ -4,6 +4,9 @@
   Kaching + Essential discounts stay as they are; the server re-prices the cart with Shopify.
   Paste in theme.liquid just before </body>. Set ENDPOINT to https://<your checkout domain>/api/checkout-session.
 {%- endcomment -%}
+
+<link rel="preconnect" href="https://checkout.madespecial.store">
+<link rel="dns-prefetch" href="https://checkout.madespecial.store">
 <div id="wh-load" role="status" aria-live="polite" hidden>
   <div class="wh-box">
     <div class="wh-spin" aria-hidden="true"></div>
@@ -11,9 +14,10 @@
     <button type="button" id="wh-close" hidden>Close</button>
   </div>
 </div>
-<link rel="preconnect" href="https://checkout.madespecial.store">
-<link rel="dns-prefetch" href="https://checkout.madespecial.store">
 <style>
+  body:has(.vsl-section) .blocky-announcement-bar, body:has(.vsl-section) .header-wrapper, body:has(.vsl-section) .footer{
+    display: none;
+  }
   #wh-load{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
   #wh-load[hidden]{display:none}
   #wh-load .wh-box{background:#fff;color:#1a1a1a;border-radius:14px;padding:24px 22px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);font:15px/1.45 inherit}
@@ -36,7 +40,7 @@
   // Checkout buttons: Essential Cart drawer, theme drawer, cart page. Any button/link with the class "whop-checkout"
   // (or a class containing it) is caught too, and as a last resort any button whose text says "Checkout".
   var SEL = '.whop-checkout, [class*="whop-checkout"], [data-whop-checkout], .es-checkout-button, .es-checkout-btn, [class*="es-checkout"], ' +
-            '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], a[href*="/checkouts/"], button[onclick*="checkout"], form[action*="/checkout"] [type="submit"]';
+            '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], a[href*="/checkouts/"], button[onclick*="checkout"], form[action*="/checkout"] [type="submit"], .cart__checkout-button';
   function checkoutButton(t) {
     if (!t || !t.closest || t.closest('#wh-load')) return null;
     var el = t.closest(SEL); if (el) return el;
@@ -68,12 +72,6 @@
     return t;
   }
 
-  // Open the connection and wake the checkout function before the shopper clicks, so Checkout is one request, not three.
-  function warm() {
-    try { fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"warmup":1}', keepalive: true }).catch(function () {}); } catch (e) {}
-  }
-  if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 2500 }); else setTimeout(warm, 1200);
-
   var box = document.getElementById('wh-load'), msg = document.getElementById('wh-msg'), closeBtn = document.getElementById('wh-close'), busy = false;
   var MSG = {
     price_mismatch: 'Your cart was just updated. Please check your cart and try again.',
@@ -82,7 +80,38 @@
   };
   function show(text, isErr) { msg.textContent = text; box.classList.toggle('err', !!isErr); closeBtn.hidden = !isErr; box.hidden = false; }
   closeBtn.onclick = function () { box.hidden = true; };
-  window.addEventListener('pageshow', function () { busy = false; box.hidden = true; }); // back button from Whop
+  window.addEventListener('pageshow', function () { busy = false; if (!box.classList.contains('err')) box.hidden = true; }); // back button from checkout (keeps an error message visible)
+
+  // ---- speed: wake the checkout server and download the checkout's scripts before the shopper clicks ----
+  // The store and checkout.madespecial.store are the same site, so files downloaded here are reused by the checkout page.
+  var CART_COUNT = {{ cart.item_count | default: 0 }};
+  var warmedAt = 0, prefetched = false;
+  function warm() {
+    if (Date.now() - warmedAt < 60000) return; warmedAt = Date.now(); // at most once a minute
+    try { fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"warmup":1}', keepalive: true }).catch(function () {}); } catch (e) {}
+  }
+  function prefetch() {
+    if (prefetched) return; prefetched = true;
+    ['https://cdn.whop.com/elements/amber/elements.js', 'https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.43/bundle/libphonenumber-min.js'].forEach(function (u) {
+      var l = document.createElement('link'); l.rel = 'prefetch'; l.as = 'script'; l.href = u; l.crossOrigin = 'anonymous'; document.head.appendChild(l);
+    });
+  }
+  function ready() { warm(); prefetch(); }
+  var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 1200); };
+  idle(function () { warm(); if (CART_COUNT > 0) prefetch(); }, { timeout: 2500 });
+  // The shopper is heading to checkout: cart drawer touched, checkout hovered/pressed, or something added to the cart
+  ['pointerover', 'touchstart', 'focusin'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('[data-essential-cart-element]') || checkoutButton(t) || t.closest('a[href$="/cart"], [name="add"], form[action*="/cart/add"] [type="submit"]')) ready();
+    }, { passive: true, capture: true });
+  });
+  // Back from the checkout server with a problem (cart changed, item unavailable): show the same message as before
+  try {
+    var qp = new URLSearchParams(location.search), ce = qp.get('checkout_error');
+    if (ce) { show(MSG[ce] || 'Checkout is unavailable right now. Please try again in a moment.', true); qp.delete('checkout_error');
+      history.replaceState(null, '', location.pathname + (qp.toString() ? '?' + qp : '') + location.hash); }
+  } catch (e) {}
 
   // Essential Cart drawer: let Essential finish its own steps first (add or remove Shipping protection, upsells,
   // agreement checkbox), then take over at its official "before checkout" event with the final cart.
@@ -102,9 +131,8 @@
     try {
       var cart = await (await fetch('/cart.js', { cache: 'no-store' })).json();
       if (!cart.item_count) throw { code: 'empty_cart' };
-      var r = await fetch(ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Sent as a normal form post: the browser navigates straight to the checkout (no extra round trips)
+      var payload = JSON.stringify({
           items: cart.items.map(function (i) { return { variant_id: i.variant_id, quantity: i.quantity, properties: i.properties || {} }; }),
           attributes: cart.attributes || {},
           discount_codes: (cart.discount_codes || []).filter(function (c) { return c.applicable !== false; }).map(function (c) { return c.code; }),
@@ -113,12 +141,13 @@
           market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY, // the Shopify Market whose currency the drawer shows
           tracking: trackingData(),
           consent: (function () { try { var p = window.Shopify && Shopify.customerPrivacy; return p ? { analytics: p.analyticsProcessingAllowed(), marketing: p.marketingAllowed() } : null; } catch (e) { return null; } })()
-        })
       });
-      var d = await r.json();
-      if (!d.url) throw { code: d.error };
-      try { if (window.clarity && d.journey) { clarity('set', 'journey', d.journey); clarity('event', 'go_to_checkout'); } } catch (e) {} // Clarity: same session continues on checkout
-      window.location.href = d.url + (opts.x ? '&x=' + encodeURIComponent(opts.x) : '');
+      var f = document.createElement('form');
+      f.method = 'POST'; f.action = ENDPOINT + (opts.x ? '?x=' + encodeURIComponent(opts.x) : ''); f.style.display = 'none';
+      var inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'payload'; inp.value = payload; f.appendChild(inp);
+      document.body.appendChild(f);
+      try { if (window.clarity) clarity('event', 'go_to_checkout'); } catch (e) {}
+      f.submit();
     } catch (err) {
       console.error('Whop checkout', err);
       show(MSG[err && err.code] || 'Checkout is unavailable right now. Please try again in a moment.', true);

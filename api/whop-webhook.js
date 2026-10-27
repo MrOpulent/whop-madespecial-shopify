@@ -6,6 +6,7 @@ import { getPayment, verifyWebhook, unpackMeta } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { SHIP_TITLE, delivery } from "./session.js";
 import { journey } from "../lib/http.js";
+import { whopRefundToShopify } from "./shopify-webhook.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 // Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
@@ -263,6 +264,11 @@ export default async function handler(req, res) {
   catch (e) { console.error("webhook_verify", e.message); return res.status(401).json({ error: "bad_signature" }); }
 
   const type = evt.type || evt.action;
+  // A refund made in Whop (dashboard, dispute...) -> recorded on the Shopify order, which is cancelled once fully refunded
+  if (["refund.created", "refund.updated"].includes(type)) {
+    try { const r = await whopRefundToShopify(evt.data); return res.status(r.status).json(r.body); }
+    catch (e) { console.error("whop_refund_to_shopify", e.message); return res.status(500).json({ error: "server_error" }); } // Whop retries
+  }
   if (!["payment.succeeded", "payment_succeeded"].includes(type)) return res.status(200).json({ skipped: type });
   try {
     const r = await fulfil(evt.data);
