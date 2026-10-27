@@ -26,10 +26,19 @@
   .side{flex:1 1 45%;background:var(--soft);border-left:1px solid #dfe5ec;padding:24px 32px}
   .side-in{width:100%;max-width:395px;position:sticky;top:24px}
   /* header bar: logo centered, cart icon on the right (icon markup is set separately) */
-  .top-row{position:relative;display:flex;align-items:center;justify-content:center;flex:none;height:80px;padding:0 32px;background:#fff}
-  .top-row .logo{margin:0}
-  .top-row .logo img{max-width:168px;max-height:36px;width:auto;height:auto;display:block}
-  .top-row .cont{position:absolute;top:50%;right:32px;transform:translateY(-50%);margin:0;line-height:0}
+  .top-row{position:relative;flex:none;height:80px;padding:0 32px;background:#fff}
+  .top-container{
+        max-width: 1040px;
+    margin: auto;
+    display:flex;align-items:center;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .top-row .logo{margin:0;width: 100%;
+    display: flex;
+    justify-content: center;}
+  .top-row .logo img{max-width:168px;max-height:54px;width:auto;height:auto;display:block}
+  .top-row .cont{margin:0;line-height:0}
   .logo{display:block;text-align:center;margin:0 0 28px}
   .logo img{max-width:220px;max-height:80px;width:auto;height:auto}
   h2{font-size:20px;font-weight:500;margin:28px 0 14px;line-height:1.2}
@@ -159,8 +168,10 @@
 <!-- ============ CHECKOUT ============ -->
 <template id="tpl-checkout">
   <div class="top-row">
+    <div class="top-container">
      <a class="logo" data-href="store.url"><img data-src="store.logo" alt=""></a>
      <a class="cont" data-href="store.cart"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.2a1.5 1.5 0 0 0 1.5 1.2h9.4a1.5 1.5 0 0 0 1.5-1.2L21 7H6"/></svg></a>
+  </div>
   </div>
 <div class="page">
   
