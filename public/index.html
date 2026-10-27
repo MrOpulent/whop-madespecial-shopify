@@ -181,9 +181,9 @@
   </div>
   </div>
 <div class="page">
-  
+
   <main class="main"><div class="main-in">
-   
+
 
     <div class="mbar" data-mbar="top"><button type="button" aria-expanded="false"><span>Order summary <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></span><strong data-text="total"></strong></button><div class="msum" hidden></div></div>
 
@@ -235,7 +235,7 @@
   </div></main>
 
   <aside class="side"><div class="side-in">
-    
+
     <h2>Order summary</h2>
     <div class="summary"></div>
   </div></aside>
@@ -527,6 +527,10 @@
 
   // ---------- Whop payment element ----------
   // Session amounts are hundredths of the currency's major unit; Whop wants real minor units (JPY has none)
+  // Payment methods hidden on every Whop payment form (main checkout + upsell card form).
+  // include_platform_defaults keeps Whop's normal methods (card, Apple/Google Pay, bank...);
+  // "disabled" removes only the ones listed here.
+  var PAY_METHODS = { enabled: [], disabled: ['crypto', 'coinbase', 'coinflow', 'wechat_pay'], include_platform_defaults: true };
   function minorUnits(hundredths, cur) {
     var digits = 2; try { digits = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
     return Math.round(hundredths / 100 * Math.pow(10, digits));
@@ -537,6 +541,7 @@
       whop = window.WhopElements();
       payments = whop.payments.create({
         accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
+        paymentMethodConfiguration: PAY_METHODS,
         returnUrl: location.origin + '/?return=1',
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
         onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
@@ -571,7 +576,7 @@
     pr = req;
     if (typeof req.onShippingAddressChange === 'function') req.onShippingAddressChange(function (ev) {
       var c = String(ev.address && ev.address.country || '').toUpperCase();
-      if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can’t ship to this country.' }] });
+      if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can\u2019t ship to this country.' }] });
       ev.updateWith({ amount: minorUnits(S.amount, S.currency), shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }] });
     });
     req.canMakePayment().then(function (av) {
@@ -607,7 +612,7 @@
        var code = e && (e.code || e.name) || '';
        if (/cancel|abort|dismiss/i.test(code + ' ' + (e && e.message))) { track('express_cancelled', { type: type }); return; }
        track('express_error', { type: type, msg: String(e && (e.message || code)).slice(0, 120) });
-       $('#e-express').textContent = 'That didn’t work. Please try again or pay by card below.';
+       $('#e-express').textContent = 'That didn\u2019t work. Please try again or pay by card below.';
      });
   }
   // Put the wallet's details into the form (so the buyer sees them, and anything Shopify can't accept can be fixed)
@@ -791,6 +796,7 @@
     U.card = true; $('#ups-card').hidden = false;
     try {
       U.payments = window.WhopElements().payments.create({ accountId: U.offer.accountId, currency: U.offer.currency.toLowerCase(), amount: minorUnits(U.offer.price, U.offer.currency),
+        paymentMethodConfiguration: PAY_METHODS,
         returnUrl: location.origin + '/?return=1&upsell=1', appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
       U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
       U.payments.create('branding').mount('#ups-brand');
