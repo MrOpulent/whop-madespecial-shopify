@@ -11,6 +11,8 @@
     <button type="button" id="wh-close" hidden>Close</button>
   </div>
 </div>
+<link rel="preconnect" href="https://checkout.madespecial.store">
+<link rel="dns-prefetch" href="https://checkout.madespecial.store">
 <style>
   #wh-load{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
   #wh-load[hidden]{display:none}
@@ -65,6 +67,12 @@
     try { new URLSearchParams(location.search).forEach(function (v, k) { put(k, v); }); } catch (e) {}
     return t;
   }
+
+  // Open the connection and wake the checkout function before the shopper clicks, so Checkout is one request, not three.
+  function warm() {
+    try { fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"warmup":1}', keepalive: true }).catch(function () {}); } catch (e) {}
+  }
+  if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 2500 }); else setTimeout(warm, 1200);
 
   var box = document.getElementById('wh-load'), msg = document.getElementById('wh-msg'), closeBtn = document.getElementById('wh-close'), busy = false;
   var MSG = {

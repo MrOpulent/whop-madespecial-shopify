@@ -8,8 +8,13 @@
 <title>Secure Checkout</title>
 <link rel="icon" href="https://madespecial.store/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.whop.com/elements/amber/elements.js" data-whop-elements></script>
+<link rel="preconnect" href="https://cdn.whop.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
+<link rel="preload" as="script" href="https://cdn.whop.com/elements/amber/elements.js">
+<script src="https://cdn.whop.com/elements/amber/elements.js" data-whop-elements defer></script>
+<script src="https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.43/bundle/libphonenumber-min.js" data-phone-lib async></script>
 <style>
   :root{--ink:#000;--muted:#6b7280;--line:#d1d5db;--soft:#f5f5f5;--accent:#0000ff;--focus:#3b82f6;--err:#dc2626;--sel:#f3f5fe;--r:8px}
   *{box-sizing:border-box}
@@ -331,17 +336,26 @@
   token = params.get('s');
   if (!token) return showState('expired');
   try { sessionStorage.setItem('ms-s', token); } catch (e) {}
-  var libReady = new Promise(function (ok) {
-    var sc = document.createElement('script');
-    sc.src = 'https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.43/bundle/libphonenumber-min.js';
-    sc.onload = sc.onerror = function () { ok(); }; document.head.appendChild(sc);
-    setTimeout(ok, 4000); // never block checkout on it
-  });
-  Promise.all([
-    fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }),
-    libReady
-  ]).then(function (all) { var x = all[0]; if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && { id: S.clarity.id, consent: S.clarity.consent, journey: S.journey }); render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); })
+  // Phone codes load in the background. The form is shown as soon as the session arrives; dial codes fill in when the library is ready.
+  function whenPhoneLib(cb) {
+    if (window.libphonenumber) return cb();
+    var s = document.querySelector('script[data-phone-lib]');
+    if (!s) return;
+    s.addEventListener('load', function () { cb(); });
+  }
+  fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (x) { if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && { id: S.clarity.id, consent: S.clarity.consent, journey: S.journey }); render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); whenPhoneLib(function () {
+      var sel = $('#phone_country'); if (!sel || !window.libphonenumber) return;
+      var cur = sel.value;
+      // Options were built before the library arrived: add the dial codes, keeping the shopper's choice.
+      if (sel.options.length && sel.options[0].text.indexOf('+') === -1) {
+        var dial = function (c) { try { return '+' + window.libphonenumber.getCountryCallingCode(c); } catch (e) { return ''; } };
+        sel.innerHTML = COUNTRIES.map(function (c) { var d = dial(c[0]); return '<option value="' + c[0] + '">' + esc(c[1]) + (d ? ' (' + d + ')' : '') + '</option>'; }).join('');
+        sel.value = cur;
+      }
+      setPhoneCountry(sel.value);
+    }); })
     .catch(function (e) { console.error(e); track('checkout_load_error', { msg: String(e && e.message).slice(0, 150) }); showState('error'); });
 
   // ---------- render ----------
@@ -541,7 +555,21 @@
     return Math.round(hundredths / 100 * Math.pow(10, digits));
   }
   function mountWhop() {
-    if (!window.WhopElements) { track('payment_form_not_loaded'); $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
+    if (!window.WhopElements) {
+      var s = document.querySelector('script[data-whop-elements]');
+      // The payment script downloads alongside the page. Wait for it instead of failing, then build the form.
+      if (s && !s.dataset.wait) {
+        s.dataset.wait = '1';
+        var pending = true;
+        var go = function () { if (!pending || !window.WhopElements) return; pending = false; mountWhop(); setupExpress(); };
+        var bad = function () { if (!pending) return; pending = false; track('payment_form_not_loaded'); $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; };
+        s.addEventListener('load', go);
+        s.addEventListener('error', bad);
+        if (s.readyState === 'complete' || s.readyState === 'loaded') setTimeout(function () { if (window.WhopElements) go(); else bad(); }, 0);
+        return;
+      }
+      track('payment_form_not_loaded'); $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return;
+    }
     try {
       whop = window.WhopElements();
       payments = whop.payments.create({
