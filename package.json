@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "applovin-payload": "node scripts/applovin-payload.js"
+    "applovin-payload": "node scripts/applovin-payload.js",
+    "tiktok-payload": "node scripts/tiktok-payload.js"
   },
   "dependencies": {
     "libphonenumber-js": "1.12.43"
