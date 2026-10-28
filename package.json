@@ -2,6 +2,9 @@
   "name": "whop-shopify-checkout",
   "private": true,
   "type": "module",
+  "scripts": {
+    "applovin-payload": "node scripts/applovin-payload.js"
+  },
   "dependencies": {
     "libphonenumber-js": "1.12.43"
   }

@@ -1,14 +1,49 @@
 // api/whop-webhook.js — Whop "payment succeeded" -> paid Shopify order (same prices + discount as the cart).
 // Self-contained on purpose (only needs lib/shopify.js + lib/whop.js). api/reconcile.js reuses fulfil().
-// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET
+// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET, optional APPLOVIN_CAPI_KEY / APPLOVIN_EVENT_KEY
 import { adminGql } from "../lib/shopify.js";
 import { getPayment, verifyWebhook, unpackMeta } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { SHIP_TITLE, delivery } from "./session.js";
 import { journey } from "../lib/http.js";
 import { whopRefundToShopify } from "./shopify-webhook.js";
+import { hasApplovinSignal, sendAxonPurchase } from "../lib/applovin.js";
 
 const amt = (c) => (c / 100).toFixed(2);
+
+function checkoutClient(d) {
+  try {
+    const cx = JSON.parse(d?.metadata?.cx || "{}");
+    return cx && typeof cx === "object" ? cx : {};
+  } catch { return {}; }
+}
+
+// E.164 when the number is valid, otherwise the raw value so AppLovin can still hash it.
+function capiPhone(raw, country) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const cc = country ? String(country).toUpperCase() : undefined;
+  const n = parsePhoneNumberFromString(s, cc) || parsePhoneNumberFromString(s.startsWith("+") ? s : `+${s.replace(/\D/g, "")}`);
+  return (n && n.isValid() ? n.number : s) || null;
+}
+
+// AppLovin Conversion API. Only called once the Shopify order (or upsell edit) has just been created,
+// so webhook retries and /api/reconcile — which return at the duplicate check — do not send again.
+// A failure here is logged and swallowed; it must not fail the webhook.
+async function reportApplovinPurchase(d, info) {
+  if (!hasApplovinSignal(info.attrs)) return;
+  const cx = checkoutClient(d);
+  try {
+    await sendAxonPurchase({
+      ...info,
+      payId: d.id,
+      paidAt: d.paid_at,
+      ip: cx.ip || info.ip || d.ip_address || null,
+      ua: cx.ua || info.ua || null,
+    });
+  } catch (e) { console.error("applovin_capi", e.message); }
+}
+
 // Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
 const bag = (shopC, shopCur, payC, payCur) => ({
   shopMoney: { amount: amt(shopC), currencyCode: shopCur },
@@ -132,9 +167,23 @@ export async function fulfil(d) {
       try { await fetch(u); } catch (e) { console.error("redtrack_postback", e.message); }
     }
 
-    // Order risk card on the Shopify order page, from Whop's fraud screening (never blocks the order)
-    if (!r.orderCreate.userErrors.length) {
-      try { await addRisk(r.orderCreate.order.id, d, sa, ba); } catch (e) { console.error("order_risk", e.message); }
+    // AppLovin purchase (presentment amount Whop charged: o.t cents of o.c, not shop USD) and the
+    // Shopify risk card. Both run after the order exists; neither may fail the webhook. In parallel
+    // so a slow Conversion API call does not stack on top of the risk request.
+    // A separate upsell order must not reuse the parent checkout's _axon_event_id.
+    if (!r.orderCreate.userErrors.length && r.orderCreate.order?.id) {
+      const separateUpsell = (d._tags || []).includes("upsell-separate-order");
+      await Promise.all([
+        reportApplovinPurchase(d, {
+          orderName: r.orderCreate.order.name || d.id,
+          attrs, email, phone: capiPhone(rawPhone, sa.country) || phone,
+          country: sa.country, zip: sa.postal_code,
+          currency: o.c, totalCents: o.t, lines: (o.l || []).map(([v, q, u]) => [v, q, u]),
+          ip: p.ip_address || null,
+          ...(separateUpsell && { dedupeId: `whop-${d.id}` }),
+        }),
+        addRisk(r.orderCreate.order.id, d, sa, ba).catch((e) => console.error("order_risk", e.message)),
+      ]);
     }
 
     const err = r.orderCreate.userErrors;
@@ -203,13 +252,24 @@ async function fulfilUpsell(d) {
       } catch (e) {
         try { await adminGql(MARK_PAID, { input: { id: parent.id } }); } catch (e2) { console.error("upsell_paid", e2.message); }
       }
+      let upAttrs = {}, ship = {};
+      try { upAttrs = JSON.parse(d.metadata?.attrs || "{}"); } catch { /* attrs stay empty */ }
+      try { ship = JSON.parse(d.metadata?.ship || "{}"); } catch { /* ship stays empty */ }
+      // After the payment is recorded. dedupe is the upsell payment id, not the parent's _axon_event_id.
+      await reportApplovinPurchase(d, {
+        orderName: `${parent.name}:${d.id}`,
+        attrs: upAttrs, email: ship.email || null, phone: capiPhone(ship.phone, ship.s?.country_code),
+        country: ship.s?.country_code, zip: ship.s?.zip,
+        currency: u.c, totalCents: u.t, lines: [[u.v, u.q, u.u]],
+        dedupeId: `whop-${d.id}`,
+      });
       journey(d.metadata?.j, "upsell_added_to_order", { payment: d.id, order: parent.name });
       return { status: 200, body: { order: parent.name, upsell: "added_to_order" } };
     }
   }
   // Fallback: separate paid order with the same customer, address and tracking
   const o = { l: [[u.v, u.q, u.u, u.su]], c: u.c, t: u.t, d: u.q * u.u - u.t, sc: u.sc, st: u.st, sd: u.q * u.su - u.st, dc: "POST-PURCHASE" };
-  return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship, j: d.metadata.j },
+  return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship, j: d.metadata.j, cx: d.metadata.cx },
     _tags: [...UPSELL_TAG().split(",").map((x) => x.trim()).filter(Boolean), "upsell-separate-order"],
     _note: `Post-purchase upsell for ${parent ? parent.name : `Whop payment ${parentPay}`} (could not be added to that order)` });
 }
