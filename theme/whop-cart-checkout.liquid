@@ -62,7 +62,8 @@
   // They are written onto the Shopify order (with the cart attributes) so RedTrack can attribute the sale.
   // AppLovin Axon: aleid/alart on the landing URL, pixel cookies _axeid/_axart/_axwrt, and _axon* (event id).
   // TikTok: ttclid on the landing URL, and the pixel cookie whose name is exactly _ttp.
-  var TRACK = /clickid|^_*ref_id$|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$|^aleid$|^alart$|^_axeid$|^_axart$|^_axwrt$|^_axon|^_ttp$/i;
+  // Snapchat: ScCid on the landing URL, pixel cookie _scid. Pinterest: epik on the landing URL, cookie _epik.
+  var TRACK = /clickid|^_*ref_id$|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$|^aleid$|^alart$|^_axeid$|^_axart$|^_axwrt$|^_axon|^_ttp$|^sccid$|^_scid$|^_?epik$/i;
   // A real tracking value is a short ID or text: skip data blobs, JSON and binary that other apps keep in storage
   var GOOD = function (v) { return v.length <= 300 && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
   function trackingData() {

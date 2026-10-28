@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "applovin-payload": "node scripts/applovin-payload.js",
-    "tiktok-payload": "node scripts/tiktok-payload.js"
+    "tiktok-payload": "node scripts/tiktok-payload.js",
+    "snapchat-payload": "node scripts/snapchat-payload.js",
+    "pinterest-payload": "node scripts/pinterest-payload.js"
   },
   "dependencies": {
     "libphonenumber-js": "1.12.43"
