@@ -586,10 +586,7 @@
         order: ['paypal'],
         wallets: { payPal: 'auto' },
         onChange: function (e) { payComplete = !!(e && e.complete); if (payComplete) { $('#e-payment').textContent = ''; track('payment_details_complete', { method: e.paymentMethod && (e.paymentMethod.displayName || e.paymentMethod.type) || null }, true); } },
-        onReady: function () {
-          $('#pay-skel').hidden = true;
-          if (params.get('x') === 'paypal_express') { var pay = document.getElementById('wh-payment'); if (pay) pay.scrollIntoView({ block: 'center' }); }
-        },
+        onReady: function () { $('#pay-skel').hidden = true; },
         onError: function (e) { console.error('payment element', e); track('payment_form_error', { msg: String(e && (e.message || e.code || e)).slice(0, 150) }); }
       }).mount('#wh-payment');
       payments.create('branding').mount('#wh-branding');
@@ -598,48 +595,68 @@
     }
   }
 
-  // ---------- express checkout: Apple Pay / Google Pay / PayPal sheet collects email, phone and address ----------
-  var expressTok = null, pr = null;
+  // ---------- express checkout ----------
+  // Apple Pay and Google Pay ask the sheet for a phone number. PayPal cannot: Whop hides it on any
+  // request that asks for a phone, so PayPal gets its own sheet. The form still collects the phone.
+  var expressTok = null, expressGen = 0;
   var XLABEL = { apple_pay: 'Apple Pay', google_pay: 'Google Pay', paypal_express: 'PayPal' };
+  function expressLines() {
+    return S.lines.map(function (l) { return { label: (l.qty > 1 ? l.qty + ' × ' : '') + l.title, amount: minorUnits(l.lineTotal, S.currency) }; })
+      .concat(S.savings ? [{ label: 'Savings', amount: -minorUnits(S.savings, S.currency) }] : []);
+  }
+  function expressOpts(phone) {
+    var o = {
+      accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
+      requestPayerEmail: true, requestShipping: true, countryCode: S.market,
+      lineItems: expressLines(),
+      shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }]
+    };
+    if (phone) o.requestPayerPhone = true;
+    else o.paymentMethodConfiguration = CHECKOUT_METHODS;
+    return o;
+  }
+  function onExpressShip(ev) {
+    var c = String(ev.address && ev.address.country || '').toUpperCase();
+    if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can\u2019t ship to this country.' }] });
+    ev.updateWith({ amount: minorUnits(S.amount, S.currency), shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }] });
+  }
   function setupExpress() {
     var box = $('#express'); if (!box || !whop || !whop.payments || !whop.payments.paymentRequest) return;
-    var req = null;
-    try {
-      req = whop.payments.paymentRequest.create({
-        accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
-        requestPayerEmail: true, requestPayerPhone: true, requestShipping: true, countryCode: S.market,
-        lineItems: S.lines.map(function (l) { return { label: (l.qty > 1 ? l.qty + ' × ' : '') + l.title, amount: minorUnits(l.lineTotal, S.currency) }; })
-          .concat(S.savings ? [{ label: 'Savings', amount: -minorUnits(S.savings, S.currency) }] : []),
-        shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }]
-      });
-    } catch (e) { console.error('express', e); box.hidden = true; return; }
-    pr = req;
-    if (typeof req.onShippingAddressChange === 'function') req.onShippingAddressChange(function (ev) {
-      var c = String(ev.address && ev.address.country || '').toUpperCase();
-      if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can\u2019t ship to this country.' }] });
-      ev.updateWith({ amount: minorUnits(S.amount, S.currency), shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }] });
+    var gen = ++expressGen, walletsReq = null, paypalReq = null;
+    try { walletsReq = whop.payments.paymentRequest.create(expressOpts(true)); } catch (e) { console.error('express', e); }
+    try { paypalReq = whop.payments.paymentRequest.create(expressOpts(false)); } catch (e) { console.error('express paypal', e); }
+    if (!walletsReq && !paypalReq) { box.hidden = true; return; }
+    [walletsReq, paypalReq].forEach(function (req) {
+      if (req && typeof req.onShippingAddressChange === 'function') req.onShippingAddressChange(onExpressShip);
     });
-    req.canMakePayment().then(function (av) {
-      if (pr !== req) return; // replaced by a newer one (currency changed)
-      var order = (av && av.order) || ['apple_pay', 'google_pay', 'paypal_express'];
-      var ok = { apple_pay: av && av.applePay, google_pay: av && av.googlePay, paypal_express: av && av.payPal };
-      var types = order.filter(function (t) { return ok[t]; });
-      if (ok.paypal_express) types = ['paypal_express'].concat(types.filter(function (t) { return t !== 'paypal_express'; }));
+    var quiet = function (e) { console.error('express', e); return null; };
+    Promise.all([
+      walletsReq ? walletsReq.canMakePayment().catch(quiet) : null,
+      paypalReq ? paypalReq.canMakePayment({ types: ['paypal_express'] }).catch(quiet) : null
+    ]).then(function (pair) {
+      if (gen !== expressGen) return;
+      var av = pair[0] || {}, pv = pair[1] || {};
+      var types = [];
+      if (pv.payPal) types.push('paypal_express');
+      var ok = { apple_pay: !!(av && av.applePay), google_pay: !!(av && av.googlePay) };
+      ((av && av.order) || ['apple_pay', 'google_pay']).forEach(function (t) { if (ok[t] && types.indexOf(t) === -1) types.push(t); });
+      ['apple_pay', 'google_pay'].forEach(function (t) { if (ok[t] && types.indexOf(t) === -1) types.push(t); });
       if (!types.length) { box.hidden = true; return; }
       var wrap = $('#xbtns'); wrap.innerHTML = '';
       types.forEach(function (t) {
-        var art = av.wallets && av.wallets[t] && av.wallets[t].button && av.wallets[t].button.light;
+        var src = t === 'paypal_express' ? pv : av;
+        var art = src.wallets && src.wallets[t] && src.wallets[t].button && src.wallets[t].button.light;
         var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Pay with ' + XLABEL[t]); b.dataset.type = t;
         if (art && art.image) { b.style.backgroundColor = art.color; b.style.backgroundImage = 'url("' + art.image + '")'; if (/^#?f{3,6}$|white/i.test(art.color || '')) b.style.borderColor = 'var(--line)'; }
         else { b.textContent = XLABEL[t]; b.style.background = t === 'google_pay' ? '#fff' : t === 'paypal_express' ? '#ffc439' : '#000'; b.style.color = t === 'apple_pay' ? '#fff' : '#111'; b.style.borderColor = 'var(--line)'; }
-        b.addEventListener('click', function () { expressPay(req, t); });
+        b.addEventListener('click', function () { expressPay(t === 'paypal_express' ? paypalReq : walletsReq, t); });
         wrap.appendChild(b);
       });
       box.hidden = false;
       track('express_shown', { wallets: types }, true);
       var want = params.get('x'); var hb = want && $('#xbtns [data-type="' + want + '"]');
       if (hb) { hb.classList.add('hl'); box.scrollIntoView({ block: 'center' }); }
-    }).catch(function (e) { console.error('express', e); if (pr === req) box.hidden = true; });
+    });
   }
   function expressPay(req, type) {
     if (busy) return; $('#e-express').textContent = '';
