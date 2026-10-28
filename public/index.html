@@ -46,6 +46,7 @@
   #express .xh{text-align:center;font-size:14px;color:var(--muted);margin:0 0 10px}
   .xbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
   .xbtns button{height:48px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 12px;font:inherit;font-weight:600;background-repeat:no-repeat;background-position:center;background-size:auto 100%}
+  .xbtns button.pp{background-color:#fff;border-color:var(--line);background-size:contain;padding:10px 14px;background-origin:content-box;background-clip:content-box}
   .xbtns button.hl{box-shadow:0 0 0 3px var(--focus);animation:xpulse 1.2s ease-in-out 3}
   @keyframes xpulse{50%{box-shadow:0 0 0 6px rgba(59,130,246,.35)}}
   .xbtns button:disabled{opacity:.6;cursor:default}
@@ -601,6 +602,7 @@
   // request that asks for a phone, so PayPal gets its own sheet. The form still collects the phone.
   var expressTok = null, expressGen = 0;
   var XLABEL = { apple_pay: 'Apple Pay', google_pay: 'Google Pay', paypal_express: 'PayPal' };
+  var PAYPAL_LOGO = 'https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-color.svg';
   function expressLines() {
     return S.lines.map(function (l) { return { label: (l.qty > 1 ? l.qty + ' × ' : '') + l.title, amount: minorUnits(l.lineTotal, S.currency) }; })
       .concat(S.savings ? [{ label: 'Savings', amount: -minorUnits(S.savings, S.currency) }] : []);
@@ -661,7 +663,8 @@
         var src = t === 'paypal_express' ? pv : av;
         var art = t === 'paypal_express' && paypalMode === 'redirect' ? redirectArt : (src.wallets && src.wallets[t] && src.wallets[t].button && src.wallets[t].button.light);
         var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Pay with ' + XLABEL[t]); b.dataset.type = t;
-        if (art && art.image) { b.style.backgroundColor = art.color; b.style.backgroundImage = 'url("' + art.image + '")'; if (/^#?f{3,6}$|white/i.test(art.color || '')) b.style.borderColor = 'var(--line)'; }
+        if (t === 'paypal_express' && paypalMode === 'redirect') { b.className = 'pp'; b.style.backgroundImage = 'url("' + PAYPAL_LOGO + '")'; }
+        else if (art && art.image) { b.style.backgroundColor = art.color; b.style.backgroundImage = 'url("' + art.image + '")'; if (/^#?f{3,6}$|white/i.test(art.color || '')) b.style.borderColor = 'var(--line)'; }
         else { b.textContent = XLABEL[t]; b.style.background = t === 'google_pay' ? '#fff' : t === 'paypal_express' ? '#ffc439' : '#000'; b.style.color = t === 'apple_pay' ? '#fff' : '#111'; b.style.borderColor = 'var(--line)'; }
         b.addEventListener('click', function () {
           if (t === 'paypal_express' && paypalMode === 'redirect') startPayPalRedirect();
