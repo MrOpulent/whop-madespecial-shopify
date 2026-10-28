@@ -273,7 +273,7 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var params = new URLSearchParams(location.search);
-  var S = null, token = null, payments = null, whop = null, payComplete = false, busy = false;
+  var S = null, token = null, payments = null, payEl = null, whop = null, payComplete = false, busy = false;
 
   // ---------- data ----------
   var ISO = ('AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IS IT JE JM JO JP KE KG KH KI KM KN KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW').split(' ');
@@ -581,14 +581,15 @@
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
         onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
       });
-      payments.create('payment', {
+      payEl = payments.create('payment', {
         fields: { billingDetails: 'never', phone: 'never' },
         order: ['paypal'],
         wallets: { payPal: 'auto' },
         onChange: function (e) { payComplete = !!(e && e.complete); if (payComplete) { $('#e-payment').textContent = ''; track('payment_details_complete', { method: e.paymentMethod && (e.paymentMethod.displayName || e.paymentMethod.type) || null }, true); } },
         onReady: function () { $('#pay-skel').hidden = true; },
         onError: function (e) { console.error('payment element', e); track('payment_form_error', { msg: String(e && (e.message || e.code || e)).slice(0, 150) }); }
-      }).mount('#wh-payment');
+      });
+      payEl.mount('#wh-payment');
       payments.create('branding').mount('#wh-branding');
     } catch (e) {
       console.error(e); $('#pay-skel').hidden = true; $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.';
@@ -620,6 +621,17 @@
     if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can\u2019t ship to this country.' }] });
     ev.updateWith({ amount: minorUnits(S.amount, S.currency), shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }] });
   }
+  // This account offers PayPal as a checkout method with its own button, not as the paypal_express wallet.
+  function paypalButtonArt() {
+    var cur = String(S.currency || 'usd').toLowerCase();
+    return fetch('https://api.whop.com/api/v1/payment_method_types/paypal?account_id=' + encodeURIComponent(S.accountId) + '&currency=' + encodeURIComponent(cur))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var b = j && j.listed !== false && j.submit_button && j.submit_button.light;
+        return b && b.image ? b : null;
+      })
+      .catch(function () { return null; });
+  }
   function setupExpress() {
     var box = $('#express'); if (!box || !whop || !whop.payments || !whop.payments.paymentRequest) return;
     var gen = ++expressGen, walletsReq = null, paypalReq = null;
@@ -632,12 +644,14 @@
     var quiet = function (e) { console.error('express', e); return null; };
     Promise.all([
       walletsReq ? walletsReq.canMakePayment().catch(quiet) : null,
-      paypalReq ? paypalReq.canMakePayment({ types: ['paypal_express'] }).catch(quiet) : null
+      paypalReq ? paypalReq.canMakePayment({ types: ['paypal_express'] }).catch(quiet) : null,
+      paypalButtonArt()
     ]).then(function (pair) {
       if (gen !== expressGen) return;
-      var av = pair[0] || {}, pv = pair[1] || {};
+      var av = pair[0] || {}, pv = pair[1] || {}, redirectArt = pair[2];
+      var paypalMode = pv.payPal ? 'sheet' : (redirectArt ? 'redirect' : null);
       var types = [];
-      if (pv.payPal) types.push('paypal_express');
+      if (paypalMode) types.push('paypal_express');
       var ok = { apple_pay: !!(av && av.applePay), google_pay: !!(av && av.googlePay) };
       ((av && av.order) || ['apple_pay', 'google_pay']).forEach(function (t) { if (ok[t] && types.indexOf(t) === -1) types.push(t); });
       ['apple_pay', 'google_pay'].forEach(function (t) { if (ok[t] && types.indexOf(t) === -1) types.push(t); });
@@ -645,11 +659,14 @@
       var wrap = $('#xbtns'); wrap.innerHTML = '';
       types.forEach(function (t) {
         var src = t === 'paypal_express' ? pv : av;
-        var art = src.wallets && src.wallets[t] && src.wallets[t].button && src.wallets[t].button.light;
+        var art = t === 'paypal_express' && paypalMode === 'redirect' ? redirectArt : (src.wallets && src.wallets[t] && src.wallets[t].button && src.wallets[t].button.light);
         var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Pay with ' + XLABEL[t]); b.dataset.type = t;
         if (art && art.image) { b.style.backgroundColor = art.color; b.style.backgroundImage = 'url("' + art.image + '")'; if (/^#?f{3,6}$|white/i.test(art.color || '')) b.style.borderColor = 'var(--line)'; }
         else { b.textContent = XLABEL[t]; b.style.background = t === 'google_pay' ? '#fff' : t === 'paypal_express' ? '#ffc439' : '#000'; b.style.color = t === 'apple_pay' ? '#fff' : '#111'; b.style.borderColor = 'var(--line)'; }
-        b.addEventListener('click', function () { expressPay(t === 'paypal_express' ? paypalReq : walletsReq, t); });
+        b.addEventListener('click', function () {
+          if (t === 'paypal_express' && paypalMode === 'redirect') startPayPalRedirect();
+          else expressPay(t === 'paypal_express' ? paypalReq : walletsReq, t);
+        });
         wrap.appendChild(b);
       });
       box.hidden = false;
@@ -657,6 +674,23 @@
       var want = params.get('x'); var hb = want && $('#xbtns [data-type="' + want + '"]');
       if (hb) { hb.classList.add('hl'); box.scrollIntoView({ block: 'center' }); }
     });
+  }
+  function startPayPalRedirect() {
+    if (busy) return;
+    $('#e-express').textContent = '';
+    if (!payEl || !payEl.select) { $('#e-express').textContent = 'PayPal is still loading. Please try again in a moment.'; return; }
+    payEl.select('paypal').then(function () {
+      payComplete = true;
+      $('#email').dataset.t = 1;
+      formatZip('s'); if (!$('#billing_same').checked) formatZip('b');
+      var bad = [];
+      if (!checkEmail()) bad.push('email');
+      if (!checkPhone()) bad.push('phone');
+      bad = bad.concat(checkAddr('s'));
+      if (!$('#billing_same').checked) bad = bad.concat(checkAddr('b'));
+      if (bad.length) { $('#e-express').textContent = 'Enter your contact and delivery details, then tap PayPal again.'; firstBad(); return; }
+      onSubmit({ preventDefault: function () {} });
+    }).catch(function () { $('#e-express').textContent = 'PayPal is not available right now. Please use a card below.'; });
   }
   function expressPay(req, type) {
     if (busy) return; $('#e-express').textContent = '';
