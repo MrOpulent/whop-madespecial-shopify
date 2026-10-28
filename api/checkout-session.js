@@ -4,6 +4,7 @@
 import { priceCart, orderAttributes } from "../lib/pricing.js";
 import { createSession } from "../lib/session.js";
 import { cors, baseUrl, journey } from "../lib/http.js";
+import { clientContext } from "../lib/applovin.js";
 import crypto from "node:crypto";
 
 // The shopper's cookie choice on the store (Shopify consent), so the checkout respects it for Clarity
@@ -28,11 +29,13 @@ export default async function handler(req, res) {
     try { p = await priceCart(b); }
     catch (e) { journey("-", "cart_rejected", { error: e.code || e.message, total: b.total_price, currency: b.currency, country: b.market_country }, true); throw e; }
     const at = orderAttributes(b.attributes, b.tracking);
+    const net = clientContext(req); // carried on the session, then onto the Whop payment, for the AppLovin Conversion API
     const token = createSession({
       mk: p.market, cur: p.currency, tot: p.total, gross: p.gross,
       disp: p.display, title: p.title, desc: p.description,
       order: p.order, attrs: at,
       j, cs: consent(b.consent), it: p.items, ...(p.codes.length && { dc: p.codes }), ca: b.attributes || {}, // to re-price if the shopper ships to another country
+      ...(net.ip && { ip: net.ip }), ...(net.ua && { ua: net.ua }),
     });
     journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: Object.entries(at).find(([k]) => /clickid/i.test(k))?.[1] || null });
     const url = `${baseUrl(req)}/?s=${token}`;
