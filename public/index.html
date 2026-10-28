@@ -550,6 +550,8 @@
   // include_platform_defaults keeps Whop's normal methods (card, Apple/Google Pay, bank...);
   // "disabled" removes only the ones listed here.
   var PAY_METHODS = { enabled: [], disabled: ['crypto', 'coinbase', 'coinflow', 'wechat_pay'], include_platform_defaults: true };
+  // Checkout offers PayPal (approved on this Whop account) and lists it ahead of the card.
+  var CHECKOUT_METHODS = { enabled: ['paypal'], disabled: PAY_METHODS.disabled, include_platform_defaults: true };
   function minorUnits(hundredths, cur) {
     var digits = 2; try { digits = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
     return Math.round(hundredths / 100 * Math.pow(10, digits));
@@ -574,15 +576,20 @@
       whop = window.WhopElements();
       payments = whop.payments.create({
         accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
-        paymentMethodConfiguration: PAY_METHODS,
+        paymentMethodConfiguration: CHECKOUT_METHODS,
         returnUrl: location.origin + '/?return=1',
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
         onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
       });
       payments.create('payment', {
         fields: { billingDetails: 'never', phone: 'never' },
+        order: ['paypal'],
+        wallets: { payPal: 'auto' },
         onChange: function (e) { payComplete = !!(e && e.complete); if (payComplete) { $('#e-payment').textContent = ''; track('payment_details_complete', { method: e.paymentMethod && (e.paymentMethod.displayName || e.paymentMethod.type) || null }, true); } },
-        onReady: function () { $('#pay-skel').hidden = true; },
+        onReady: function () {
+          $('#pay-skel').hidden = true;
+          if (params.get('x') === 'paypal_express') { var pay = document.getElementById('wh-payment'); if (pay) pay.scrollIntoView({ block: 'center' }); }
+        },
         onError: function (e) { console.error('payment element', e); track('payment_form_error', { msg: String(e && (e.message || e.code || e)).slice(0, 150) }); }
       }).mount('#wh-payment');
       payments.create('branding').mount('#wh-branding');
@@ -617,6 +624,7 @@
       var order = (av && av.order) || ['apple_pay', 'google_pay', 'paypal_express'];
       var ok = { apple_pay: av && av.applePay, google_pay: av && av.googlePay, paypal_express: av && av.payPal };
       var types = order.filter(function (t) { return ok[t]; });
+      if (ok.paypal_express) types = ['paypal_express'].concat(types.filter(function (t) { return t !== 'paypal_express'; }));
       if (!types.length) { box.hidden = true; return; }
       var wrap = $('#xbtns'); wrap.innerHTML = '';
       types.forEach(function (t) {
