@@ -1,6 +1,6 @@
 // api/whop-webhook.js — Whop "payment succeeded" -> paid Shopify order (same prices + discount as the cart).
 // Self-contained on purpose (only needs lib/shopify.js + lib/whop.js). api/reconcile.js reuses fulfil().
-// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET, optional APPLOVIN_CAPI_KEY / APPLOVIN_EVENT_KEY, TIKTOK_EVENTS_TOKEN / TIKTOK_PIXEL_CODE
+// Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET, optional APPLOVIN_CAPI_KEY / APPLOVIN_EVENT_KEY, TIKTOK_EVENTS_TOKEN / TIKTOK_PIXEL_CODE, SNAP_CAPI_TOKEN / SNAP_PIXEL_ID, PINTEREST_CAPI_TOKEN / PINTEREST_AD_ACCOUNT_ID
 import { adminGql } from "../lib/shopify.js";
 import { getPayment, verifyWebhook, unpackMeta } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
@@ -9,6 +9,8 @@ import { journey } from "../lib/http.js";
 import { whopRefundToShopify } from "./shopify-webhook.js";
 import { hasApplovinSignal, sendAxonPurchase } from "../lib/applovin.js";
 import { hasTikTokSignal, sendTikTokPurchase } from "../lib/tiktok.js";
+import { hasSnapSignal, sendSnapPurchase } from "../lib/snapchat.js";
+import { hasPinterestSignal, sendPinterestCheckout } from "../lib/pinterest.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 
@@ -61,6 +63,36 @@ async function reportTikTokPurchase(d, info) {
       externalId: info.externalId || d.member_id || d.user?.id || info.email || null,
     });
   } catch (e) { console.error("tiktok_events", e.message); }
+}
+
+// Snapchat Conversions API. Same moment as the other purchase reports.
+async function reportSnapPurchase(d, info) {
+  if (!hasSnapSignal(info.attrs)) return;
+  const cx = checkoutClient(d);
+  try {
+    await sendSnapPurchase({
+      ...info,
+      payId: d.id,
+      paidAt: d.paid_at,
+      ip: cx.ip || info.ip || d.ip_address || null,
+      ua: cx.ua || info.ua || null,
+    });
+  } catch (e) { console.error("snap_capi", e.message); }
+}
+
+// Pinterest Conversions API (event name checkout). Same moment as the other purchase reports.
+async function reportPinterestPurchase(d, info) {
+  if (!hasPinterestSignal(info.attrs)) return;
+  const cx = checkoutClient(d);
+  try {
+    await sendPinterestCheckout({
+      ...info,
+      payId: d.id,
+      paidAt: d.paid_at,
+      ip: cx.ip || info.ip || d.ip_address || null,
+      ua: cx.ua || info.ua || null,
+    });
+  } catch (e) { console.error("pinterest_capi", e.message); }
 }
 
 // Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
@@ -186,11 +218,11 @@ export async function fulfil(d) {
       try { await fetch(u); } catch (e) { console.error("redtrack_postback", e.message); }
     }
 
-    // AppLovin and TikTok purchases (presentment amount Whop charged: o.t cents of o.c, not shop USD)
-    // and the Shopify risk card. All run after the order exists; none may fail the webhook. In parallel
-    // so a slow events call does not stack on top of the risk request.
-    // A separate upsell order must not reuse the parent checkout's _axon_event_id. TikTok's event_id
-    // is whop-<this payment id> either way (dedupeId overrides it for the upsell payment).
+    // AppLovin, TikTok, Snapchat, and Pinterest purchases (presentment amount Whop charged: o.t cents
+    // of o.c, not shop USD) and the Shopify risk card. All run after the order exists; none may fail
+    // the webhook. In parallel so a slow events call does not stack on top of the risk request.
+    // A separate upsell order must not reuse the parent checkout's _axon_event_id. The other event ids
+    // are whop-<this payment id> either way (dedupeId overrides them for the upsell payment).
     if (!r.orderCreate.userErrors.length && r.orderCreate.order?.id) {
       const separateUpsell = (d._tags || []).includes("upsell-separate-order");
       const purchase = {
@@ -205,6 +237,8 @@ export async function fulfil(d) {
       await Promise.all([
         reportApplovinPurchase(d, purchase),
         reportTikTokPurchase(d, purchase),
+        reportSnapPurchase(d, purchase),
+        reportPinterestPurchase(d, purchase),
         addRisk(r.orderCreate.order.id, d, sa, ba).catch((e) => console.error("order_risk", e.message)),
       ]);
     }
@@ -290,6 +324,8 @@ async function fulfilUpsell(d) {
       await Promise.all([
         reportApplovinPurchase(d, purchase),
         reportTikTokPurchase(d, purchase),
+        reportSnapPurchase(d, purchase),
+        reportPinterestPurchase(d, purchase),
       ]);
       journey(d.metadata?.j, "upsell_added_to_order", { payment: d.id, order: parent.name });
       return { status: 200, body: { order: parent.name, upsell: "added_to_order" } };
