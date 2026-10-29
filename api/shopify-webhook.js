@@ -21,6 +21,7 @@ import crypto from "node:crypto";
 import { adminGql } from "../lib/shopify.js";
 import { getPayment, refundPayment, scopeProblem } from "../lib/whop.js";
 import { journey } from "../lib/http.js";
+import { clickIdFrom, postRedtrack, purchaseEventId, refundShopSum } from "../lib/ads.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
@@ -35,9 +36,9 @@ function verified(raw, hmac) {
   });
 }
 
-const ORDER_FIELDS = `id name tags cancelledAt
+const ORDER_FIELDS = `id name tags test cancelledAt
   customAttributes { key value }
-  totalReceivedSet { presentmentMoney { amount currencyCode } }
+  totalReceivedSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
   totalRefundedSet { presentmentMoney { amount currencyCode } }
   transactions(first: 50) { id kind status gateway amountSet { presentmentMoney { amount currencyCode } } }
   refunds(first: 100) { id createdAt note totalRefundedSet { presentmentMoney { amount currencyCode } } }`;
@@ -109,6 +110,26 @@ async function cancelOrder(order, note) {
   if (e.length) throw new Error(`orderCancel: ${JSON.stringify(e).slice(0, 300)}`);
 }
 
+// Whop refund -> RedTrack Refund, same event id as the original purchase (or the upsell payment).
+// RedTrack counts the Refund type with a negative payout. sum is negative as well, so revenue still
+// drops if that type is not configured and the postback is stored as a minus conversion.
+// A test order (Shopify test flag or the "test" tag) is not sent.
+async function postRefundRedtrack(order, paymentId, presentmentCents) {
+  if (!order || order.test || (order.tags || []).includes("test")) return;
+  const attrs = Object.fromEntries((order.customAttributes || []).map((a) => [a.key, a.value]));
+  const parent = attrs.whop_payment_id || "";
+  const upsell = !!(parent && paymentId && paymentId !== parent);
+  const money = refundShopSum(order, presentmentCents);
+  await postRedtrack({
+    clickid: clickIdFrom(attrs),
+    type: "Refund",
+    sum: money.sum,
+    currency: money.currency,
+    eventId: purchaseEventId({ journey: attrs.checkout_journey_id, paymentId, upsell }),
+    order: order.name,
+  });
+}
+
 // ---------------- Whop -> Shopify ----------------
 // refund = Whop refund object from the refund.created / refund.updated webhook
 export async function whopRefundToShopify(refund) {
@@ -139,6 +160,7 @@ export async function whopRefundToShopify(refund) {
   }
   amount = Math.min(amount, Math.max(0, received - refunded)); // never record more than is left on the order
   if (amount > 0) await recordRefund(order, amount, `Refunded in Whop (${refund.id})`);
+  if (amount > 0) await postRefundRedtrack(order, refund.payment_id, amount);
   await adminGql(TAGS_ADD, { id: order.id, tags: ["whop-refunded", "whop-refunded-in-whop"] }).catch(() => {});
 
   const fully = refunded + amount >= received;

@@ -8,6 +8,7 @@ import { validateAddress, validateContact } from "../lib/validate.js";
 import { createPayment, scopeProblem } from "../lib/whop.js";
 import { baseUrl, journey } from "../lib/http.js";
 import { clickIdFrom, postRedtrack } from "../lib/ads.js";
+import { checkoutReturnUrl } from "../lib/return-url.js";
 
 const clean = (o, keys) => Object.fromEntries(keys.map((k) => [k, String(o?.[k] ?? "").trim().slice(0, 120)]));
 const ADDR = ["country_code", "first_name", "last_name", "address1", "address2", "city", "province", "zip"];
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
         j: s.j || "",
         ship: JSON.stringify({ v: 2, email: contact.email, phone: contact.phone || "", marketing: contact.marketing, s: ship, b: bill }),
       },
-      return_url: `${baseUrl(req)}/?return=1`,
+      return_url: checkoutReturnUrl(baseUrl(req), { journey: s.j }),
     }, crypto.createHash("sha256").update(b.confirmationToken).digest("hex"), typeof b.account === "string" ? b.account : undefined);
 
     if (!r.ok) {

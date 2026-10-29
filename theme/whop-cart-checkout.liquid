@@ -62,9 +62,10 @@
   // RedTrack click, UTMs and subs from cookies, storage and the page URL. They go on the checkout
   // session. Cookies on madespecial.store are not visible on checkout.madespecial.store, so the
   // checkout writes the click id back into its own URL and rtkclickid-store cookie.
-  var TRACK = /clickid|^_*ref_id$|^rtk|^utm_|^sub\d{1,2}$/i;
+  // Network click ids, Triple Whale (tw_*, cmpid), landing URL and referrer. Same set lib/pricing.js refuses to trim.
+  var TRACK = /clickid|^_*ref_id$|^rtk|^utm_|^sub\d{1,2}$|^_ax|^tw_|^cmpid$|^ttclid$|^_ttp$|^sccid$|^_scid$|^sc_click_id$|^epik$|^_fbp$|^_fbc$|^aleid$|^alart$|^axwrt$|^landing_site$|^landing_page$|^landing_url$|^first_landing_page$|^referring_site$|^referring_url$|^referrer$/i;
   // A real tracking value is a short ID or text: skip data blobs, JSON and binary that other apps keep in storage
-  var GOOD = function (v) { return v.length <= 300 && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
+  var GOOD = function (k, v) { return v.length <= (/landing|referr/i.test(k) ? 1000 : 300) && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
   function cookieVal(name) {
     try {
       var parts = document.cookie.split(';'), last = '';
@@ -75,9 +76,25 @@
       return !last || last === 'undefined' ? '' : last;
     } catch (e) { return ''; }
   }
+  // First page of this tab is the landing page. Stored before checkout so the cart page is not the landing page.
+  function rememberTouch() {
+    var landing = '', ref = '';
+    try { landing = sessionStorage.getItem('ms-landing') || ''; } catch (e) {}
+    try { ref = sessionStorage.getItem('ms-ref') || ''; } catch (e) {}
+    if (!landing) {
+      landing = String(location.href || '').split('#')[0].slice(0, 1000);
+      try { sessionStorage.setItem('ms-landing', landing); } catch (e) {}
+    }
+    if (!ref) {
+      ref = String(document.referrer || '').slice(0, 1000);
+      if (ref) { try { sessionStorage.setItem('ms-ref', ref); } catch (e) {} }
+    }
+    return { landing_site: landing, referring_site: ref };
+  }
+  rememberTouch();
   function trackingData() {
     var t = {};
-    function put(k, v) { if (k && v && TRACK.test(k) && GOOD(String(v))) t[k] = String(v); }
+    function put(k, v) { if (k && v && TRACK.test(k) && GOOD(k, String(v))) t[k] = String(v); }
     try { document.cookie.split(';').forEach(function (c) { var i = c.indexOf('='); if (i > 0) put(decodeURIComponent(c.slice(0, i).trim()), decodeURIComponent(c.slice(i + 1).trim())); }); } catch (e) {}
     try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); put(k, localStorage.getItem(k)); } } catch (e) {}
     try { new URLSearchParams(location.search).forEach(function (v, k) { put(k, v); }); } catch (e) {}
@@ -144,6 +161,12 @@
       var cart = await (await fetch('/cart.js', { cache: 'no-store' })).json();
       if (!cart.item_count) throw { code: 'empty_cart' };
       var tracking = trackingData();
+      var touch = rememberTouch();
+      var cartAttr = cart.attributes || {};
+      var landing = cartAttr.landing_site || cartAttr.landing_page || touch.landing_site;
+      var ref = cartAttr.referring_site || cartAttr.referrer || touch.referring_site;
+      if (!tracking.landing_site && !tracking.landing_page && !tracking.landing_url && landing) tracking.landing_site = landing;
+      if (!tracking.referring_site && !tracking.referrer && !tracking.referring_url && ref) tracking.referring_site = ref;
       var clck = cookieVal('_clck'), clsk = cookieVal('_clsk');
       // Sent as a normal form post: the browser navigates straight to the checkout (no extra round trips)
       var payload = JSON.stringify({

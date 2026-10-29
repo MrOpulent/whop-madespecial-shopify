@@ -1,5 +1,5 @@
 // api/whop-webhook.js — Whop "payment succeeded" -> paid Shopify order (same prices + discount as the cart).
-// Self-contained on purpose (only needs lib/shopify.js + lib/whop.js). api/reconcile.js reuses fulfil().
+// api/reconcile.js reuses fulfil(). Duplicate deliveries are claimed on the Whop payment id before the tag search.
 // Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET, optional REDTRACK_POSTBACK_URL / REDTRACK_TRACKING_ORIGIN / REDTRACK_EVENT
 import { adminGql } from "../lib/shopify.js";
 import { getPayment, verifyWebhook, unpackMeta } from "../lib/whop.js";
@@ -7,7 +7,9 @@ import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { SHIP_TITLE, delivery } from "./session.js";
 import { journey } from "../lib/http.js";
 import { whopRefundToShopify } from "./shopify-webhook.js";
-import { clickIdFrom, postRedtrack } from "../lib/ads.js";
+import { clickIdFrom, isTestPayment, postRedtrack, purchaseEventId } from "../lib/ads.js";
+import { orderWebFields, stripRejectedWebFields } from "../lib/attribution.js";
+import { withPaymentLock } from "../lib/order-lock.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 
@@ -19,19 +21,25 @@ const bag = (shopC, shopCur, payC, payCur) => ({
 
 const FIND = `query($q: String!) { orders(first: 1, query: $q) { nodes { id name } } }`;
 const CREATE = `mutation($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
-  orderCreate(order: $order, options: $options) { order { id name } userErrors { field message } }
+  orderCreate(order: $order, options: $options) { order { id name sourceName } userErrors { field message } }
 }`;
 
 export async function fulfil(d) {
   d = d || {};
   if (d.metadata) d = { ...d, metadata: unpackMeta(d.metadata) }; // long values arrive split (500-character limit)
+  if (!/^pay_[A-Za-z0-9]+$/.test(String(d.id || ""))) return createFromPayment(d);
+  return withPaymentLock(d.id, () => createFromPayment(d));
+}
+
+async function createFromPayment(d) {
   if (d.metadata?.upsell_of) return fulfilUpsell(d); // post-purchase upsell -> add to the original order
   let o, attrs = {};
   try { o = JSON.parse(d.metadata?.order); attrs = JSON.parse(d.metadata?.attrs || "{}"); }
   catch { return { status: 200, body: { error: "no_order_metadata" } }; } // not a store order (e.g. dashboard test event)
 
   {
-    // Whop retries webhooks: never create the same order twice
+    // Whop retries webhooks. The payment-id claim runs before this; the tag search still catches orders
+    // created before that claim existed, once Shopify's search index has caught up.
     const tag = `whop-${d.id}`;
     const found = await adminGql(FIND, { q: `tag:'${tag}'` });
     if (found.orders.nodes.length) return { status: 200, body: { duplicate: found.orders.nodes[0].name } };
@@ -72,6 +80,11 @@ export async function fulfil(d) {
     const noAddress = !form && !p.shipping_address;
 
     const eta = delivery(d.paid_at ? new Date(d.paid_at) : new Date());
+    const testOrder = isTestPayment(d, attrs);
+    const web = orderWebFields(attrs);
+    // Canonical names in Additional details, including when the cart stored an alias (landing_page, referrer).
+    if (web.sourceUrl && !attrs.landing_site) attrs.landing_site = web.sourceUrl;
+    if (web.referringSite && !attrs.referring_site) attrs.referring_site = web.referringSite;
     const order = {
       email,
       ...(phone && { phone }),
@@ -93,56 +106,85 @@ export async function fulfil(d) {
       financialStatus: "PAID",
       transactions: [{ kind: "SALE", status: "SUCCESS", gateway: "Whop", amountSet: bag(o.st ?? o.t, sc, o.t, o.c) }],
       ...(addr.address1 && { shippingAddress: addr, billingAddress: billAddr.address1 ? billAddr : addr }),
-      tags: ["whop", tag, ...appTags(o, attrs), ...(d._tags || []), ...(form?.marketing ? ["accepts-marketing"] : []), ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : [])],
+      ...web,
+      ...(testOrder && { test: true }),
+      tags: ["whop", tag, ...appTags(o, attrs), ...(d._tags || []), ...(form?.marketing ? ["accepts-marketing"] : []), ...(Math.abs(paid - o.t) > 1 ? ["whop-amount-check"] : []), ...(noAddress ? ["whop-no-shipping-address"] : []), ...(testOrder ? ["test"] : [])],
       note: `${d._note ? d._note + " — " : ""}Whop payment ${d.id}${noAddress ? " — no shipping address from Whop, used billing address; confirm with the customer" : ""}${phoneNote}`,
     };
     const options = { inventoryBehaviour: "DECREMENT_OBEYING_POLICY", sendReceipt: true };
     const noRegion = (a, src) => ({ ...a, provinceCode: null, address2: [a.address2, src.state].filter(Boolean).join(", ") || null });
-    // Try the full order; if Shopify rejects a detail (region code, phone format, address), retry with less
-    // so a paid order is never lost. Each fallback is noted on the order.
-    const attempts = [
-      ["full", order],
-      ["no region code", { ...order, ...(addr.address1 && { shippingAddress: noRegion(addr, sa), billingAddress: noRegion(billAddr.address1 ? billAddr : addr, billAddr.address1 ? ba : sa) }) }],
-      ["no phone", (() => { const { phone: _p, ...rest } = order;
-                            return { ...rest, ...(addr.address1 && { shippingAddress: { ...noRegion(addr, sa), phone: null },
-                                                                     billingAddress: { ...noRegion(billAddr.address1 ? billAddr : addr, billAddr.address1 ? ba : sa), phone: null } }) }; })()],
-      ["no address", (() => { const { phone: _p, shippingAddress: _s, billingAddress: _b, ...rest } = order;
-                              return { ...rest, note: `${order.note} — Shopify rejected the address; Whop address: ${JSON.stringify(sa)} phone: ${rawPhone || "-"}` }; })()],
-      // Last resort: no customer details at all, everything kept in the note. A paid order must always exist.
-      ["minimal", (() => { const { phone: _p, email: _e, shippingAddress: _s, billingAddress: _b, ...rest } = order;
-                           return { ...rest, note: `${order.note} — details rejected by Shopify; email: ${email || "-"} phone: ${rawPhone || "-"} address: ${JSON.stringify(sa)}` }; })()],
-    ];
-    let r, used;
-    // Same order without line item properties, in case Shopify refuses one of them
-    attempts.splice(1, 0, ["no line properties", { ...order, lineItems: order.lineItems.map(({ properties: _x, ...li }) => li) }]);
-    for (const [label, ord] of attempts) {
-      try { r = await adminGql(CREATE, { order: label === "full" ? ord : { ...ord, tags: [...ord.tags, `whop-fallback-${label.replace(/ /g, "-")}`] }, options }); }
-      catch (e) { r = { orderCreate: { order: null, userErrors: [{ field: null, message: String(e.message).slice(0, 300) }] } }; } // keep trying
+    // Try the full order; if Shopify rejects a detail, retry with less so a paid order is never lost.
+    // Address is dropped before phone, and email stays until the last attempt.
+    const attemptsFor = (base) => {
+      const regionless = { ...base, ...(addr.address1 && { shippingAddress: noRegion(addr, sa), billingAddress: noRegion(billAddr.address1 ? billAddr : addr, billAddr.address1 ? ba : sa) }) };
+      const dropPhone = (src) => {
+        const { phone: _p, ...rest } = src;
+        const strip = (a) => a && { ...a, phone: null };
+        return { ...rest, ...(src.shippingAddress && { shippingAddress: strip(src.shippingAddress), billingAddress: strip(src.billingAddress) }) };
+      };
+      const dropAddress = (src) => {
+        const { shippingAddress: _s, billingAddress: _b, ...rest } = src;
+        return { ...rest, note: `${src.note} — Shopify rejected the address; email and phone kept. Whop address: ${JSON.stringify(sa)}` };
+      };
+      return [
+        ["full", base],
+        ["no line properties", { ...base, lineItems: base.lineItems.map(({ properties: _x, ...li }) => li) }],
+        ["no region code", regionless],
+        ["no address", dropAddress(base)],
+        ["no phone", dropPhone(regionless)],
+        ["no address or phone", dropPhone(dropAddress(base))],
+        ["minimal", (() => { const { phone: _p, email: _e, shippingAddress: _s, billingAddress: _b, ...rest } = base;
+                             return { ...rest, note: `${base.note} — details rejected by Shopify; email: ${email || "-"} phone: ${rawPhone || "-"} address: ${JSON.stringify(sa)}` }; })()],
+      ];
+    };
+    let r, used, sent, steps = attemptsFor(order), restarts = 0;
+    for (let i = 0; i < steps.length; i++) {
+      const [label, ord] = steps[i];
+      const payload = label === "full" ? ord : { ...ord, tags: [...ord.tags, `whop-fallback-${label.replace(/ /g, "-")}`] };
+      try { r = await adminGql(CREATE, { order: payload, options }); }
+      catch (e) { r = { orderCreate: { order: null, userErrors: [{ field: null, message: String(e.message).slice(0, 300) }] } }; }
       used = label;
-      if (!r.orderCreate.userErrors.length) break;
-      console.error(`orderCreate (${label})`, JSON.stringify(r.orderCreate.userErrors));
+      sent = payload;
+      const ue = r.orderCreate.userErrors;
+      if (!ue.length) break;
+      if (restarts < 3 && stripRejectedWebFields(order, ue)) {
+        restarts++;
+        console.error(`order_attribution_rejected payment=${d.id} restarts=${restarts}`);
+        steps = attemptsFor(order);
+        i = -1;
+        continue;
+      }
+      console.error(`orderCreate (${label})`, JSON.stringify(ue));
     }
-    if (used !== "full") console.error("order created with fallback:", used);
+    const err = r.orderCreate.userErrors;
+    const upsellOrder = (d._tags || []).includes("upsell-separate-order");
+    const eventId = purchaseEventId({ journey: d.metadata?.j, paymentId: d.id, upsell: upsellOrder });
+    if (err.length) {
+      console.error(`order_failed payment=${d.id} email=${email ? 1 : 0} phone=${rawPhone ? 1 : 0} err=${JSON.stringify(err).slice(0, 400)}`);
+      journey(d.metadata?.j, "order_failed", { payment: d.id, err: err.slice(0, 3) }, true);
+      return { status: 500, body: { err } };
+    }
+    if (used !== "full") console.error(`order_fallback payment=${d.id} used=${used.replace(/ /g, "-")} email=${sent?.email ? 1 : 0} phone=${sent?.phone ? 1 : 0}`);
+    if (r.orderCreate.order?.sourceName && r.orderCreate.order.sourceName !== "web")
+      console.error(`order_source_not_web payment=${d.id} source=${String(r.orderCreate.order.sourceName).slice(0, 40)}`);
 
     // Same click and event id the checkout page sends, so RedTrack counts one purchase when both arrive.
     // A separate upsell order is an extra payment, reported as Upsell so it does not replace the original.
-    if (!r.orderCreate.userErrors.length) {
-      const upsellOrder = (d._tags || []).includes("upsell-separate-order");
-      await postRedtrack({
-        clickid: clickIdFrom(attrs),
-        type: upsellOrder ? "Upsell" : (process.env.REDTRACK_EVENT || "Purchase"),
-        sum: Number(amt(upsellOrder ? o.t : (o.st ?? o.t))),
-        currency: upsellOrder ? o.c : (o.sc || o.c),
-        eventId: upsellOrder ? `upsell-${d.id}` : (d.metadata?.j || ""),
-      });
-    }
+    // Test orders are tagged and marked test in Shopify, and are not sent to RedTrack.
+    if (testOrder) journey(d.metadata?.j, "redtrack_skipped_test", { payment: d.id, order: r.orderCreate.order.name, type: upsellOrder ? "Upsell" : "Purchase" });
+    else await postRedtrack({
+      clickid: clickIdFrom(attrs),
+      type: upsellOrder ? "Upsell" : (process.env.REDTRACK_EVENT || "Purchase"),
+      sum: Number(amt(upsellOrder ? o.t : (o.st ?? o.t))),
+      currency: upsellOrder ? o.c : (o.sc || o.c),
+      eventId,
+      order: r.orderCreate.order.name,
+    });
 
-    if (!r.orderCreate.userErrors.length && r.orderCreate.order?.id)
+    if (r.orderCreate.order?.id)
       await addRisk(r.orderCreate.order.id, d, sa, ba).catch((e) => console.error("order_risk", e.message));
 
-    const err = r.orderCreate.userErrors;
-    if (err.length) { console.error("orderCreate", JSON.stringify(err)); journey(d.metadata?.j, "order_failed", { payment: d.id, err: err.slice(0, 3) }, true); return { status: 500, body: { err } }; }
-    journey(d.metadata?.j, "order_created", { payment: d.id, order: r.orderCreate.order.name, fallback: used === "full" ? null : used }, used !== "full");
+    journey(d.metadata?.j, "order_created", { payment: d.id, order: r.orderCreate.order.name, source: r.orderCreate.order.sourceName || null, fallback: used === "full" ? null : used }, used !== "full");
     return { status: 200, body: { order: r.orderCreate.order.name, fallback: used === "full" ? undefined : used } };
   }
 }
@@ -208,12 +250,14 @@ async function fulfilUpsell(d) {
       }
       let upAttrs = {};
       try { upAttrs = JSON.parse(d.metadata?.attrs || "{}"); } catch { /* attrs stay empty */ }
-      await postRedtrack({
+      if (isTestPayment(d, upAttrs)) journey(d.metadata?.j, "redtrack_skipped_test", { payment: d.id, order: parent.name, type: "Upsell" });
+      else await postRedtrack({
         clickid: clickIdFrom(upAttrs),
         type: "Upsell",
         sum: Number(amt(u.t)),
         currency: u.c,
-        eventId: `upsell-${d.id}`,
+        eventId: purchaseEventId({ paymentId: d.id, upsell: true }),
+        order: parent.name,
       });
       journey(d.metadata?.j, "upsell_added_to_order", { payment: d.id, order: parent.name });
       return { status: 200, body: { order: parent.name, upsell: "added_to_order" } };
@@ -221,7 +265,7 @@ async function fulfilUpsell(d) {
   }
   // Fallback: separate paid order with the same customer, address and tracking
   const o = { l: [[u.v, u.q, u.u, u.su]], c: u.c, t: u.t, d: u.q * u.u - u.t, sc: u.sc, st: u.st, sd: u.q * u.su - u.st, dc: "POST-PURCHASE", ...(u.n && { nm: [String(u.n).slice(0, 120)] }) };
-  return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship, j: d.metadata.j, cx: d.metadata.cx },
+  return createFromPayment({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship, j: d.metadata.j, cx: d.metadata.cx },
     _tags: [...UPSELL_TAG().split(",").map((x) => x.trim()).filter(Boolean), "upsell-separate-order"],
     _note: `Post-purchase upsell for ${parent ? parent.name : `Whop payment ${parentPay}`} (could not be added to that order)` });
 }
