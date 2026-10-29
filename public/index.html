@@ -318,6 +318,79 @@
   }
   function cl() { try { if (window.clarity) clarity.apply(null, arguments); } catch (e) {} }
 
+  // Checkout browser OS version. Chrome's reduced user agent hides it; userAgentData does not.
+  var snapDevice = {};
+  try {
+    var uad = navigator.userAgentData;
+    if (uad && uad.getHighEntropyValues) uad.getHighEntropyValues(['platformVersion', 'model']).then(function (h) {
+      if (h && /^\d{1,3}(\.\d{1,4}){0,3}$/.test(h.platformVersion || '')) snapDevice.os = h.platformVersion;
+      if (h && h.model) snapDevice.model = String(h.model).slice(0, 40);
+    }).catch(function () {});
+  } catch (e) {}
+  // Browser Snap pixel for START_CHECKOUT and PURCHASE. The Shopify app pixel does not run on this domain.
+  // PURCHASE client_dedup_id is whop-<payment id>, the same string the webhook sends as CAPI event_id.
+  // Fired only when this session has a Snap click id, so other checkouts do not dilute the click-id rate.
+  function snapContext() {
+    var order = {}; try { order = readOrder() || {}; } catch (e) {}
+    return { snap: (S && S.snap) || order.snap || null, consent: (S && S.clarity && S.clarity.consent) || order.consent || null };
+  }
+  function snapAllowed(ctx) {
+    return !!(ctx && ctx.snap && ctx.snap.clickId && ctx.snap.pixelId && !(ctx.consent && ctx.consent.m === 0));
+  }
+  function withScCid(url) {
+    var click = (S && S.snap && S.snap.clickId) || '';
+    if (!click) { try { click = ((readOrder() || {}).snap || {}).clickId || ''; } catch (e) {} }
+    if (!click) return url;
+    try {
+      var u = new URL(url, location.origin), has = false;
+      u.searchParams.forEach(function (v, k) { if (/^sccid$/i.test(k) && v) has = true; });
+      if (!has) u.searchParams.set('ScCid', click);
+      return u.pathname + u.search + u.hash;
+    } catch (e) { return url; }
+  }
+  function snapPrepare(snap) {
+    try {
+      if (snap.cookie1) document.cookie = '_scid=' + encodeURIComponent(snap.cookie1) + '; Max-Age=2419200; Path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+      var u = new URL(location.href), has = false;
+      u.searchParams.forEach(function (v, k) { if (/^sccid$/i.test(k) && v) has = true; });
+      if (!has) { u.searchParams.set('ScCid', snap.clickId); history.replaceState(null, '', u.pathname + u.search + u.hash); }
+    } catch (e) {}
+    if (window.snaptr) return;
+    (function (e, t, n) {
+      var a = e.snaptr = function () { a.handleRequest ? a.handleRequest.apply(a, arguments) : a.queue.push(arguments); };
+      a.queue = [];
+      var r = t.createElement('script'); r.async = true; r.src = n;
+      var s = t.getElementsByTagName('script')[0]; s.parentNode.insertBefore(r, s);
+    })(window, document, 'https://sc-static.net/scevent.min.js');
+  }
+  function snapTrack(eventName, params, user) {
+    var ctx = snapContext();
+    if (!snapAllowed(ctx)) return;
+    snapPrepare(ctx.snap);
+    var init = {};
+    if (user && user.user_email) init.user_email = user.user_email;
+    if (user && user.user_phone_number) init.user_phone_number = String(user.user_phone_number).replace(/\D/g, '');
+    if (init.user_phone_number && init.user_phone_number.length < 8) delete init.user_phone_number;
+    snaptr('init', ctx.snap.pixelId, init);
+    var body = {};
+    Object.keys(params || {}).forEach(function (k) { if (params[k] != null && params[k] !== '') body[k] = params[k]; });
+    snaptr('track', eventName, body);
+  }
+  function snapStartCheckout() {
+    var ctx = snapContext();
+    if (!snapAllowed(ctx) || !S) return;
+    var key = 'ms-snap-start-' + (S.journey || ctx.snap.clickId);
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
+    var qty = (S.lines || []).reduce(function (n, l) { return n + (Number(l.qty) || 1); }, 0);
+    snapTrack('START_CHECKOUT', { price: S.amount / 100, currency: S.currency, number_items: qty || undefined, client_dedup_id: 'whop-checkout-' + (S.journey || 'session') });
+  }
+  function snapPurchase(paymentId, priceCents, currency, qty, email, phone) {
+    if (!paymentId || !snapAllowed(snapContext())) return;
+    var id = 'whop-' + paymentId;
+    try { if (sessionStorage.getItem('ms-snap-' + id)) return; sessionStorage.setItem('ms-snap-' + id, '1'); } catch (e) {}
+    snapTrack('PURCHASE', { price: Math.round(Number(priceCents) || 0) / 100, currency: currency, transaction_id: paymentId, client_dedup_id: id, number_items: qty || undefined }, { user_email: email, user_phone_number: phone });
+  }
+
   // ---------- journey log (Vercel Logs: search j=<id>) ----------
   var tracked = {};
   function track(step, data, once) {
@@ -346,7 +419,7 @@
   }
   fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-    .then(function (x) { if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && { id: S.clarity.id, consent: S.clarity.consent, journey: S.journey }); render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); whenPhoneLib(function () {
+    .then(function (x) { if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && { id: S.clarity.id, consent: S.clarity.consent, journey: S.journey }); render(); snapStartCheckout(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); whenPhoneLib(function () {
       var sel = $('#phone_country'); if (!sel || !window.libphonenumber) return;
       var cur = sel.value;
       // Options were built before the library arrived: add the dial codes, keeping the shopper's choice.
@@ -419,7 +492,7 @@
       .then(function (j) {
         if (seq !== repriceSeq || !j.s || !j.session) return;
         token = j.s; S = j.session;
-        try { sessionStorage.setItem('ms-s', token); history.replaceState(null, '', '?s=' + encodeURIComponent(token)); } catch (e) {}
+        try { sessionStorage.setItem('ms-s', token); history.replaceState(null, '', withScCid('/?s=' + encodeURIComponent(token))); } catch (e) {}
         paintSummary(); updateWhopAmount(); setupExpress(); track('currency_changed', { country: country, currency: S.currency, total: S.amount });
       })
       .catch(function (e) { console.error('reprice', e); })   // keep the current price; checkout still works
@@ -578,7 +651,7 @@
       payments = whop.payments.create({
         accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
         paymentMethodConfiguration: CHECKOUT_METHODS,
-        returnUrl: location.origin + '/?return=1',
+        returnUrl: location.origin + withScCid('/?return=1'),
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
         onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
       });
@@ -782,7 +855,8 @@
       var r = await fetch(API + '/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s: token, account: S.accountId, confirmationToken: tok.confirmationToken,
           contact: { email: email, phone: phone, phone_country: $('#phone_country').value, marketing: $('#marketing').checked },
-          shipping: ship, billing_same: billSame, billing: billSame ? null : bill }) });
+          shipping: ship, billing_same: billSame, billing: billSame ? null : bill,
+          client: { os: snapDevice.os || '', model: snapDevice.model || '' } }) });
       var d = await r.json().catch(function () { return { error: 'server_error' }; });
       if (d.error !== 'invalid_fields') expressTok = null; // a wallet token is single-use once sent for charging
       if (!r.ok || d.error) {
@@ -792,12 +866,14 @@
         if (d.error === 'payment_failed') { $('#e-payment').textContent = d.message || 'Your payment was declined. Please try another card or payment method.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
         return alertMsg(MSG[d.error] || MSG.server_error);
       }
-      saveOrder({ email: email, ship: ship, payment: d.id });
+      saveOrder({ email: email, phone: phone, ship: ship, payment: d.id, amount: S.amount, currency: S.currency,
+        qty: (S.lines || []).reduce(function (n, l) { return n + (Number(l.qty) || 1); }, 0),
+        snap: S.snap || null, consent: (S.clarity && S.clarity.consent) || null });
       if (d.status === 'paid' || d.status === 'succeeded') return showDone('succeeded');
       if (!d.client_secret && (d.status === 'pending' || d.status === 'processing')) return showDone('processing');
       if (!d.client_secret) { setBusy(false); $('#e-payment').textContent = 'Your payment was declined. Please try another card or payment method.'; return; }
       track('3ds_started');
-      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + '/?return=1' });
+      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withScCid('/?return=1') });
       if (res.redirected) return;
       track(res.status === 'succeeded' || res.status === 'paid' ? '3ds_passed' : res.status === 'processing' || res.status === 'pending' ? '3ds_pending' : '3ds_failed', { status: res.status });
       if (res.status === 'succeeded' || res.status === 'paid') return showDone('succeeded');
@@ -826,7 +902,7 @@
     var o = readOrder() || {}, s = o.ship;
     var paid = status === 'succeeded';
     track(paid ? 'thank_you' : 'payment_processing', { payment: (o.payment || params.get('payment') || null) }, true);
-    if (paid) { cl('set', 'purchase', 'yes'); cl('upgrade', 'purchase'); } // keep every purchase recording
+    if (paid) { cl('set', 'purchase', 'yes'); cl('upgrade', 'purchase'); snapPurchase(o.payment || params.get('payment'), o.amount != null ? o.amount : (S && S.amount), o.currency || (S && S.currency), o.qty, o.email, o.phone); } // keep every purchase recording; Snap dedupes on whop-<payment id>
     var addr = s ? esc(s.first_name + ' ' + s.last_name) + '<br>' + esc(s.address1) + (s.address2 ? ', ' + esc(s.address2) : '') + '<br>' + esc(s.city) + (s.province ? ', ' + esc(s.province) : '') + ' ' + esc(s.zip) + '<br>' + esc(countryName(s.country_code)) : '';
     var html = '<div class="center done">' +
       '<a class="logo" href="' + esc(storeUrl()) + '"><img src="' + esc((S && S.store.logo) || 'https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=350') + '" alt=""></a>' +
@@ -855,8 +931,10 @@
     var st = upsState(); if (st.pay !== U.pay) st = { pay: U.pay, step: 0, added: [] };
     // back from a bank / 3D Secure step for an upsell payment
     if (params.get('upsell') === '1') {
-      if (st.pending != null && (params.get('status') === 'succeeded' || params.get('status') === 'paid')) { st.added.push(st.pending); st.step = st.pending + 1; }
-      delete st.pending;
+      var upOk = params.get('status') === 'succeeded' || params.get('status') === 'paid';
+      if (st.pending != null && upOk) { st.added.push(st.pending); st.step = st.pending + 1; }
+      if (upOk && st.pendingPurchase) snapPurchase(st.pendingPurchase.id || params.get('payment'), st.pendingPurchase.price, st.pendingPurchase.currency, st.pendingPurchase.qty, o.email, o.phone);
+      delete st.pending; delete st.pendingPurchase;
     }
     U.st = st; upsSave(st); upsLoad();
   }
@@ -893,7 +971,7 @@
     try {
       U.payments = window.WhopElements().payments.create({ accountId: U.offer.accountId, currency: U.offer.currency.toLowerCase(), amount: minorUnits(U.offer.price, U.offer.currency),
         paymentMethodConfiguration: PAY_METHODS,
-        returnUrl: location.origin + '/?return=1&upsell=1', appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
+        returnUrl: location.origin + withScCid('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
       U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
       U.payments.create('branding').mount('#ups-brand');
     } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
@@ -917,13 +995,17 @@
       if (d.error) { track('upsell_error', { error: d.error, msg: (d.message || '').slice(0, 150) }); upsBusy(false); $('#ups-err').textContent = d.message || 'We could not add this item. You have not been charged.'; return; }
       if (d.status !== 'paid' && d.status !== 'succeeded') {
         if (!d.client_secret) { upsBusy(false); $('#ups-err').textContent = 'Your payment was declined. You have not been charged.'; return; }
-        U.st.pending = U.st.step; upsSave(U.st);
+        U.st.pending = U.st.step;
+        U.st.pendingPurchase = { id: d.id, price: U.offer.price, currency: U.offer.currency, qty: U.offer.qty };
+        upsSave(U.st);
         var w = (U.payments || window.WhopElements().payments);
-        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + '/?return=1&upsell=1' });
+        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withScCid('/?return=1&upsell=1') });
         if (res.redirected) return;
-        if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
+        if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; delete U.st.pendingPurchase; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
       }
-      delete U.st.pending; U.st.added.push(U.st.step); upsSave(U.st); track('upsell_paid', { step: U.st.step });
+      delete U.st.pending; delete U.st.pendingPurchase; U.st.added.push(U.st.step); upsSave(U.st); track('upsell_paid', { step: U.st.step });
+      var buyer = readOrder() || {};
+      snapPurchase(d.id, U.offer.price, U.offer.currency, U.offer.qty, buyer.email, buyer.phone);
       var last = U.offer.last; U.st.step++; upsSave(U.st);
       upsClose('✓ ' + esc(U.offer.title) + ' was added to your order.');
       if (!last) { U.el = null; upsLoad(); }
