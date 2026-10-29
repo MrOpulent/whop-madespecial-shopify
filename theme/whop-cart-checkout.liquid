@@ -59,8 +59,11 @@
   var SHOPPER_COUNTRY = {{ localization.country.iso_code | default: 'US' | json }};
 
   // RedTrack / ad tracking: click IDs, UTMs and ad-platform IDs from cookies, storage and the page URL.
-  // They are written onto the Shopify order (with the cart attributes) so RedTrack can attribute the sale.
-  var TRACK = /clickid|^_*ref_id$|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$/i;
+  // They are written onto the checkout session so the checkout domain can restore them. Cookies set on
+  // madespecial.store are not visible on checkout.madespecial.store, which is why pixels die at checkout.
+  // AppLovin Axon: aleid/alart, pixel cookies _axeid/_axart/_axwrt. TikTok: ttclid and _ttp.
+  // Snapchat: ScCid / sc_click_id and pixel cookie _scid. Pinterest: epik. Meta: fbclid, _fbp, _fbc.
+  var TRACK = /clickid|^_*ref_id$|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$|^aleid$|^alart$|^_axeid$|^_axart$|^_axwrt$|^_axon|^_ttp$|^sccid$|^sc_click_id$|^_scclid$|^_scid$|^os_version$|^device_model$|^_?epik$/i;
   // A real tracking value is a short ID or text: skip data blobs, JSON and binary that other apps keep in storage
   var GOOD = function (v) { return v.length <= 300 && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
   function trackingData() {

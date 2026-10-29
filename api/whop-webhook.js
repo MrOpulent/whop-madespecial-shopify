@@ -129,6 +129,8 @@ export async function fulfil(d) {
       u.searchParams.set("clickid", clickid);
       u.searchParams.set("sum", amt(o.st ?? o.t));
       u.searchParams.set("type", process.env.REDTRACK_EVENT || "Purchase");
+      // Same id the checkout page sends, so RedTrack counts one purchase when both arrive.
+      if (d.metadata?.j) u.searchParams.set("eventid", String(d.metadata.j));
       try { await fetch(u); } catch (e) { console.error("redtrack_postback", e.message); }
     }
 

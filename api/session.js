@@ -1,6 +1,7 @@
 // api/session.js — the checkout page reads its (signed) session: what to show and how much to charge.
 // Env: WHOP_COMPANY_ID, optional STORE_NAME / STORE_URL / STORE_LOGO_URL / SHIPPING_TITLE
 import { readSession } from "../lib/session.js";
+import { adsFor } from "../lib/ads.js";
 
 // Shipping name shown on the checkout and on the Shopify order (Vercel: SHIPPING_TITLE)
 export const SHIP_TITLE = () => process.env.SHIPPING_TITLE || "Tracked Shipping";
@@ -21,6 +22,8 @@ export function view(s) {
     accountId: process.env.WHOP_COMPANY_ID,
     currency: s.cur, amount: s.tot, subtotal: s.gross, savings: Math.max(0, s.gross - s.tot),
     journey: s.j || null, market: s.mk,
+    // Click IDs from the store, plus the pixel IDs, so this domain can fire the same events.
+    ads: adsFor(s),
     // Microsoft Clarity: same project as the store
     clarity: { id: process.env.CLARITY_PROJECT_ID ?? "z39mlpo7cz", consent: s.cs || null },
     lines: s.disp.map((d, i) => ({ ...d, lineTotal: s.order.l[i][1] * s.order.l[i][2] })),
