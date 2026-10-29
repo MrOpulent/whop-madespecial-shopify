@@ -7,8 +7,7 @@ import { readSession } from "../lib/session.js";
 import { validateAddress, validateContact } from "../lib/validate.js";
 import { createPayment, scopeProblem } from "../lib/whop.js";
 import { baseUrl, journey } from "../lib/http.js";
-import { clientContext } from "../lib/applovin.js";
-import { cleanDeviceModel, cleanOsVersion, snapClickId } from "../lib/snapchat.js";
+import { clickIdFrom, postRedtrack } from "../lib/ads.js";
 
 const clean = (o, keys) => Object.fromEntries(keys.map((k) => [k, String(o?.[k] ?? "").trim().slice(0, 120)]));
 const ADDR = ["country_code", "first_name", "last_name", "address1", "address2", "city", "province", "zip"];
@@ -35,10 +34,7 @@ export default async function handler(req, res) {
   if (bad.length) { journey(s.j, "pay_invalid_fields", { fields: bad }, true); return res.status(400).json({ error: "invalid_fields", fields: bad }); }
 
   try {
-    const net = clientContext(req);
-    const os = cleanOsVersion(b.client?.os);
-    const model = cleanDeviceModel(b.client?.model);
-    const snapClick = snapClickId(s.attrs);
+    await postRedtrack({ clickid: clickIdFrom(s.attrs), type: "AddPaymentInfo", eventId: s.j ? `${s.j}:AddPaymentInfo` : "" });
     const product = process.env.WHOP_PRODUCT_ID && b.account !== process.env.WHOP_COMPANY_ID_OLD
       ? { product_id: process.env.WHOP_PRODUCT_ID }
       : { product: { external_identifier: "madespecial-branded-checkout", title: `${process.env.STORE_NAME || "MadeSpecial"} order`, visibility: "hidden" } };
@@ -58,16 +54,8 @@ export default async function handler(req, res) {
         attrs: JSON.stringify(s.attrs || {}),
         j: s.j || "",
         ship: JSON.stringify({ v: 2, email: contact.email, phone: contact.phone || "", marketing: contact.marketing, s: ship, b: bill }),
-        // IP and user agent from checkout start (session), or from this request if the session predates them.
-        // os / model come from the checkout browser (userAgentData) when the UA string has been reduced.
-        cx: JSON.stringify({
-          ip: s.ip || net.ip || null,
-          ua: s.ua || net.ua || null,
-          ...(os && { os }),
-          ...(model && { model }),
-        }),
       },
-      return_url: `${baseUrl(req)}/?return=1` + (snapClick ? `&ScCid=${encodeURIComponent(snapClick)}` : ""),
+      return_url: `${baseUrl(req)}/?return=1`,
     }, crypto.createHash("sha256").update(b.confirmationToken).digest("hex"), typeof b.account === "string" ? b.account : undefined);
 
     if (!r.ok) {

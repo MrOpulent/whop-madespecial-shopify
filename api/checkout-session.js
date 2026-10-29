@@ -4,12 +4,19 @@
 import { priceCart, orderAttributes } from "../lib/pricing.js";
 import { createSession } from "../lib/session.js";
 import { cors, baseUrl, journey } from "../lib/http.js";
-import { trackingWithClient } from "../lib/applovin.js";
-import { snapClickId } from "../lib/snapchat.js";
+import { clickIdFrom, postRedtrack } from "../lib/ads.js";
 import crypto from "node:crypto";
 
 // The shopper's cookie choice on the store (Shopify consent), so the checkout respects it for Clarity
 const consent = (c) => (c && typeof c === "object" ? { a: c.analytics === true ? 1 : c.analytics === false ? 0 : null, m: c.marketing === true ? 1 : c.marketing === false ? 0 : null } : null);
+// Clarity user + session cookies from the store, restored on checkout before the tag loads.
+const clarityCookies = (c) => {
+  if (!c || typeof c !== "object") return null;
+  const clip = (v) => { const s = String(v ?? "").trim().slice(0, 300); return s && !/[\r\n;]/.test(s) ? s : ""; };
+  const clck = clip(c.clck), clsk = clip(c.clsk);
+  if (!clck && !clsk) return null;
+  return { ...(clck && { clck }), ...(clsk && { clsk }) };
+};
 
 export default async function handler(req, res) {
   if (cors(req, res)) return;
@@ -29,19 +36,20 @@ export default async function handler(req, res) {
     let p;
     try { p = await priceCart(b); }
     catch (e) { journey("-", "cart_rejected", { error: e.code || e.message, total: b.total_price, currency: b.currency, country: b.market_country }, true); throw e; }
-    const client = trackingWithClient(b.tracking, req); // IP + UA land on the order and on the Whop payment
-    const at = orderAttributes(b.attributes, client.tracking);
-    const net = client.net;
+    const at = orderAttributes(b.attributes, b.tracking);
+    const cl = clarityCookies(b.clarity);
     const token = createSession({
       mk: p.market, cur: p.currency, tot: p.total, gross: p.gross,
       disp: p.display, title: p.title, desc: p.description,
       order: p.order, attrs: at,
       j, cs: consent(b.consent), it: p.items, ...(p.codes.length && { dc: p.codes }), ca: b.attributes || {}, // to re-price if the shopper ships to another country
-      ...(net.ip && { ip: net.ip }), ...(net.ua && { ua: net.ua }),
+      ...(cl && { cl }),
     });
-    journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: Object.entries(at).find(([k]) => /clickid/i.test(k))?.[1] || null });
-    const click = snapClickId(at); // the store pixel and the checkout pixel both read ScCid from the URL
-    const url = `${baseUrl(req)}/?s=${token}` + (click ? `&ScCid=${encodeURIComponent(click)}` : "");
+    const click = clickIdFrom(at);
+    journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: click || null });
+    // Same event id the checkout page sends, so a closed tab still records the step once.
+    await postRedtrack({ clickid: click, type: "InitiateCheckout", eventId: `${j}:InitiateCheckout` });
+    const url = `${baseUrl(req)}/?s=${token}` + (click ? `&clickid=${encodeURIComponent(click)}` : "");
     if (form) {
       const x = String(req.query?.x || "").replace(/[^a-z_]/g, "").slice(0, 20); // express wallet chosen in the drawer
       res.statusCode = 303; res.setHeader("Location", url + (x ? `&x=${x}` : "")); res.setHeader("Cache-Control", "no-store");

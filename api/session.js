@@ -2,7 +2,6 @@
 // Env: WHOP_COMPANY_ID, optional STORE_NAME / STORE_URL / STORE_LOGO_URL / SHIPPING_TITLE
 import { readSession } from "../lib/session.js";
 import { adsFor } from "../lib/ads.js";
-import { pixelId, snapClickId, snapCookie1 } from "../lib/snapchat.js";
 
 // Shipping name shown on the checkout and on the Shopify order (Vercel: SHIPPING_TITLE)
 export const SHIP_TITLE = () => process.env.SHIPPING_TITLE || "Tracked Shipping";
@@ -19,23 +18,18 @@ export function delivery(from = new Date()) {
 // What the checkout page needs (also returned by api/reprice.js)
 export function view(s) {
   const store = (process.env.STORE_URL || "https://madespecial.store").replace(/\/$/, "");
-  const click = snapClickId(s.attrs);
-  const cookie1 = click ? snapCookie1(s.attrs) : "";
   return {
     accountId: process.env.WHOP_COMPANY_ID,
     currency: s.cur, amount: s.tot, subtotal: s.gross, savings: Math.max(0, s.gross - s.tot),
     journey: s.j || null, market: s.mk,
-    // Click IDs from the store, plus the pixel IDs, so this domain can fire the same events.
+    // RedTrack click from the store, so this domain posts each step to the same click.
     ads: adsFor(s),
-    // Microsoft Clarity: same project as the store
-    clarity: { id: process.env.CLARITY_PROJECT_ID ?? "z39mlpo7cz", consent: s.cs || null },
+    // Microsoft Clarity: same project and the store's cookies, so that recording continues here.
+    clarity: { id: process.env.CLARITY_PROJECT_ID ?? "z39mlpo7cz", consent: s.cs || null, ...(s.cl || {}) },
     lines: s.disp.map((d, i) => ({ ...d, lineTotal: s.order.l[i][1] * s.order.l[i][2] })),
     expiresAt: s.exp,
     shippingTitle: SHIP_TITLE(),
     delivery: delivery(),
-    // Only when this checkout has a Snap click id, so the browser pixel is not fired for everyone else.
-    // cookie1 is the _scid value captured on the store; the checkout pixel reuses it.
-    ...(click && { snap: { pixelId: pixelId(), clickId: click, ...(cookie1 && { cookie1 }) } }),
     store: {
       name: process.env.STORE_NAME || "MadeSpecial.Store",
       url: store,

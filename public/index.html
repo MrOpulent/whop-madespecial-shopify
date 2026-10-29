@@ -10,11 +10,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.whop.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="preconnect" href="https://connect.facebook.net" crossorigin>
-<link rel="preconnect" href="https://analytics.tiktok.com" crossorigin>
-<link rel="preconnect" href="https://s.pinimg.com" crossorigin>
-<link rel="preconnect" href="https://sc-static.net" crossorigin>
-<link rel="preconnect" href="https://s.axon.ai" crossorigin>
 <link rel="preconnect" href="https://trk.madespecial.store" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
@@ -313,8 +308,17 @@
                 set: function (v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} } };
 
   // ---------- Microsoft Clarity: same project as the store, so the store session continues here ----------
+  function clarityCookie(name, value, maxAge) {
+    if (!value || /[\r\n;]/.test(value)) return;
+    if (document.cookie.split(';').some(function (c) { return c.trim().indexOf(name + '=') === 0 && c.trim().length > name.length + 1; })) return;
+    var sec = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = name + '=' + encodeURIComponent(value) + '; Max-Age=' + maxAge + '; Path=/; SameSite=Lax' + sec;
+  }
   function clarityStart(cfg) {
-    if (!cfg || !cfg.id || window.clarity) return;
+    if (!cfg || !cfg.id) return;
+    clarityCookie('_clck', cfg.clck, 31536000); // user id from the store
+    clarityCookie('_clsk', cfg.clsk, 86400);    // session id from the store
+    if (window.clarity) return;
     try { sessionStorage.setItem('ms-clarity', JSON.stringify(cfg)); } catch (e) {}
     (function (c, l, a, r, i, t, y) { c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
       t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i; y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y); })(window, document, 'clarity', 'script', cfg.id);
@@ -325,77 +329,21 @@
   }
   function cl() { try { if (window.clarity) clarity.apply(null, arguments); } catch (e) {} }
 
-  // Checkout browser OS version. Chrome's reduced user agent hides it; userAgentData does not.
-  var snapDevice = {};
-  try {
-    var uad = navigator.userAgentData;
-    if (uad && uad.getHighEntropyValues) uad.getHighEntropyValues(['platformVersion', 'model']).then(function (h) {
-      if (h && /^\d{1,3}(\.\d{1,4}){0,3}$/.test(h.platformVersion || '')) snapDevice.os = h.platformVersion;
-      if (h && h.model) snapDevice.model = String(h.model).slice(0, 40);
-    }).catch(function () {});
-  } catch (e) {}
-  // Browser Snap pixel for START_CHECKOUT and PURCHASE. The Shopify app pixel does not run on this domain.
-  // PURCHASE client_dedup_id is whop-<payment id>, the same string the webhook sends as CAPI event_id.
-  // Fired only when this session has a Snap click id, so other checkouts do not dilute the click-id rate.
-  function snapContext() {
-    var order = {}; try { order = readOrder() || {}; } catch (e) {}
-    return { snap: (S && S.snap) || order.snap || null, consent: (S && S.clarity && S.clarity.consent) || order.consent || null };
+  function clickNow() {
+    var click = (S && S.ads && S.ads.clickid) || '';
+    if (!click) { try { click = (JSON.parse(sessionStorage.getItem('ms-ads') || 'null') || {}).clickid || ''; } catch (e) {} }
+    if (!click) click = params.get('clickid') || '';
+    return click && click !== 'undefined' ? click : '';
   }
-  function snapAllowed(ctx) {
-    return !!(ctx && ctx.snap && ctx.snap.clickId && ctx.snap.pixelId && !(ctx.consent && ctx.consent.m === 0));
-  }
-  function withScCid(url) {
-    var click = (S && S.snap && S.snap.clickId) || '';
-    if (!click) { try { click = ((readOrder() || {}).snap || {}).clickId || ''; } catch (e) {} }
+  function withClick(url) {
+    var click = clickNow();
     if (!click) return url;
     try {
       var u = new URL(url, location.origin), has = false;
-      u.searchParams.forEach(function (v, k) { if (/^sccid$/i.test(k) && v) has = true; });
-      if (!has) u.searchParams.set('ScCid', click);
+      u.searchParams.forEach(function (v, k) { if (/^clickid$/i.test(k) && v) has = true; });
+      if (!has) u.searchParams.set('clickid', click);
       return u.pathname + u.search + u.hash;
     } catch (e) { return url; }
-  }
-  function snapPrepare(snap) {
-    try {
-      if (snap.cookie1) document.cookie = '_scid=' + encodeURIComponent(snap.cookie1) + '; Max-Age=2419200; Path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
-      var u = new URL(location.href), has = false;
-      u.searchParams.forEach(function (v, k) { if (/^sccid$/i.test(k) && v) has = true; });
-      if (!has) { u.searchParams.set('ScCid', snap.clickId); history.replaceState(null, '', u.pathname + u.search + u.hash); }
-    } catch (e) {}
-    if (window.snaptr) return;
-    (function (e, t, n) {
-      var a = e.snaptr = function () { a.handleRequest ? a.handleRequest.apply(a, arguments) : a.queue.push(arguments); };
-      a.queue = [];
-      var r = t.createElement('script'); r.async = true; r.src = n;
-      var s = t.getElementsByTagName('script')[0]; s.parentNode.insertBefore(r, s);
-    })(window, document, 'https://sc-static.net/scevent.min.js');
-  }
-  function snapTrack(eventName, params, user) {
-    var ctx = snapContext();
-    if (!snapAllowed(ctx)) return;
-    snapPrepare(ctx.snap);
-    var init = {};
-    if (user && user.user_email) init.user_email = user.user_email;
-    if (user && user.user_phone_number) init.user_phone_number = String(user.user_phone_number).replace(/\D/g, '');
-    if (init.user_phone_number && init.user_phone_number.length < 8) delete init.user_phone_number;
-    snaptr('init', ctx.snap.pixelId, init);
-    var body = {};
-    Object.keys(params || {}).forEach(function (k) { if (params[k] != null && params[k] !== '') body[k] = params[k]; });
-    snaptr('track', eventName, body);
-  }
-  function snapStartCheckout() {
-    var ctx = snapContext();
-    if (!snapAllowed(ctx) || !S) return;
-    var key = 'ms-snap-start-' + (S.journey || ctx.snap.clickId);
-    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
-    var qty = (S.lines || []).reduce(function (n, l) { return n + (Number(l.qty) || 1); }, 0);
-    snapTrack('START_CHECKOUT', { price: S.amount / 100, currency: S.currency, number_items: qty || undefined, client_dedup_id: 'whop-checkout-' + (S.journey || 'session') });
-  }
-  function snapPurchase(paymentId, priceCents, currency, qty, email, phone) {
-    if (!paymentId || !snapAllowed(snapContext())) return;
-    var id = 'whop-' + paymentId;
-    try { if (sessionStorage.getItem('ms-snap-' + id)) return; sessionStorage.setItem('ms-snap-' + id, '1'); } catch (e) {}
-    snapTrack('PURCHASE', { price: Math.round(Number(priceCents) || 0) / 100, currency: currency, transaction_id: paymentId, client_dedup_id: id, number_items: qty || undefined }, { user_email: email, user_phone_number: phone });
   }
 
   // ---------- journey log (Vercel Logs: search j=<id>) ----------
@@ -408,11 +356,11 @@
     try { if (navigator.sendBeacon && navigator.sendBeacon(API + '/api/track', body)) return; } catch (e) {}
     try { fetch(API + '/api/track', { method: 'POST', body: body, keepalive: true }); } catch (e) {}
   }
-  // ---------- ad pixels on this domain ----------
-  // Shopify pixels never load on checkout.madespecial.store, so the pixel helpers say the pixel
-  // was not found and InitiateCheckout / AddPaymentInfo / Purchase never reach the ad platforms.
-  // The store copied the click IDs into the session. Restore them as cookies and URL params, load
-  // the same pixels, and tell RedTrack about each step on the click it already recorded.
+  // ---------- RedTrack: the store's click continues here ----------
+  // Cookies from madespecial.store are not visible on this host. The click id arrives on the
+  // session and the URL, is written back as rtkclickid-store, and every step posts to that click.
+  // PageView, InitiateCheckout, AddPaymentInfo and Purchase use one event id per step so the
+  // server postback and this page count as a single event. Upsell uses the upsell payment id.
   var ADS = null, adsOn = false;
   function adsRemember() {
     if (ADS) return ADS;
@@ -425,170 +373,82 @@
     var v; try { v = decodeURIComponent(m[1]); } catch (e) { v = m[1]; }
     return !v || v === 'undefined' ? '' : v;
   }
-  function adsPut(name, value) {
-    if (!value || adsCk(name)) return;
+  function adsPut(name, value, force) {
+    if (!value || value === 'undefined') return;
+    if (!force && adsCk(name)) return;
     var sec = location.protocol === 'https:' ? '; Secure' : '';
     document.cookie = name + '=' + encodeURIComponent(value) + '; Max-Age=' + (90 * 86400) + '; Path=/; SameSite=Lax' + sec;
   }
-  function adsOnce(key) {
-    var id = (ADS && ADS.eventId) || '';
-    if (!id) return true;
-    var k = 'ms-ads-' + key;
+  function adsOnce(key, mark) {
+    var id = mark || (ADS && ADS.eventId) || '1';
+    var k = 'ms-rt-' + key;
     try { if (sessionStorage.getItem(k) === id) return false; sessionStorage.setItem(k, id); } catch (e) {}
     return true;
   }
-  function adsWho() {
-    var w = { email: '', phone: '', fn: '', ln: '', city: '', zip: '', country: '' };
+  function adsRedtrack(type, extra, eventId) {
     try {
-      var em = $('#email'); if (em && em.value) w.email = em.value.trim();
-      if (typeof phoneE164 === 'function') w.phone = phoneE164() || '';
-      var g = function (k) { var el = F('s', k); return el && el.value ? el.value.trim() : ''; };
-      w.fn = g('first_name'); w.ln = g('last_name'); w.city = g('city'); w.zip = g('zip'); w.country = g('country_code');
-    } catch (e) {}
-    try {
-      var o = JSON.parse(sessionStorage.getItem('ms-order') || 'null') || {}, sh = o.ship || {};
-      if (!w.email && o.email) w.email = o.email;
-      if (!w.phone && o.phone) w.phone = o.phone;
-      if (!w.fn && sh.first_name) w.fn = sh.first_name;
-      if (!w.ln && sh.last_name) w.ln = sh.last_name;
-      if (!w.city && sh.city) w.city = sh.city;
-      if (!w.zip && sh.zip) w.zip = sh.zip;
-      if (!w.country && sh.country_code) w.country = sh.country_code;
-    } catch (e) {}
-    return w;
-  }
-  function adsCart() {
-    var c = (ADS && ADS.contents) || [];
-    return {
-      value: ADS.value, currency: ADS.currency, num: ADS.numItems || 0,
-      ids: c.map(function (x) { return x.id; }),
-      meta: c.map(function (x) { return { id: x.id, quantity: x.qty, item_price: x.price }; }),
-      tt: c.map(function (x) { return { content_id: x.id, content_name: x.name, quantity: x.qty, price: x.price }; }),
-      pin: c.map(function (x) { return { product_id: x.id, product_name: x.name, product_price: x.price, product_quantity: x.qty }; }),
-      ax: c.map(function (x) { return { item_id: x.id, item_name: x.name, price: x.price, quantity: x.qty }; })
-    };
-  }
-  function adsRedtrack(type, purchase) {
-    try {
-      if (!ADS) return;
-      var id = adsCk('rtkclickid-store') || ADS.clickid;
+      var base = ADS.postback || (ADS.redtrack ? String(ADS.redtrack).replace(/\/$/, '') + '/postback' : '');
+      if (!base) return;
+      var id = ADS.clickid || clickNow() || adsCk('rtkclickid-store');
       if (!id || id === 'undefined') return;
-      var eventId = ADS.eventId ? (purchase ? ADS.eventId : ADS.eventId + ':' + type) : '';
-      var u = ADS.redtrack + '/postback?clickid=' + encodeURIComponent(id) + '&type=' + encodeURIComponent(type);
-      if (eventId) u += '&eventid=' + encodeURIComponent(eventId);
-      if (purchase) u += '&sum=' + encodeURIComponent(Number(ADS.shopValue != null ? ADS.shopValue : ADS.value).toFixed(2)) + '&currency=' + encodeURIComponent(ADS.shopCurrency || ADS.currency);
-      var img = new Image(); img.src = u;
-    } catch (e) {}
-  }
-  function adsScript(src) {
-    var s = document.createElement('script'); s.async = true; s.src = src;
-    var n = document.getElementsByTagName('script')[0]; n.parentNode.insertBefore(s, n);
-  }
-  function adsLoadPixels() {
-    var p = ADS.pixels || {};
-    try {
-      if (p.meta && !window.fbq) {
-        !function (f, b, e, v, n, t, s) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
-          if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s); }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-        fbq('init', p.meta); fbq('track', 'PageView', {}, { eventID: (ADS.eventId || '') + ':PageView' });
+      var moneyEvent = type === 'Purchase' || type === 'Upsell' || (extra && extra.money);
+      var u = new URL(base);
+      u.searchParams.set('clickid', id);
+      u.searchParams.set('type', type);
+      if (eventId) u.searchParams.set('eventid', eventId);
+      if (moneyEvent) {
+        var sum = extra && extra.sum != null ? Number(extra.sum) : Number(ADS.shopValue != null ? ADS.shopValue : ADS.value);
+        var cur = (extra && extra.currency) || ADS.shopCurrency || ADS.currency;
+        if (isFinite(sum)) u.searchParams.set('sum', sum.toFixed(2));
+        if (cur) u.searchParams.set('currency', cur);
       }
-    } catch (e) {}
-    try {
-      if (p.tiktok && !window.ttq) {
-        !function (w, d, t) { w.TiktokAnalyticsObject = t; var ttq = w[t] = w[t] || []; ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie', 'holdConsent', 'revokeConsent', 'grantConsent'];
-          ttq.setAndDefer = function (t, e) { t[e] = function () { t.push([e].concat(Array.prototype.slice.call(arguments, 0))); }; }; for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
-          ttq.instance = function (t) { for (var e = ttq._i[t] || [], n = 0; n < ttq.methods.length; n++) ttq.setAndDefer(e, ttq.methods[n]); return e; };
-          ttq.load = function (e, n) { var r = 'https://analytics.tiktok.com/i18n/pixel/events.js'; ttq._i = ttq._i || {}; ttq._i[e] = []; ttq._i[e]._u = r; ttq._t = ttq._t || {}; ttq._t[e] = +new Date; ttq._o = ttq._o || {}; ttq._o[e] = n || {};
-            n = document.createElement('script'); n.type = 'text/javascript'; n.async = !0; n.src = r + '?sdkid=' + e + '&lib=' + t; e = document.getElementsByTagName('script')[0]; e.parentNode.insertBefore(n, e); }; }(window, document, 'ttq');
-        ttq.load(p.tiktok); ttq.page();
-      }
-    } catch (e) {}
-    try {
-      if (p.pinterest && !window.pintrk) {
-        !function (e) { if (!window.pintrk) { window.pintrk = function () { window.pintrk.queue.push(Array.prototype.slice.call(arguments)); }; var n = window.pintrk; n.queue = []; n.version = '3.0'; var t = document.createElement('script'); t.async = !0; t.src = e; var r = document.getElementsByTagName('script')[0]; r.parentNode.insertBefore(t, r); } }('https://s.pinimg.com/ct/core.js');
-        pintrk('load', p.pinterest); pintrk('page');
-      }
-    } catch (e) {}
-    try {
-      if (p.axon && !window.axon) {
-        var ax = window.axon = function () { ax.performOperation ? ax.performOperation.apply(ax, arguments) : ax.operationQueue.push(arguments); };
-        ax.operationQueue = []; ax.ts = Date.now(); ax.eventKey = p.axon;
-        adsScript('https://s.axon.ai/pixel.js'); adsScript('https://c.albss.com/p/l/loader.iife.js');
-        axon('init'); axon('track', 'page_view');
-      }
+      var img = new Image(); img.src = u.toString();
     } catch (e) {}
   }
   function adsInstall(cfg) {
     if (!cfg) return;
     ADS = cfg;
     try { sessionStorage.setItem('ms-ads', JSON.stringify(cfg)); } catch (e) {}
+    if (cfg.clickid) {
+      adsPut('rtkclickid-store', cfg.clickid, true);
+      try {
+        var u = new URL(location.href);
+        if (!u.searchParams.get('clickid')) {
+          u.searchParams.set('clickid', cfg.clickid);
+          history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
+        }
+      } catch (e) {}
+    }
     if (adsOn) return;
     adsOn = true;
-    if (cfg.ok === false) return;
-    try {
-      var ids = cfg.ids || {};
-      var fbc = ids.fbc || (ids.fbclid ? 'fb.1.' + Date.now() + '.' + ids.fbclid : '');
-      adsPut('_fbp', ids.fbp); adsPut('_fbc', fbc); adsPut('_ttp', ids.ttp);
-      adsPut('_scid', ids.scid); adsPut('ScCid', ids.sccid); adsPut('_epik', ids.epik);
-      adsPut('_axeid', ids.aleid); adsPut('_axart', ids.alart); adsPut('_axwrt', ids.axwrt);
-      if (cfg.clickid) adsPut('rtkclickid-store', cfg.clickid);
-      var u = new URL(location.href), add = { ScCid: ids.sccid, fbclid: ids.fbclid, ttclid: ids.ttclid, epik: ids.epik, aleid: ids.aleid, alart: ids.alart }, changed = false;
-      Object.keys(add).forEach(function (k) { if (add[k] && !u.searchParams.get(k)) { u.searchParams.set(k, add[k]); changed = true; } });
-      if (changed) history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
-    } catch (e) {}
-    adsLoadPixels();
   }
-  function adsMatch() {
-    var w = adsWho(), p = (ADS && ADS.pixels) || {};
-    try { if (p.meta && window.fbq && (w.email || w.phone)) fbq('init', p.meta, { em: w.email || undefined, ph: w.phone || undefined, fn: w.fn || undefined, ln: w.ln || undefined, ct: w.city || undefined, zp: w.zip || undefined, country: w.country ? w.country.toLowerCase() : undefined, external_id: ADS.clickid || undefined }); } catch (e) {}
-    try { if (p.tiktok && window.ttq && ttq.identify) ttq.identify({ email: w.email || undefined, phone_number: w.phone || undefined, external_id: ADS.clickid || undefined }); } catch (e) {}
-    try { if (p.pinterest && window.pintrk && w.email) pintrk('load', p.pinterest, { em: w.email }); } catch (e) {}
+  function adsFire(type, extra) {
+    extra = extra || {};
+    if (!ADS) return;
+    var eventId = extra.eventId || (ADS.eventId ? (type === 'Purchase' ? ADS.eventId : ADS.eventId + ':' + type) : '');
+    if (!adsOnce(extra.once || type, extra.eventId || ADS.eventId || '')) return;
+    adsRedtrack(type, extra, eventId);
   }
-  function adsFire(type) {
-    if (!ADS || !adsOnce(type)) return;
-    var purchase = type === 'Purchase';
-    adsRedtrack(type, purchase);
-    if (ADS.ok === false) return;
-    if (purchase || type === 'AddPaymentInfo') adsMatch();
-    var cart = adsCart(), eid = ADS.eventId ? (purchase ? ADS.eventId : ADS.eventId + ':' + type) : '';
-    var p = ADS.pixels || {};
-    try {
-      if (p.meta && window.fbq) {
-        var name = type === 'Purchase' ? 'Purchase' : type;
-        fbq('track', name, { content_type: 'product', content_ids: cart.ids, contents: cart.meta, value: cart.value, currency: cart.currency, num_items: cart.num }, eid ? { eventID: eid } : undefined);
-      }
-    } catch (e) {}
-    try {
-      if (p.tiktok && window.ttq) {
-        var tn = type === 'Purchase' ? 'CompletePayment' : type;
-        ttq.track(tn, { content_type: 'product', contents: cart.tt, value: cart.value, currency: cart.currency }, eid ? { event_id: eid } : undefined);
-      }
-    } catch (e) {}
-    try {
-      if (p.pinterest && window.pintrk) {
-        var pn = type === 'Purchase' ? 'checkout' : type === 'AddPaymentInfo' ? 'addpaymentinfo' : 'initiatecheckout';
-        pintrk('track', pn, { value: cart.value, currency: cart.currency, order_quantity: cart.num, line_items: cart.pin, event_id: eid || undefined });
-      }
-    } catch (e) {}
-    try {
-      if (p.axon && window.axon) {
-        var an = type === 'Purchase' ? 'purchase' : type === 'AddPaymentInfo' ? 'add_payment_info' : 'begin_checkout';
-        var body = { currency: cart.currency, value: cart.value, items: cart.ax, dedupe_id: eid || undefined };
-        if (purchase) body.transaction_id = ADS.eventId || undefined;
-        axon('track', an, body);
-      }
-    } catch (e) {}
+  function adsBegin(s) {
+    if (!s || !s.ads) return;
+    adsInstall(s.ads);
+    adsFire('PageView');
+    adsFire('InitiateCheckout');
   }
-  function adsBegin(s) { if (!s || !s.ads) return; adsInstall(s.ads); adsFire('InitiateCheckout'); }
   function adsSync(s) {
     if (!s || !s.ads) return;
     if (!adsOn) return adsBegin(s);
     ADS = s.ads;
     try { sessionStorage.setItem('ms-ads', JSON.stringify(ADS)); } catch (e) {}
+    if (ADS.clickid) adsPut('rtkclickid-store', ADS.clickid, true);
   }
   function adsPay() { if (adsRemember()) adsFire('AddPaymentInfo'); }
   function adsPurchase() {
-    var go = function (cfg) { if (!cfg) return; adsInstall(cfg); adsFire('Purchase'); };
+    var go = function (cfg) {
+      if (!cfg) return;
+      adsInstall(cfg);
+      adsFire(cfg.purchaseType || 'Purchase', { once: 'Purchase', eventId: cfg.eventId, money: true });
+    };
     var cfg = adsRemember();
     if (cfg) return go(cfg);
     var t = token; try { t = t || sessionStorage.getItem('ms-s'); } catch (e) {}
@@ -598,6 +458,11 @@
       .then(function (j) { go(j && j.ads); })
       .catch(function () {});
   }
+  function rtUpsell(paymentId, priceCents, currency) {
+    if (!paymentId || !adsRemember()) return;
+    adsFire('Upsell', { sum: Math.round(Number(priceCents) || 0) / 100, currency: currency, eventId: 'upsell-' + paymentId, once: 'Upsell:' + paymentId });
+  }
+  try { if (params.get('clickid')) adsPut('rtkclickid-store', params.get('clickid'), true); } catch (e) {}
 
   window.addEventListener('error', function (e) { track('js_error', { msg: String(e.message).slice(0, 200), at: (e.filename || '').split('/').pop() + ':' + e.lineno }); });
   window.addEventListener('unhandledrejection', function (e) { track('js_error', { msg: String(e.reason && (e.reason.message || e.reason)).slice(0, 200) }); });
@@ -617,7 +482,7 @@
   }
   fetch(API + '/api/session?s=' + encodeURIComponent(token), { cache: 'no-store' })
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-    .then(function (x) { if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && { id: S.clarity.id, consent: S.clarity.consent, journey: S.journey }); adsBegin(S); render(); snapStartCheckout(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); whenPhoneLib(function () {
+    .then(function (x) { if (!x.ok) { track('checkout_link_' + (x.j.error === 'session_expired' ? 'expired' : 'invalid')); return showState(x.j.error === 'session_expired' ? 'expired' : 'invalid'); } S = x.j; clarityStart(S.clarity && Object.assign({}, S.clarity, { journey: S.journey })); adsBegin(S); render(); track('checkout_viewed', { total: S.amount, currency: S.currency, mobile: innerWidth < 1000 }, true); whenPhoneLib(function () {
       var sel = $('#phone_country'); if (!sel || !window.libphonenumber) return;
       var cur = sel.value;
       // Options were built before the library arrived: add the dial codes, keeping the shopper's choice.
@@ -690,7 +555,7 @@
       .then(function (j) {
         if (seq !== repriceSeq || !j.s || !j.session) return;
         token = j.s; S = j.session;
-        try { sessionStorage.setItem('ms-s', token); var u = new URL(location.href); u.searchParams.set('s', token); history.replaceState(null, '', withScCid(u.pathname + '?' + u.searchParams.toString() + u.hash)); } catch (e) {}
+        try { sessionStorage.setItem('ms-s', token); var u = new URL(location.href); u.searchParams.set('s', token); history.replaceState(null, '', withClick(u.pathname + '?' + u.searchParams.toString() + u.hash)); } catch (e) {}
         paintSummary(); updateWhopAmount(); setupExpress(); adsSync(S); track('currency_changed', { country: country, currency: S.currency, total: S.amount });
       })
       .catch(function (e) { console.error('reprice', e); })   // keep the current price; checkout still works
@@ -849,7 +714,7 @@
       payments = whop.payments.create({
         accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
         paymentMethodConfiguration: CHECKOUT_METHODS,
-        returnUrl: location.origin + withScCid('/?return=1'),
+        returnUrl: location.origin + withClick('/?return=1'),
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
         onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
       });
@@ -1054,8 +919,7 @@
       var r = await fetch(API + '/api/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ s: token, account: S.accountId, confirmationToken: tok.confirmationToken,
           contact: { email: email, phone: phone, phone_country: $('#phone_country').value, marketing: $('#marketing').checked },
-          shipping: ship, billing_same: billSame, billing: billSame ? null : bill,
-          client: { os: snapDevice.os || '', model: snapDevice.model || '' } }) });
+          shipping: ship, billing_same: billSame, billing: billSame ? null : bill }) });
       var d = await r.json().catch(function () { return { error: 'server_error' }; });
       if (d.error !== 'invalid_fields') expressTok = null; // a wallet token is single-use once sent for charging
       if (!r.ok || d.error) {
@@ -1066,13 +930,12 @@
         return alertMsg(MSG[d.error] || MSG.server_error);
       }
       saveOrder({ email: email, phone: phone, ship: ship, payment: d.id, amount: S.amount, currency: S.currency,
-        qty: (S.lines || []).reduce(function (n, l) { return n + (Number(l.qty) || 1); }, 0),
-        snap: S.snap || null, consent: (S.clarity && S.clarity.consent) || null });
+        qty: (S.lines || []).reduce(function (n, l) { return n + (Number(l.qty) || 1); }, 0) });
       if (d.status === 'paid' || d.status === 'succeeded') return showDone('succeeded');
       if (!d.client_secret && (d.status === 'pending' || d.status === 'processing')) return showDone('processing');
       if (!d.client_secret) { setBusy(false); $('#e-payment').textContent = 'Your payment was declined. Please try another card or payment method.'; return; }
       track('3ds_started');
-      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withScCid('/?return=1') });
+      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withClick('/?return=1') });
       if (res.redirected) return;
       track(res.status === 'succeeded' || res.status === 'paid' ? '3ds_passed' : res.status === 'processing' || res.status === 'pending' ? '3ds_pending' : '3ds_failed', { status: res.status });
       if (res.status === 'succeeded' || res.status === 'paid') return showDone('succeeded');
@@ -1102,7 +965,7 @@
     var paid = status === 'succeeded';
     if (paid) adsPurchase();
     track(paid ? 'thank_you' : 'payment_processing', { payment: (o.payment || params.get('payment') || null) }, true);
-    if (paid) { cl('set', 'purchase', 'yes'); cl('upgrade', 'purchase'); snapPurchase(o.payment || params.get('payment'), o.amount != null ? o.amount : (S && S.amount), o.currency || (S && S.currency), o.qty, o.email, o.phone); } // keep every purchase recording; Snap dedupes on whop-<payment id>
+    if (paid) { cl('set', 'purchase', 'yes'); cl('upgrade', 'purchase'); }
     var addr = s ? esc(s.first_name + ' ' + s.last_name) + '<br>' + esc(s.address1) + (s.address2 ? ', ' + esc(s.address2) : '') + '<br>' + esc(s.city) + (s.province ? ', ' + esc(s.province) : '') + ' ' + esc(s.zip) + '<br>' + esc(countryName(s.country_code)) : '';
     var html = '<div class="center done">' +
       '<a class="logo" href="' + esc(storeUrl()) + '"><img src="' + esc((S && S.store.logo) || 'https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=350') + '" alt=""></a>' +
@@ -1133,7 +996,7 @@
     if (params.get('upsell') === '1') {
       var upOk = params.get('status') === 'succeeded' || params.get('status') === 'paid';
       if (st.pending != null && upOk) { st.added.push(st.pending); st.step = st.pending + 1; }
-      if (upOk && st.pendingPurchase) snapPurchase(st.pendingPurchase.id || params.get('payment'), st.pendingPurchase.price, st.pendingPurchase.currency, st.pendingPurchase.qty, o.email, o.phone);
+      if (upOk && st.pendingPurchase) rtUpsell(st.pendingPurchase.id || params.get('payment'), st.pendingPurchase.price, st.pendingPurchase.currency);
       delete st.pending; delete st.pendingPurchase;
     }
     U.st = st; upsSave(st); upsLoad();
@@ -1171,7 +1034,7 @@
     try {
       U.payments = window.WhopElements().payments.create({ accountId: U.offer.accountId, currency: U.offer.currency.toLowerCase(), amount: minorUnits(U.offer.price, U.offer.currency),
         paymentMethodConfiguration: PAY_METHODS,
-        returnUrl: location.origin + withScCid('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
+        returnUrl: location.origin + withClick('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
       U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
       U.payments.create('branding').mount('#ups-brand');
     } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
@@ -1199,13 +1062,12 @@
         U.st.pendingPurchase = { id: d.id, price: U.offer.price, currency: U.offer.currency, qty: U.offer.qty };
         upsSave(U.st);
         var w = (U.payments || window.WhopElements().payments);
-        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withScCid('/?return=1&upsell=1') });
+        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withClick('/?return=1&upsell=1') });
         if (res.redirected) return;
         if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; delete U.st.pendingPurchase; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
       }
       delete U.st.pending; delete U.st.pendingPurchase; U.st.added.push(U.st.step); upsSave(U.st); track('upsell_paid', { step: U.st.step });
-      var buyer = readOrder() || {};
-      snapPurchase(d.id, U.offer.price, U.offer.currency, U.offer.qty, buyer.email, buyer.phone);
+      rtUpsell(d.id, U.offer.price, U.offer.currency);
       var last = U.offer.last; U.st.step++; upsSave(U.st);
       upsClose('✓ ' + esc(U.offer.title) + ' was added to your order.');
       if (!last) { U.el = null; upsLoad(); }

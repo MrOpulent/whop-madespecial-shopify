@@ -4,7 +4,6 @@
 import { priceCart, orderAttributes } from "../lib/pricing.js";
 import { createCheckout } from "../lib/whop.js";
 import { cors } from "../lib/http.js";
-import { trackingWithClient } from "../lib/applovin.js";
 
 export default async function handler(req, res) {
   if (cors(req, res)) return;
@@ -16,7 +15,6 @@ export default async function handler(req, res) {
     }
     const b = req.body || {};
     const p = await priceCart(b);
-    const client = trackingWithClient(b.tracking, req);
     const cfg = await createCheckout({
       plan: {
         product_id: process.env.WHOP_PRODUCT_ID,
@@ -26,7 +24,7 @@ export default async function handler(req, res) {
         title: p.title,
         description: p.description,
       },
-      metadata: { order: JSON.stringify(p.order), attrs: JSON.stringify(orderAttributes(b.attributes, client.tracking)), cx: JSON.stringify(client.net) },
+      metadata: { order: JSON.stringify(p.order), attrs: JSON.stringify(orderAttributes(b.attributes, b.tracking)) },
       redirect_url: process.env.THANK_YOU_URL || "https://madespecial.store/pages/thank-you",
     });
     return res.status(200).json({ url: cfg.purchase_url });
