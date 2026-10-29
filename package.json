@@ -2,9 +2,6 @@
   "name": "whop-shopify-checkout",
   "private": true,
   "type": "module",
-  "scripts": {
-    "test": "node --test"
-  },
   "dependencies": {
     "libphonenumber-js": "1.12.43"
   }
