@@ -456,6 +456,8 @@
   function adsFire(type, extra) {
     extra = extra || {};
     if (!ADS) return;
+    // Test sessions set track false. Real orders with marketing off also have track false, and still post.
+    if (ADS.test && /^(purchase|upsell|initiatecheckout)$/i.test(String(type || ''))) return;
     var eventId = extra.eventId || (ADS.eventId ? (type === 'Purchase' ? ADS.eventId : ADS.eventId + ':' + type) : '');
     if (!adsOnce(extra.once || type, extra.eventId || ADS.eventId || '')) return;
     adsRedtrack(type, extra, eventId);
@@ -514,7 +516,7 @@
   function adsPay() { if (adsRemember()) adsFire('AddPaymentInfo'); }
   function adsPurchase() {
     var go = function (cfg) {
-      if (!cfg) return;
+      if (!cfg || cfg.test) return;
       adsInstall(cfg);
       adsFire(cfg.purchaseType || 'Purchase', { once: 'Purchase', eventId: cfg.eventId, money: true });
     };

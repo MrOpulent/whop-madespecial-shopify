@@ -5,7 +5,7 @@ import { orderAttributes, protectedAttr } from "../lib/pricing.js";
 import { checkoutReturnUrl, minimalReturnUrl, returnUrlTooLong } from "../lib/return-url.js";
 import { httpUrl, orderWebFields, stripRejectedWebFields } from "../lib/attribution.js";
 import { decideClaim, finishClaim, parseClaims, releaseClaim } from "../lib/order-lock.js";
-import { clickIdFrom, isTestPayment, purchaseEventId, redtrackResultLine, refundShopSum } from "../lib/ads.js";
+import { adsFor, clickIdFrom, isTestPayment, postInitiateCheckouts, purchaseEventId, redtrackResultLine, refundShopSum } from "../lib/ads.js";
 
 test("trimming never drops network click ids, landing, or the test flag", () => {
   const logs = [];
@@ -147,6 +147,55 @@ test("test payments skip the purchase, and refunds reuse the purchase event id",
   assert.equal(sum.currency, "USD");
   assert.equal(sum.sum, -50);
   assert.equal(redtrackResultLine("ok", 200, "Refund", "#1042", "abc"), "redtrack_postback ok 200 Refund #1042 abc");
+});
+
+const session = (attrs, marketing = 1) => ({ j: "abc", cur: "USD", tot: 2500, cs: { m: marketing }, attrs, order: { sc: "USD", st: 2500, l: [] } });
+
+test("a test session turns browser tracking off and a real order leaves it on", () => {
+  for (const attrs of [{ test_order: "1" }, { test_order: "true" }, { test_order: "yes" }, { test: "1" }, { _test: "TRUE" }]) {
+    const ads = adsFor(session(attrs));
+    assert.equal(ads.track, false, JSON.stringify(attrs));
+    assert.equal(ads.test, true, JSON.stringify(attrs));
+  }
+  const real = adsFor(session({ utm_source: "meta", test_order: "0" }));
+  assert.equal(real.track, true);
+  assert.equal(real.test, false);
+  const quiet = adsFor(session({}, 0));
+  assert.equal(quiet.track, false);
+  assert.equal(quiet.test, false);
+});
+
+test("InitiateCheckout is skipped once for a test cart and both spellings still send for a real cart", async () => {
+  const calls = [];
+  const origFetch = globalThis.fetch;
+  const logs = [];
+  const origLog = console.log;
+  globalThis.fetch = async (u) => { calls.push(String(u)); return { ok: true, status: 200 }; };
+  console.log = (line) => logs.push(String(line));
+  try {
+    const skipped = await postInitiateCheckouts({ clickid: "click", journey: "j1", sum: 12.5, currency: "USD", attrs: { test_order: "1" } });
+    assert.deepEqual(skipped, { skipped: "test" });
+    assert.equal(calls.length, 0);
+    assert.deepEqual(logs, ["redtrack_skipped_test initiatecheckout"]);
+    logs.length = 0;
+    const sent = await postInitiateCheckouts({ clickid: "click", journey: "j1", sum: 12.5, currency: "USD", attrs: {} });
+    assert.equal(sent.length, 2);
+    assert.equal(calls.length, 2);
+    assert.match(calls[0], /type=InitiateCheckout/);
+    assert.match(calls[0], /eventid=j1%3AInitiateCheckout/);
+    assert.match(calls[1], /type=initiatecheckout/);
+    assert.match(calls[1], /eventid=j1%3Ainitiatecheckout/);
+    assert.equal(logs.some((l) => l.startsWith("redtrack_skipped_test")), false);
+  } finally {
+    globalThis.fetch = origFetch;
+    console.log = origLog;
+  }
+});
+
+test("the thank-you page does not post Purchase, Upsell, or InitiateCheckout for a test session", () => {
+  const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(page, /ADS\.test && \/\^\(purchase\|upsell\|initiatecheckout\)\$\/i\.test/);
+  assert.match(page, /if \(!cfg \|\| cfg\.test\) return/);
 });
 
 test("the theme collects the same protected keys the server refuses to trim", () => {
