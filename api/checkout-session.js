@@ -48,6 +48,8 @@ export default async function handler(req, res) {
     const click = clickIdFrom(at);
     journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: click || null });
     // Same event id the checkout page sends, so a closed tab still records the step once.
+    // p.total is integer cents in the currency the shopper saw (presentment), not shop-base dollars.
+    // 4999 cents -> 49.99. Math.round only removes a fractional cent; it does not round the dollar amount.
     await postInitiateCheckouts({ clickid: click, journey: j, sum: Math.round(Number(p.total) || 0) / 100, currency: p.currency, attrs: at });
     const url = `${baseUrl(req)}/?s=${token}` + (click ? `&clickid=${encodeURIComponent(click)}` : "");
     if (form) {
