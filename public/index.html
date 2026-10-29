@@ -335,13 +335,6 @@
     if (!click) click = params.get('clickid') || '';
     return click && click !== 'undefined' ? click : '';
   }
-  // After 3-D Secure or a wallet step. Journey id only — click ids stay on the session, not this URL.
-  function returnPath(upsell) {
-    var j = '';
-    try { j = (S && S.journey) || params.get('j') || ''; } catch (e) {}
-    j = String(j).replace(/[^a-z0-9]/gi, '').slice(0, 16);
-    return '/?return=1' + (upsell ? '&upsell=1' : '') + (j ? '&j=' + encodeURIComponent(j) : '');
-  }
   function withClick(url) {
     var click = clickNow();
     if (!click) return url;
@@ -793,7 +786,7 @@
       payments = whop.payments.create({
         accountId: S.accountId, currency: S.currency.toLowerCase(), amount: minorUnits(S.amount, S.currency),
         paymentMethodConfiguration: CHECKOUT_METHODS,
-        returnUrl: location.origin + returnPath(),
+        returnUrl: location.origin + withClick('/?return=1'),
         appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } },
         onLoadingChange: function (loading) { $('#pay-skel').hidden = !loading; if (!loading) track('payment_form_ready', {}, true); }
       });
@@ -977,7 +970,6 @@
     if (!payments) { $('#e-payment').textContent = 'The payment form could not load. Please refresh the page.'; return; }
     if (!payComplete && !expressTok) { track('pay_clicked_card_incomplete'); $('#e-payment').textContent = 'Please complete your payment details.'; $('#wh-payment').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     adsPay();
-    track('return_url', { len: (location.origin + returnPath()).length });
 
     var ship = readAddr('s'), billSame = $('#billing_same').checked, bill = billSame ? ship : readAddr('b');
     var email = $('#email').value.trim(), phone = phoneE164() || '';
@@ -1016,7 +1008,7 @@
       if (!d.client_secret && (d.status === 'pending' || d.status === 'processing')) return showDone('processing');
       if (!d.client_secret) { setBusy(false); $('#e-payment').textContent = 'Your payment was declined. Please try another card or payment method.'; return; }
       track('3ds_started');
-      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + returnPath() });
+      var res = await whop.payments.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withClick('/?return=1') });
       if (res.redirected) return;
       track(res.status === 'succeeded' || res.status === 'paid' ? '3ds_passed' : res.status === 'processing' || res.status === 'pending' ? '3ds_pending' : '3ds_failed', { status: res.status });
       if (res.status === 'succeeded' || res.status === 'paid') return showDone('succeeded');
@@ -1115,13 +1107,13 @@
     try {
       U.payments = window.WhopElements().payments.create({ accountId: U.offer.accountId, currency: U.offer.currency.toLowerCase(), amount: minorUnits(U.offer.price, U.offer.currency),
         paymentMethodConfiguration: PAY_METHODS,
-        returnUrl: location.origin + returnPath(true), appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
+        returnUrl: location.origin + withClick('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
       U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
       U.payments.create('branding').mount('#ups-brand');
     } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
   }
   async function upsAccept() {
-    if (U.busy) return; track('upsell_yes_clicked', { step: U.st.step, card_form: U.card, return_url_len: (location.origin + returnPath(true)).length }); $('#ups-err').textContent = ''; upsBusy(true);
+    if (U.busy) return; track('upsell_yes_clicked', { step: U.st.step, card_form: U.card }); $('#ups-err').textContent = ''; upsBusy(true);
     try {
       var body = { s: U.tok, payment: U.pay, step: U.st.step };
       if (U.card) {
@@ -1143,7 +1135,7 @@
         U.st.pendingPurchase = { id: d.id, price: U.offer.price, currency: U.offer.currency, qty: U.offer.qty };
         upsSave(U.st);
         var w = (U.payments || window.WhopElements().payments);
-        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + returnPath(true) });
+        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withClick('/?return=1&upsell=1') });
         if (res.redirected) return;
         if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; delete U.st.pendingPurchase; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
       }

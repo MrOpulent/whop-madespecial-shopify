@@ -12,7 +12,6 @@ import { readSession } from "../lib/session.js";
 import { priceCart } from "../lib/pricing.js";
 import { getPayment, createPayment } from "../lib/whop.js";
 import { baseUrl, journey } from "../lib/http.js";
-import { checkoutReturnUrl } from "../lib/return-url.js";
 
 const WINDOW_MIN = Math.min(Math.max(Number(process.env.UPSELL_MINUTES) || 15, 2), 60); // offer valid this long after payment (UPSELL_MINUTES)
 
@@ -72,8 +71,6 @@ export default async function handler(req, res) {
     ? { product_id: process.env.WHOP_PRODUCT_ID }
     : { product: { external_identifier: "madespecial-branded-checkout", title: `${process.env.STORE_NAME || "MadeSpecial"} order`, visibility: "hidden" } };
   const d = x.p.display[0];
-  // A new card is collected on the current account. A saved card stays on the account that stored it.
-  const accountId = ctok || !x.parent._old ? process.env.WHOP_COMPANY_ID : process.env.WHOP_COMPANY_ID_OLD;
   try {
     const r = await createPayment({
       ...(ctok ? { confirmation_token: ctok, ...(ship.email && { email: ship.email }) } : { member_id: x.parent.member_id, payment_method_id: x.parent.payment_method_id }),
@@ -86,8 +83,8 @@ export default async function handler(req, res) {
         ship: x.parent.metadata?.ship || "",
         cx: x.parent.metadata?.cx || "",
       },
-      return_url: checkoutReturnUrl(baseUrl(req), { journey: x.s.j, upsell: true }),
-    }, crypto.createHash("sha256").update(`upsell:${x.parent.id}:${step}:${ctok || "saved"}`).digest("hex"), accountId);
+      return_url: `${baseUrl(req)}/?return=1&upsell=1`,
+    }, crypto.createHash("sha256").update(`upsell:${x.parent.id}:${step}:${ctok || "saved"}`).digest("hex")); // a double click never charges twice
 
     if (!r.ok) {
       const msg = r.data?.error?.message || r.data?.message || "";
