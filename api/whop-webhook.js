@@ -76,6 +76,9 @@ async function reportSnapPurchase(d, info) {
       paidAt: d.paid_at,
       ip: cx.ip || info.ip || d.ip_address || null,
       ua: cx.ua || info.ua || null,
+      osVersion: cx.os || null,
+      deviceModel: cx.model || null,
+      externalId: info.externalId || d.member_id || d.user?.id || info.email || null,
     });
   } catch (e) { console.error("snap_capi", e.message); }
 }
@@ -229,6 +232,7 @@ export async function fulfil(d) {
         orderName: r.orderCreate.order.name || d.id,
         attrs, email, phone: capiPhone(rawPhone, sa.country) || phone,
         country: sa.country, zip: sa.postal_code,
+        firstName: sa.first || addr.firstName, lastName: sa.last || addr.lastName, city: sa.city, state: sa.state,
         currency: o.c, totalCents: o.t, lines: (o.l || []).map(([v, q, u]) => [v, q, u]),
         names: Array.isArray(o.nm) ? o.nm : undefined,
         ip: p.ip_address || null,
@@ -317,6 +321,8 @@ async function fulfilUpsell(d) {
         orderName: `${parent.name}:${d.id}`,
         attrs: upAttrs, email: ship.email || null, phone: capiPhone(ship.phone, ship.s?.country_code),
         country: ship.s?.country_code, zip: ship.s?.zip,
+        firstName: ship.s?.first_name, lastName: ship.s?.last_name, city: ship.s?.city, state: ship.s?.province,
+        externalId: ship.email || null,
         currency: u.c, totalCents: u.t, lines: [[u.v, u.q, u.u]],
         names: u.n ? [u.n] : undefined,
         dedupeId: `whop-${d.id}`,

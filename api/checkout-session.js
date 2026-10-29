@@ -4,7 +4,8 @@
 import { priceCart, orderAttributes } from "../lib/pricing.js";
 import { createSession } from "../lib/session.js";
 import { cors, baseUrl, journey } from "../lib/http.js";
-import { clientContext } from "../lib/applovin.js";
+import { trackingWithClient } from "../lib/applovin.js";
+import { snapClickId } from "../lib/snapchat.js";
 import crypto from "node:crypto";
 
 // The shopper's cookie choice on the store (Shopify consent), so the checkout respects it for Clarity
@@ -28,8 +29,9 @@ export default async function handler(req, res) {
     let p;
     try { p = await priceCart(b); }
     catch (e) { journey("-", "cart_rejected", { error: e.code || e.message, total: b.total_price, currency: b.currency, country: b.market_country }, true); throw e; }
-    const at = orderAttributes(b.attributes, b.tracking);
-    const net = clientContext(req); // carried on the session, then onto the Whop payment, for the AppLovin Conversion API
+    const client = trackingWithClient(b.tracking, req); // IP + UA land on the order and on the Whop payment
+    const at = orderAttributes(b.attributes, client.tracking);
+    const net = client.net;
     const token = createSession({
       mk: p.market, cur: p.currency, tot: p.total, gross: p.gross,
       disp: p.display, title: p.title, desc: p.description,
@@ -38,7 +40,8 @@ export default async function handler(req, res) {
       ...(net.ip && { ip: net.ip }), ...(net.ua && { ua: net.ua }),
     });
     journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: Object.entries(at).find(([k]) => /clickid/i.test(k))?.[1] || null });
-    const url = `${baseUrl(req)}/?s=${token}`;
+    const click = snapClickId(at); // the store pixel and the checkout pixel both read ScCid from the URL
+    const url = `${baseUrl(req)}/?s=${token}` + (click ? `&ScCid=${encodeURIComponent(click)}` : "");
     if (form) {
       const x = String(req.query?.x || "").replace(/[^a-z_]/g, "").slice(0, 20); // express wallet chosen in the drawer
       res.statusCode = 303; res.setHeader("Location", url + (x ? `&x=${x}` : "")); res.setHeader("Cache-Control", "no-store");

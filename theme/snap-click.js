@@ -1,0 +1,103 @@
+// Paste into the landers (lp1 and uk/lp1), in <head> if you can, otherwise before </body>.
+// The same script is inlined in theme/snap-click-id.liquid for the Shopify theme.
+// Snap ads land with ?ScCid=. The pixel only reads that param on the domain it runs on,
+// and the store is a different domain from the lander, so the id has to be carried across.
+(function () {
+  var DAYS = 28, MAX_AGE = String(DAYS * 86400);
+  var STORE = /(^|\.)madespecial\.store$|\.myshopify\.com$/i;
+  var CLICK_PARAM = /^(?:sccid|sc_click_id)$/i;
+
+  function good(v) {
+    v = String(v == null ? "" : v).trim();
+    if (v.length < 8 || v.length > 500) return "";
+    if (/[\s{}<>]/.test(v) || /^(undefined|null|none|n\/a)$/i.test(v)) return "";
+    return v;
+  }
+  function cookieGet(name) {
+    var m = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)"));
+    if (!m) return "";
+    try { return good(decodeURIComponent(m[1])); } catch (e) { return ""; }
+  }
+  function storageGet(name) {
+    try {
+      var exp = Number(localStorage.getItem(name + "_exp") || 0);
+      if (exp && Date.now() > exp) { localStorage.removeItem(name); localStorage.removeItem(name + "_exp"); return ""; }
+      return good(localStorage.getItem(name));
+    } catch (e) { return ""; }
+  }
+  function persist(name, value) {
+    if (!value) return;
+    var secure = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = name + "=" + encodeURIComponent(value) + "; Max-Age=" + MAX_AGE + "; Path=/; SameSite=Lax" + secure;
+    try {
+      localStorage.setItem(name, value);
+      localStorage.setItem(name + "_exp", String(Date.now() + DAYS * 864e5));
+    } catch (e) {}
+  }
+  function fromUrl(url, re) {
+    try {
+      var out = "";
+      new URL(url, location.href).searchParams.forEach(function (v, k) { if (!out && re.test(k)) out = good(v); });
+      return out;
+    } catch (e) { return ""; }
+  }
+  // Click id and the pixel cookie are different. Never write the click id into _scid.
+  var click = fromUrl(location.href, CLICK_PARAM) || cookieGet("ScCid") || storageGet("ScCid") || cookieGet("_scclid") || fromUrl(document.referrer, CLICK_PARAM);
+  var cookie1 = cookieGet("_scid") || fromUrl(location.href, /^_scid$|^sc_cookie1$/i) || storageGet("_scid") || fromUrl(document.referrer, /^_scid$/i);
+  if (click) persist("ScCid", click);
+  if (cookie1 && cookie1 !== click) persist("_scid", cookie1);
+
+  var onStore = STORE.test(location.hostname);
+  if (onStore && click) {
+    try {
+      var cur = new URL(location.href);
+      var had = false;
+      cur.searchParams.forEach(function (v, k) { if (CLICK_PARAM.test(k) && good(v)) had = true; });
+      var handoff = cur.searchParams.has("_scid") || cur.searchParams.has("sc_cookie1");
+      if (!had) cur.searchParams.set("ScCid", click);
+      cur.searchParams.delete("_scid");
+      cur.searchParams.delete("sc_cookie1");
+      if (!had || handoff) history.replaceState(null, "", cur.pathname + cur.search + cur.hash);
+    } catch (e) {}
+  }
+
+  function decorate(href) {
+    var u;
+    try { u = new URL(href, location.href); } catch (e) { return href; }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return href;
+    var toStore = STORE.test(u.hostname);
+    if (!toStore && u.origin !== location.origin) return href;
+    var id = cookieGet("ScCid") || storageGet("ScCid") || click;
+    var c1 = cookieGet("_scid") || storageGet("_scid");
+    if (id) {
+      var has = false;
+      u.searchParams.forEach(function (v, k) { if (CLICK_PARAM.test(k) && good(v)) has = true; });
+      if (!has) u.searchParams.set("ScCid", id);
+    }
+    // The store cannot read the lander's _scid cookie. Hand it over once; the store script saves it and strips the param.
+    if (toStore && !onStore && c1 && !u.searchParams.get("_scid")) u.searchParams.set("_scid", c1);
+    return u.toString();
+  }
+  function paint() {
+    var links = document.getElementsByTagName("a");
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute("href");
+      if (!href || href.charAt(0) === "#") continue;
+      var next = decorate(href);
+      if (next && next !== href) links[i].setAttribute("href", next);
+    }
+  }
+  document.addEventListener("click", function (e) {
+    var n = e.target;
+    while (n && n !== document) {
+      if (n.tagName === "A" && n.href) {
+        var next = decorate(n.href);
+        if (next && next !== n.href) n.href = next;
+        return;
+      }
+      n = n.parentNode;
+    }
+  }, true);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paint);
+  else paint();
+})();
