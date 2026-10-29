@@ -345,6 +345,30 @@
       return u.pathname + u.search + u.hash;
     } catch (e) { return url; }
   }
+  // Whop allows 2,048 characters on return_url. Apple Pay, Google Pay and PayPal send this page's
+  // address as that URL, and the signed session in ?s= pushes it over the limit. The session stays
+  // in sessionStorage; ?k=1 tells a refresh to read it from there. Short checkout links are left as they are.
+  var RETURN_URL_MAX = 2048;
+  function fitPageUrl() {
+    try {
+      var u = new URL(location.href);
+      if (u.href.length <= RETURN_URL_MAX) {
+        if (u.searchParams.get('k') === '1' && u.searchParams.has('s')) { u.searchParams.delete('k'); history.replaceState(null, '', u.pathname + u.search + u.hash); }
+        return;
+      }
+      var held = false; try { held = !!sessionStorage.getItem('ms-s'); } catch (e) {}
+      if (!held || !u.searchParams.has('s')) return;
+      u.searchParams.delete('s');
+      u.searchParams.set('k', '1');
+      if (u.href.length > RETURN_URL_MAX) {
+        var keep = new URLSearchParams();
+        ['k', 'return', 'upsell', 'payment', 'status', 'x'].forEach(function (key) { var v = u.searchParams.get(key); if (v) keep.set(key, v); });
+        var click = u.searchParams.get('clickid'); if (click) keep.set('clickid', click.slice(0, 200));
+        u.search = keep.toString();
+      }
+      history.replaceState(null, '', u.pathname + u.search + u.hash);
+    } catch (e) {}
+  }
 
   // ---------- journey log (Vercel Logs: search j=<id>) ----------
   var tracked = {};
@@ -471,8 +495,10 @@
   // ---------- boot ----------
   if (params.get('return') === '1') { try { clarityStart(JSON.parse(sessionStorage.getItem('ms-clarity') || 'null')); } catch (e) {} return showReturn(); }
   token = params.get('s');
+  if (!token && params.get('k') === '1') { try { token = sessionStorage.getItem('ms-s') || ''; } catch (e) {} }
   if (!token) return showState('expired');
   try { sessionStorage.setItem('ms-s', token); } catch (e) {}
+  fitPageUrl();
   // Phone codes load in the background. The form is shown as soon as the session arrives; dial codes fill in when the library is ready.
   function whenPhoneLib(cb) {
     if (window.libphonenumber) return cb();
@@ -555,7 +581,15 @@
       .then(function (j) {
         if (seq !== repriceSeq || !j.s || !j.session) return;
         token = j.s; S = j.session;
-        try { sessionStorage.setItem('ms-s', token); var u = new URL(location.href); u.searchParams.set('s', token); history.replaceState(null, '', withClick(u.pathname + '?' + u.searchParams.toString() + u.hash)); } catch (e) {}
+        try {
+          sessionStorage.setItem('ms-s', token);
+          var u = new URL(location.href);
+          u.searchParams.set('s', token);
+          var next = withClick(u.pathname + '?' + u.searchParams.toString() + u.hash);
+          if ((location.origin + next).length > RETURN_URL_MAX) { u.searchParams.delete('s'); u.searchParams.set('k', '1'); next = withClick(u.pathname + '?' + u.searchParams.toString() + u.hash); }
+          history.replaceState(null, '', next);
+          fitPageUrl();
+        } catch (e) {}
         paintSummary(); updateWhopAmount(); setupExpress(); adsSync(S); track('currency_changed', { country: country, currency: S.currency, total: S.amount });
       })
       .catch(function (e) { console.error('reprice', e); })   // keep the current price; checkout still works
@@ -816,6 +850,7 @@
   }
   function startPayPalRedirect() {
     if (busy) return;
+    fitPageUrl();
     $('#e-express').textContent = '';
     if (!payEl || !payEl.select) { $('#e-express').textContent = 'PayPal is still loading. Please try again in a moment.'; return; }
     payEl.select('paypal').then(function () {
@@ -832,7 +867,7 @@
     }).catch(function () { $('#e-express').textContent = 'PayPal is not available right now. Please use a card below.'; });
   }
   function expressPay(req, type) {
-    if (busy) return; $('#e-express').textContent = '';
+    if (busy) return; fitPageUrl(); $('#e-express').textContent = '';
     var email = $('#email').value.trim();
     var p;
     try { p = req.show(type, /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { email: email } : undefined); } // must run inside the tap
@@ -885,7 +920,7 @@
   function firstBad() { var el = $('.f.bad input, .f.bad select, .phone.bad input'); if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
 
   async function onSubmit(ev) {
-    ev.preventDefault(); if (busy) return; alertMsg('');
+    ev.preventDefault(); if (busy) return; fitPageUrl(); alertMsg('');
     $('#email').dataset.t = 1;
     formatZip('s'); if (!$('#billing_same').checked) formatZip('b');
     var bad = [];
