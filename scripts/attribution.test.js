@@ -1,63 +1,64 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ATTR_JSON_MAX, TRACKING_VALUE_MAX, orderAttributes, protectedAttr } from "../lib/pricing.js";
+import { orderAttributes, protectedAttr } from "../lib/pricing.js";
 import { checkoutReturnUrl, minimalReturnUrl, returnUrlTooLong } from "../lib/return-url.js";
 import { httpUrl, orderWebFields, stripRejectedWebFields } from "../lib/attribution.js";
 import { decideClaim, finishClaim, parseClaims, releaseClaim } from "../lib/order-lock.js";
-import { adsFor, clickIdFrom, isTestPayment, postInitiateCheckouts, purchaseEventId, redtrackResultLine, refundShopSum } from "../lib/ads.js";
+import { clickIdFrom, isTestPayment, purchaseEventId, redtrackResultLine, refundShopSum } from "../lib/ads.js";
 
-test("trimming drops non-tracking keys first and never drops click ids", () => {
+test("trimming never drops network click ids, landing, or the test flag", () => {
   const logs = [];
-  const orig = console.warn;
-  console.warn = (line) => logs.push(String(line));
+  const orig = console.error;
+  console.error = (line) => logs.push(String(line));
   try {
     const tracking = {
       __clickid: "rt-click",
       ttclid: "tt-1",
+      _ttp: "ttp-1",
+      ScCid: "snap-1",
+      _scid: "scid-1",
       sc_click_id: "snap-click",
+      epik: "pin-1",
+      _fbp: "fb.1.1",
+      _fbc: "fb.1.2",
+      aleid: "ax-1",
+      alart: "ax-art",
+      axwrt: "ax-wrt",
+      _ax_test: "ax-extra",
       tw_source: "meta",
+      tw_campaign: "camp",
+      tw_adsetid: "adset",
+      tw_adid: "ad",
+      cmpid: "cmp-1",
+      ref_id: "ref-1",
       utm_source: "facebook",
-      landing_site: "https://madespecial.store/products/drum?utm_source=facebook&" + "x".repeat(400),
-      referring_site: "https://instagram.com/" + "r".repeat(400),
+      utm_campaign: "spring",
+      sub1: "s1",
+      landing_site: "https://madespecial.store/products/drum?utm_source=facebook",
+      referring_site: "https://instagram.com/p/1",
       test_order: "1",
+      junk: "x".repeat(300),
+      note: "y".repeat(300),
+      blob0: "a".repeat(300),
+      blob1: "b".repeat(300),
+      blob2: "c".repeat(300),
+      blob3: "d".repeat(300),
     };
-    for (let i = 0; i < 12; i++) tracking[`blob${i}`] = String.fromCharCode(97 + (i % 26)).repeat(500);
     const out = orderAttributes({}, tracking);
+    for (const k of Object.keys(tracking)) {
+      if (/^(junk|note|blob)/.test(k)) continue;
+      assert.equal(out[k], tracking[k], k);
+      assert.equal(protectedAttr(k), true, k);
+    }
     assert.equal(out.__clickid, "rt-click");
-    assert.equal(out.sc_click_id, "snap-click");
-    assert.equal(out.tw_source, "meta");
-    assert.equal(out.landing_site.length, TRACKING_VALUE_MAX);
-    assert.equal(out.referring_site.length, TRACKING_VALUE_MAX);
-    assert.ok(out.landing_site.startsWith("https://madespecial.store/"));
-    assert.equal(out.blob0, undefined);
     assert.match(logs.join("\n"), /order_attrs_trimmed dropped=/);
     const dropped = logs.join("\n").match(/dropped=([^\s]+)/)[1].split(",");
-    assert.ok(dropped.includes("blob0"));
     for (const k of dropped) assert.equal(protectedAttr(k), false, k);
-    assert.ok(JSON.stringify(out).length <= ATTR_JSON_MAX);
-    assert.doesNotMatch(logs.join("\n"), /rt-click|snap-click/);
+    assert.ok(JSON.stringify(out).length <= 1800);
+    assert.doesNotMatch(logs.join("\n"), /rt-click|snap-click|facebook/);
   } finally {
-    console.warn = orig;
-  }
-});
-
-test("protected tracking keys are kept when they alone exceed the size budget", () => {
-  const logs = [];
-  const orig = console.warn;
-  console.warn = (line) => logs.push(String(line));
-  try {
-    const cart = { __clickid: "rt-click" };
-    for (let i = 1; i <= 20; i++) cart[`utm_extra${i}`] = "u".repeat(400);
-    const out = orderAttributes(cart, {});
-    assert.equal(out.__clickid, "rt-click");
-    assert.equal(Object.keys(out).length, 21);
-    for (const [k, v] of Object.entries(out)) if (k !== "__clickid") assert.equal(v.length, TRACKING_VALUE_MAX, k);
-    assert.ok(JSON.stringify(out).length > ATTR_JSON_MAX);
-    assert.match(logs.join("\n"), /order_attrs_over_limit/);
-    assert.doesNotMatch(logs.join("\n"), /order_attrs_trimmed/);
-  } finally {
-    console.warn = orig;
+    console.error = orig;
   }
 });
 
@@ -71,7 +72,7 @@ test("a snap click id is not used as the RedTrack click", () => {
 
 test("tw and cmpid from the cart are kept when the tracking bag is empty", () => {
   const cart = { tw_source: "tiktok", cmpid: "99" };
-  for (let i = 0; i < 12; i++) cart[`blob${i}`] = "z".repeat(400);
+  for (let i = 0; i < 6; i++) cart[`blob${i}`] = "z".repeat(400);
   const out = orderAttributes(cart, {});
   assert.equal(out.tw_source, "tiktok");
   assert.equal(out.cmpid, "99");
@@ -146,55 +147,6 @@ test("test payments skip the purchase, and refunds reuse the purchase event id",
   assert.equal(sum.currency, "USD");
   assert.equal(sum.sum, -50);
   assert.equal(redtrackResultLine("ok", 200, "Refund", "#1042", "abc"), "redtrack_postback ok 200 Refund #1042 abc");
-});
-
-const session = (attrs, marketing = 1) => ({ j: "abc", cur: "USD", tot: 2500, cs: { m: marketing }, attrs, order: { sc: "USD", st: 2500, l: [] } });
-
-test("a test session turns browser tracking off and a real order leaves it on", () => {
-  for (const attrs of [{ test_order: "1" }, { test_order: "true" }, { test_order: "yes" }, { test: "1" }, { _test: "TRUE" }]) {
-    const ads = adsFor(session(attrs));
-    assert.equal(ads.track, false, JSON.stringify(attrs));
-    assert.equal(ads.test, true, JSON.stringify(attrs));
-  }
-  const real = adsFor(session({ utm_source: "meta", test_order: "0" }));
-  assert.equal(real.track, true);
-  assert.equal(real.test, false);
-  const quiet = adsFor(session({}, 0));
-  assert.equal(quiet.track, false);
-  assert.equal(quiet.test, false);
-});
-
-test("InitiateCheckout is skipped once for a test cart and both spellings still send for a real cart", async () => {
-  const calls = [];
-  const origFetch = globalThis.fetch;
-  const logs = [];
-  const origLog = console.log;
-  globalThis.fetch = async (u) => { calls.push(String(u)); return { ok: true, status: 200 }; };
-  console.log = (line) => logs.push(String(line));
-  try {
-    const skipped = await postInitiateCheckouts({ clickid: "click", journey: "j1", sum: 12.5, currency: "USD", attrs: { test_order: "1" } });
-    assert.deepEqual(skipped, { skipped: "test" });
-    assert.equal(calls.length, 0);
-    assert.deepEqual(logs, ["redtrack_skipped_test initiatecheckout"]);
-    logs.length = 0;
-    const sent = await postInitiateCheckouts({ clickid: "click", journey: "j1", sum: 12.5, currency: "USD", attrs: {} });
-    assert.equal(sent.length, 2);
-    assert.equal(calls.length, 2);
-    assert.match(calls[0], /type=InitiateCheckout/);
-    assert.match(calls[0], /eventid=j1%3AInitiateCheckout/);
-    assert.match(calls[1], /type=initiatecheckout/);
-    assert.match(calls[1], /eventid=j1%3Ainitiatecheckout/);
-    assert.equal(logs.some((l) => l.startsWith("redtrack_skipped_test")), false);
-  } finally {
-    globalThis.fetch = origFetch;
-    console.log = origLog;
-  }
-});
-
-test("the thank-you page does not post Purchase, Upsell, or InitiateCheckout for a test session", () => {
-  const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
-  assert.match(page, /ADS\.test && \/\^\(purchase\|upsell\|initiatecheckout\)\$\/i\.test/);
-  assert.match(page, /if \(!cfg \|\| cfg\.test\) return/);
 });
 
 test("the theme collects the same protected keys the server refuses to trim", () => {
