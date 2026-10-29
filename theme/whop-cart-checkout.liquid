@@ -208,3 +208,109 @@
   }, true);
 })();
 </script>
+<script>
+  // AppLovin add_to_cart. The Shopify Axon app only hears Shopify's product_added_to_cart event.
+  // This theme adds with fetch(/cart/add.js) and Essential's /essential-sticky-cart/add, and that
+  // event is not published, so AppLovin never saw the add. Page views stay on the Shopify app.
+  // RedTrack's own script reports "addtocart" with the click id as the event id, the same id it
+  // already used for viewcontent, so a duplicate-by-event-id rule drops it. This sends AddToCart
+  // with its own id and the cart value.
+  (function () {
+    var KEY = '39e4030b-05d4-4ccf-a868-d6a93ec89d02';
+    var RT = 'https://trk.madespecial.store/postback';
+    if (!window.axon) {
+      var ax = window.axon = function () { ax.performOperation ? ax.performOperation.apply(ax, arguments) : ax.operationQueue.push(arguments); };
+      ax.operationQueue = []; ax.ts = Date.now(); ax.eventKey = KEY;
+      ['https://s.axon.ai/pixel.js', 'https://c.albss.com/p/l/loader.iife.js'].forEach(function (src) {
+        var s = document.createElement('script'); s.async = true; s.src = src;
+        var n = document.getElementsByTagName('script')[0];
+        if (n && n.parentNode) n.parentNode.insertBefore(s, n); else document.head.appendChild(s);
+      });
+      axon('init');
+    }
+    var recent = {};
+    function clickId() {
+      try { var s = sessionStorage.getItem('rtkclickid'); if (s && s !== 'undefined') return s; } catch (e) {}
+      var m = document.cookie.match(/(?:^|; )rtkclickid-store=([^;]*)/);
+      if (!m || !m[1] || m[1] === 'undefined') return '';
+      try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; }
+    }
+    function itemsFrom(data) {
+      var rows = [];
+      if (!data || typeof data !== 'object') return rows;
+      if (data.variant_id || (data.id && data.quantity && (data.product_id || data.product_title || data.title))) rows = [data];
+      else if (Array.isArray(data.items)) rows = data.items;
+      return rows.map(function (it) {
+        var id = String(it.variant_id || it.id || '');
+        if (!id) return null;
+        var cents = Number(it.final_price != null ? it.final_price : it.price);
+        var image = typeof it.image === 'string' ? it.image : (it.featured_image && it.featured_image.url) || '';
+        if (image.indexOf('//') === 0) image = 'https:' + image;
+        var item = {
+          item_id: id,
+          item_variant_id: id,
+          item_name: String(it.product_title || it.title || '').slice(0, 120),
+          price: isFinite(cents) ? Math.round(cents) / 100 : 0,
+          quantity: Number(it.quantity) || 1
+        };
+        if (/\.(png|jpe?g)(\?|$)/i.test(image)) item.image_url = image;
+        return item;
+      }).filter(Boolean);
+    }
+    function report(items, currency) {
+      if (!items.length) return;
+      var key = items.map(function (it) { return it.item_id + 'x' + it.quantity; }).join(',');
+      var now = Date.now();
+      if (recent[key] && now - recent[key] < 2500) return;
+      recent[key] = now;
+      var value = 0;
+      items.forEach(function (it) { value += it.price * it.quantity; });
+      value = Math.round(value * 100) / 100;
+      var cur = currency || (window.Shopify && Shopify.currency && Shopify.currency.active) || 'USD';
+      var id = clickId();
+      var dedupe = (id || 'cart') + ':addtocart:' + items[0].item_id + ':' + now;
+      try { axon('track', 'add_to_cart', { currency: cur, value: value, items: items }, { dedupe_id: dedupe }); } catch (e) {}
+      if (!id) return;
+      // The store script sends "addtocart". The Shopify guide says "AddToCart".
+      // RedTrack matches the name exactly, so report both spellings under separate event ids.
+      ['addtocart', 'AddToCart'].forEach(function (type) {
+        try {
+          var eventId = dedupe + ':' + type;
+          var u = new URL(RT);
+          u.searchParams.set('clickid', id);
+          u.searchParams.set('type', type);
+          u.searchParams.set('eventid', eventId);
+          u.searchParams.set('rdtk_event_id', eventId);
+          u.searchParams.set('sum', value.toFixed(2));
+          u.searchParams.set('currency', cur);
+          var img = new Image(); img.src = u.toString();
+        } catch (e) {}
+      });
+    }
+    function take(url, data, currency) {
+      var path = String(url || '').split('?')[0];
+      if (!/\/cart\/add(\.js)?$/.test(path) && !/\/essential-sticky-cart\/add$/.test(path)) return;
+      report(itemsFrom(data), currency || (data && data.currency));
+    }
+    if (window.fetch) {
+      var orig = window.fetch;
+      window.fetch = function () {
+        var req = arguments[0];
+        var url = typeof req === 'string' ? req : (req && req.url) || '';
+        var res = orig.apply(this, arguments);
+        if (res && res.then) res.then(function (r) {
+          try { r.clone().json().then(function (data) { take(r.url || url, data); }).catch(function () {}); } catch (e) {}
+        }).catch(function () {});
+        return res;
+      };
+    }
+    var open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      this.addEventListener('load', function () {
+        if (this.responseType && this.responseType !== '' && this.responseType !== 'text') return;
+        try { take(url, JSON.parse(this.responseText)); } catch (e) {}
+      });
+      return open.apply(this, arguments);
+    };
+  })();
+</script>

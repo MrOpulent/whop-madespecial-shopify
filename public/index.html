@@ -419,7 +419,7 @@
       var u = new URL(base);
       u.searchParams.set('clickid', id);
       u.searchParams.set('type', type);
-      if (eventId) u.searchParams.set('eventid', eventId);
+      if (eventId) { u.searchParams.set('eventid', eventId); u.searchParams.set('rdtk_event_id', eventId); }
       if (moneyEvent) {
         var sum = extra && extra.sum != null ? Number(extra.sum) : Number(ADS.shopValue != null ? ADS.shopValue : ADS.value);
         var cur = (extra && extra.currency) || ADS.shopCurrency || ADS.currency;
@@ -453,11 +453,49 @@
     if (!adsOnce(extra.once || type, extra.eventId || ADS.eventId || '')) return;
     adsRedtrack(type, extra, eventId);
   }
+  // AppLovin only. The Shopify Axon pixel never runs on this domain, so begin_checkout was missing.
+  // Purchase is left to the RedTrack server postback, which already reaches AppLovin.
+  function adsAxonReady() {
+    if (!ADS || ADS.track === false || !ADS.axon) return false;
+    if (ADS.aleid) {
+      adsPut('_axeid', ADS.aleid, true);
+      try {
+        var u = new URL(location.href);
+        if (!u.searchParams.get('aleid')) {
+          u.searchParams.set('aleid', ADS.aleid);
+          history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
+        }
+      } catch (e) {}
+    }
+    if (window.axon) return true;
+    var ax = window.axon = function () { ax.performOperation ? ax.performOperation.apply(ax, arguments) : ax.operationQueue.push(arguments); };
+    ax.operationQueue = []; ax.ts = Date.now(); ax.eventKey = ADS.axon;
+    ['https://s.axon.ai/pixel.js', 'https://c.albss.com/p/l/loader.iife.js'].forEach(function (src) {
+      var s = document.createElement('script'); s.async = true; s.src = src;
+      var n = document.getElementsByTagName('script')[0];
+      if (n && n.parentNode) n.parentNode.insertBefore(s, n); else document.head.appendChild(s);
+    });
+    axon('init');
+    return true;
+  }
+  function adsAxon(name, dedupe) {
+    if (!adsAxonReady()) return;
+    if (name === 'page_view') { axon('track', 'page_view'); return; }
+    var items = ADS.items || [];
+    if (!items.length) return;
+    var value = 0;
+    items.forEach(function (it) { value += (Number(it.price) || 0) * (Number(it.quantity) || 1); });
+    value = Math.round(value * 100) / 100;
+    axon('track', name, { currency: ADS.currency, value: value, items: items }, dedupe ? { dedupe_id: dedupe } : undefined);
+  }
   function adsBegin(s) {
     if (!s || !s.ads) return;
     adsInstall(s.ads);
     adsFire('PageView');
-    adsFire('InitiateCheckout');
+    adsFire('InitiateCheckout', { money: true, sum: ADS.value, currency: ADS.currency });
+    adsFire('initiatecheckout', { money: true, sum: ADS.value, currency: ADS.currency, once: 'initiatecheckout' });
+    adsAxon('page_view');
+    adsAxon('begin_checkout', (ADS.eventId || 'checkout') + ':begin_checkout');
   }
   function adsSync(s) {
     if (!s || !s.ads) return;
