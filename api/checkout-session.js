@@ -4,7 +4,7 @@
 import { priceCart, orderAttributes } from "../lib/pricing.js";
 import { createSession } from "../lib/session.js";
 import { cors, baseUrl, journey } from "../lib/http.js";
-import { clickIdFrom, postRedtrack } from "../lib/ads.js";
+import { clickIdFrom, postInitiateCheckouts } from "../lib/ads.js";
 import crypto from "node:crypto";
 
 // The shopper's cookie choice on the store (Shopify consent), so the checkout respects it for Clarity
@@ -48,18 +48,9 @@ export default async function handler(req, res) {
     const click = clickIdFrom(at);
     journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: click || null });
     // Same event id the checkout page sends, so a closed tab still records the step once.
-    const checkoutValue = Math.round(Number(p.total) || 0) / 100;
-    // RedTrack type names are case-sensitive. The Shopify guide uses InitiateCheckout.
-    // The store script uses lowercase names (viewcontent, addtocart), so send both.
-    for (const type of ["InitiateCheckout", "initiatecheckout"]) {
-      await postRedtrack({
-        clickid: click,
-        type,
-        sum: checkoutValue,
-        currency: p.currency,
-        eventId: `${j}:${type}`,
-      });
-    }
+    // p.total is integer cents in the currency the shopper saw (presentment), not shop-base dollars.
+    // 4999 cents -> 49.99. Math.round only removes a fractional cent; it does not round the dollar amount.
+    await postInitiateCheckouts({ clickid: click, journey: j, sum: Math.round(Number(p.total) || 0) / 100, currency: p.currency, attrs: at });
     const url = `${baseUrl(req)}/?s=${token}` + (click ? `&clickid=${encodeURIComponent(click)}` : "");
     if (form) {
       const x = String(req.query?.x || "").replace(/[^a-z_]/g, "").slice(0, 20); // express wallet chosen in the drawer
