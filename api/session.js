@@ -2,6 +2,7 @@
 // Env: WHOP_COMPANY_ID, optional STORE_NAME / STORE_URL / STORE_LOGO_URL / SHIPPING_TITLE
 import { readSession } from "../lib/session.js";
 import { adsFor } from "../lib/ads.js";
+import { pixelId, snapClickId, snapCookie1 } from "../lib/snapchat.js";
 
 // Shipping name shown on the checkout and on the Shopify order (Vercel: SHIPPING_TITLE)
 export const SHIP_TITLE = () => process.env.SHIPPING_TITLE || "Tracked Shipping";
@@ -18,6 +19,8 @@ export function delivery(from = new Date()) {
 // What the checkout page needs (also returned by api/reprice.js)
 export function view(s) {
   const store = (process.env.STORE_URL || "https://madespecial.store").replace(/\/$/, "");
+  const click = snapClickId(s.attrs);
+  const cookie1 = click ? snapCookie1(s.attrs) : "";
   return {
     accountId: process.env.WHOP_COMPANY_ID,
     currency: s.cur, amount: s.tot, subtotal: s.gross, savings: Math.max(0, s.gross - s.tot),
@@ -30,6 +33,9 @@ export function view(s) {
     expiresAt: s.exp,
     shippingTitle: SHIP_TITLE(),
     delivery: delivery(),
+    // Only when this checkout has a Snap click id, so the browser pixel is not fired for everyone else.
+    // cookie1 is the _scid value captured on the store; the checkout pixel reuses it.
+    ...(click && { snap: { pixelId: pixelId(), clickId: click, ...(cookie1 && { cookie1 }) } }),
     store: {
       name: process.env.STORE_NAME || "MadeSpecial.Store",
       url: store,

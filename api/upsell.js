@@ -78,9 +78,10 @@ export default async function handler(req, res) {
         title: `Add-on: ${d.title}`.slice(0, 30), description: `${x.line.q}× ${d.title} (post-purchase offer)`.slice(0, 250) },
       metadata: {
         upsell_of: x.parent.id, j: x.s.j || "",
-        upsell: JSON.stringify({ ...x.line, pct: x.pct, step }),
+        upsell: JSON.stringify({ ...x.line, pct: x.pct, step, ...(d.title && { n: String(d.title).slice(0, 120) }) }),
         attrs: x.parent.metadata?.attrs || "{}",
         ship: x.parent.metadata?.ship || "",
+        cx: x.parent.metadata?.cx || "",
       },
       return_url: `${baseUrl(req)}/?return=1&upsell=1`,
     }, crypto.createHash("sha256").update(`upsell:${x.parent.id}:${step}:${ctok || "saved"}`).digest("hex")); // a double click never charges twice

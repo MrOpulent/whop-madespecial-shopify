@@ -3,6 +3,8 @@
   where the buyer enters contact + delivery details and pays with Whop's secure payment form.
   Kaching + Essential discounts stay as they are; the server re-prices the cart with Shopify.
   Paste in theme.liquid just before </body>. Set ENDPOINT to https://<your checkout domain>/api/checkout-session.
+  Snap click IDs also need theme/snap-click-id.liquid pasted immediately after <head>, or the store pixel
+  reads the page URL before ScCid is restored. Landers (lp1, uk/lp1) get theme/snap-click.js instead.
 {%- endcomment -%}
 
 <link rel="preconnect" href="https://checkout.madespecial.store">
@@ -59,19 +61,47 @@
   var SHOPPER_COUNTRY = {{ localization.country.iso_code | default: 'US' | json }};
 
   // RedTrack / ad tracking: click IDs, UTMs and ad-platform IDs from cookies, storage and the page URL.
-  // They are written onto the checkout session so the checkout domain can restore them. Cookies set on
-  // madespecial.store are not visible on checkout.madespecial.store, which is why pixels die at checkout.
-  // AppLovin Axon: aleid/alart, pixel cookies _axeid/_axart/_axwrt. TikTok: ttclid and _ttp.
-  // Snapchat: ScCid / sc_click_id and pixel cookie _scid. Pinterest: epik. Meta: fbclid, _fbp, _fbc.
+  // They are written onto the checkout session. Cookies set on madespecial.store are not visible on
+  // checkout.madespecial.store, so the checkout restores them before its pixels fire.
+  // AppLovin Axon: aleid/alart on the landing URL, pixel cookies _axeid/_axart/_axwrt, and _axon* (event id).
+  // TikTok: ttclid on the landing URL, and the pixel cookie whose name is exactly _ttp.
+  // Snapchat: ScCid / sc_click_id on the landing URL (also the ScCid cookie theme/snap-click-id.liquid sets),
+  // pixel cookie _scid, and _scclid when the pixel stored the click id there.
+  // Pinterest: epik on the landing URL, cookie _epik. Meta: fbclid, _fbp, _fbc.
   var TRACK = /clickid|^_*ref_id$|rtk|^utm_|fbclid|gclid|gbraid|wbraid|ttclid|msclkid|^_fbp$|^_fbc$|^_ga$|^aleid$|^alart$|^_axeid$|^_axart$|^_axwrt$|^_axon|^_ttp$|^sccid$|^sc_click_id$|^_scclid$|^_scid$|^os_version$|^device_model$|^_?epik$/i;
   // A real tracking value is a short ID or text: skip data blobs, JSON and binary that other apps keep in storage
   var GOOD = function (v) { return v.length <= 300 && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
+  // Chrome's reduced UA hides the real OS version. userAgentData is filled in the background and copied at checkout.
+  var snapDev = {};
+  try {
+    var uad = navigator.userAgentData;
+    if (uad && uad.getHighEntropyValues) uad.getHighEntropyValues(['platformVersion', 'model']).then(function (h) {
+      if (h && /^\d{1,3}(\.\d{1,4}){0,3}$/.test(h.platformVersion || '')) snapDev.os_version = h.platformVersion;
+      if (h && h.model) snapDev.device_model = String(h.model).replace(/\s+/g, '').slice(0, 40);
+    }).catch(function () {});
+  } catch (e) {}
+  // Fallback when theme/snap-click-id.liquid is not in <head> yet: still persist ScCid for this checkout.
+  // The head snippet is what puts ScCid on the URL before the Snap pixel reads the page.
+  try {
+    var snapExp = Number(localStorage.getItem('ScCid_exp') || 0);
+    if (snapExp && Date.now() > snapExp) { localStorage.removeItem('ScCid'); localStorage.removeItem('ScCid_exp'); }
+  } catch (e) {}
+  try {
+    var scNow = '';
+    new URLSearchParams(location.search).forEach(function (v, k) { if (!scNow && /^(?:sccid|sc_click_id)$/i.test(k)) scNow = v; });
+    if (scNow && scNow.length >= 8 && scNow.length <= 500 && !/[\s{}<>]/.test(scNow)) {
+      document.cookie = 'ScCid=' + encodeURIComponent(scNow) + '; Max-Age=2419200; Path=/; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+      try { localStorage.setItem('ScCid', scNow); localStorage.setItem('ScCid_exp', String(Date.now() + 28 * 864e5)); } catch (e) {}
+    }
+  } catch (e) {}
   function trackingData() {
     var t = {};
     function put(k, v) { if (k && v && TRACK.test(k) && GOOD(String(v))) t[k] = String(v); }
     try { document.cookie.split(';').forEach(function (c) { var i = c.indexOf('='); if (i > 0) put(decodeURIComponent(c.slice(0, i).trim()), decodeURIComponent(c.slice(i + 1).trim())); }); } catch (e) {}
     try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); put(k, localStorage.getItem(k)); } } catch (e) {}
     try { new URLSearchParams(location.search).forEach(function (v, k) { put(k, v); }); } catch (e) {}
+    if (snapDev.os_version) t.os_version = snapDev.os_version;
+    if (snapDev.device_model && GOOD(snapDev.device_model)) t.device_model = snapDev.device_model;
     return t;
   }
 
