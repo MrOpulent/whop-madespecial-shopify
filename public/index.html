@@ -3,6 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Triple Whale headless pixel -->
+<link rel='preconnect dns-prefetch' href='https://api.config-security.com/' crossorigin />
+<link rel='preconnect dns-prefetch' href='https://conf.config-security.com/' crossorigin />
+<script>
+/* >> TriplePixel :: start*/
+window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SHOPIFY",isHeadless:true},function(W,H,A,L,E,_,B,N){function O(U,T,P,H,R){void 0===R&&(R=!1),H=new XMLHttpRequest,P?(H.open("POST",U,!0),H.setRequestHeader("Content-Type","text/plain")):H.open("GET",U,!0),H.send(JSON.stringify(P||{})),H.onreadystatechange=function(){4===H.readyState&&200===H.status?(R=H.responseText,U.includes("/first")?eval(R):P||(N[B]=R)):(299<H.status||H.status<200)&&T&&!R&&(R=!0,O(U,T-1,P))}}if(N=window,!N[H+"sn"]){N[H+"sn"]=1,L=function(){return Date.now().toString(36)+"_"+Math.random().toString(36)};try{A.setItem(H,1+(0|A.getItem(H)||0)),(E=JSON.parse(A.getItem(H+"U")||"[]")).push({u:location.href,r:document.referrer,t:Date.now(),id:L()}),A.setItem(H+"U",JSON.stringify(E))}catch(e){}var i,m,p;A.getItem('"!nC`')||(_=A,A=N,A[H]||(E=A[H]=function(t,e,a){return void 0===a&&(a=[]),"State"==t?E.s:(W=L(),(E._q=E._q||[]).push([W,t,e].concat(a)),W)},E.s="Installed",E._q=[],E.ch=W,B="configSecurityConfModel",N[B]=1,O("https://conf.config-security.com/model",5),O("https://api.config-security.com/first?host=0muhvz-sr.myshopify.com&plat=SHOPIFY",5)))}}("","TriplePixel",localStorage);
+/* << TriplePixel :: end*/
+</script>
 <meta name="google" content="notranslate">
 <meta name="robots" content="noindex">
 <title>Secure Checkout</title>
@@ -493,7 +502,6 @@
     adsInstall(s.ads);
     adsFire('PageView');
     adsFire('InitiateCheckout', { money: true, sum: ADS.value, currency: ADS.currency });
-    adsFire('initiatecheckout', { money: true, sum: ADS.value, currency: ADS.currency, once: 'initiatecheckout' });
     adsAxon('page_view');
     adsAxon('begin_checkout', (ADS.eventId || 'checkout') + ':begin_checkout');
   }
@@ -1050,6 +1058,20 @@
       '<a class="btn2" href="' + esc(storeUrl()) + '/cart/clear?return_to=%2F">Continue shopping</a></div>';
     $('#app').innerHTML = html; window.scrollTo(0, 0);
     if (paid) upsellStart();
+        // Triple Whale: links this journey to the Shopify order TW receives from the integration
+    if (paid) {
+      (function TP(tries) {
+        tries = tries || 0;
+        var email = (o && o.email) || '';
+        if (!email || tries > 25) return;                 /* no email, or gave up after ~10s */
+        if (!window.TriplePixel) return setTimeout(function () { TP(tries + 1); }, 400);
+        try {
+          var c = { email: email };
+          if (o.phone) c.phone = o.phone;
+          TriplePixel('Contact', c);
+        } catch (e) {}
+      })();
+    }
   }
 
   // ---------- post-purchase upsell (one click, like Zipify OCU) ----------

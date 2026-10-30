@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     const checkoutValue = Math.round(Number(p.total) || 0) / 100;
     // RedTrack type names are case-sensitive. The Shopify guide uses InitiateCheckout.
     // The store script uses lowercase names (viewcontent, addtocart), so send both.
-    for (const type of ["InitiateCheckout", "initiatecheckout"]) {
+    for (const type of ["InitiateCheckout"]) {
       await postRedtrack({
         clickid: click,
         type,
