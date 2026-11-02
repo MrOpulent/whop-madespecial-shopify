@@ -15,12 +15,26 @@ export function delivery(from = new Date()) {
   return { min: min.toISOString().slice(0, 10), max: max.toISOString().slice(0, 10), text: +m[1] === +(m[2] || m[1]) ? f(min) : `${f(min)} – ${f(max)}` };
 }
 
-// What the checkout page needs (also returned by api/reprice.js)
+// Savings is the bundle / automatic discount. Coupon is a code typed at checkout or in the cart drawer.
+// Whop promo codes are taken off after Shopify prices the cart (s.wbase is that price).
+function reductions(s) {
+  const shopifyTotal = Number.isFinite(s.wbase) ? s.wbase : s.tot;
+  const whopOff = Math.max(0, shopifyTotal - s.tot);
+  const codeOff = Math.max(0, Number(s.coff) || 0);
+  return {
+    coupon: codeOff + whopOff,
+    savings: Math.max(0, (Number(s.gross) || 0) - shopifyTotal - codeOff),
+    codes: [...(Array.isArray(s.dc) ? s.dc : []), ...(s.wp ? [s.wp] : [])],
+  };
+}
+
+// What the checkout page needs (also returned by api/reprice.js and api/discount.js)
 export function view(s) {
   const store = (process.env.STORE_URL || "https://madespecial.store").replace(/\/$/, "");
+  const off = reductions(s);
   return {
     accountId: process.env.WHOP_COMPANY_ID,
-    currency: s.cur, amount: s.tot, subtotal: s.gross, savings: Math.max(0, s.gross - s.tot),
+    currency: s.cur, amount: s.tot, subtotal: s.gross, savings: off.savings, coupon: off.coupon, codes: off.codes,
     journey: s.j || null, market: s.mk,
     // RedTrack click from the store, so this domain posts each step to the same click.
     ads: adsFor(s),

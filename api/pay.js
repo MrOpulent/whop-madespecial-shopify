@@ -38,14 +38,17 @@ export default async function handler(req, res) {
     const product = process.env.WHOP_PRODUCT_ID && b.account !== process.env.WHOP_COMPANY_ID_OLD
       ? { product_id: process.env.WHOP_PRODUCT_ID }
       : { product: { external_identifier: "madespecial-branded-checkout", title: `${process.env.STORE_NAME || "MadeSpecial"} order`, visibility: "hidden" } };
+    // A Whop promo is applied by Whop on the pre-discount price. The session total is already the discounted amount.
+    const sendPromo = !!(s.wp && Number.isFinite(Number(s.wbase)) && process.env.WHOP_PRODUCT_ID && b.account !== process.env.WHOP_COMPANY_ID_OLD);
     const r = await createPayment({
       confirmation_token: b.confirmationToken,
       email: contact.email,
+      ...(sendPromo && { promo_code: String(s.wp).slice(0, 60) }),
       plan: {
         ...product,
         currency: s.cur.toLowerCase(),
         plan_type: "one_time",
-        initial_price: s.tot / 100,
+        initial_price: (sendPromo ? Number(s.wbase) : s.tot) / 100,
         title: s.title,
         description: s.desc,
       },
@@ -53,6 +56,7 @@ export default async function handler(req, res) {
         order: JSON.stringify(s.order),
         attrs: JSON.stringify(s.attrs || {}),
         j: s.j || "",
+        ...(s.wp && { promo: String(s.wp).slice(0, 60) }),
         ship: JSON.stringify({ v: 2, email: contact.email, phone: contact.phone || "", marketing: contact.marketing, s: ship, b: bill }),
       },
       return_url: `${baseUrl(req)}/?return=1`,
@@ -60,13 +64,14 @@ export default async function handler(req, res) {
 
     if (!r.ok) {
       const msg = r.data?.error?.message || r.data?.message || "";
+      const promoBad = r.data?.error?.code === "promo_invalid" || r.data?.code === "promo_invalid" || /promo_invalid/i.test(msg);
       const setup = scopeProblem(r.data);
       journey(s.j, setup ? "pay_setup_problem" : r.status < 500 ? "pay_declined" : "pay_whop_error", { status: r.status, message: msg.slice(0, 200), total: s.tot, currency: s.cur }, true);
       console.error(setup ? `SETUP PROBLEM — ${setup}` : "whop_create_payment", r.status, JSON.stringify(r.data).slice(0, 800));
       // Store set-up / server problems (401/403/5xx): nothing was charged; show a calm generic message.
       if (setup || r.status === 401 || r.status === 403 || r.status >= 500) return res.status(503).json({ error: "server_error" });
       // Card declines and validation problems are shown to the buyer
-      return res.status(200).json({ error: "payment_failed", message: msg }); // 200: a decline is a normal outcome
+      return res.status(200).json({ error: "payment_failed", message: promoBad ? "That discount code can't be used on this order. Remove it and try again." : msg }); // 200: a decline is a normal outcome
     }
     const p = r.data;
     journey(s.j, "pay_created", { payment: p.id, status: p.status, needs_action: !!(p.client_secret && p.status !== "paid"), total: s.tot, currency: s.cur, country: ship.country_code });

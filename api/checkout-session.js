@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       mk: p.market, cur: p.currency, tot: p.total, gross: p.gross,
       disp: p.display, title: p.title, desc: p.description,
       order: p.order, attrs: at,
-      j, cs: consent(b.consent), it: p.items, ...(p.codes.length && { dc: p.codes }), ca: b.attributes || {}, // to re-price if the shopper ships to another country
+      j, cs: consent(b.consent), it: p.items, ...(p.codes.length && { dc: p.codes }), coff: p.codeOff || 0, ca: b.attributes || {}, // to re-price if the shopper ships to another country
       ...(cl && { cl }),
     });
     const click = clickIdFrom(at);
