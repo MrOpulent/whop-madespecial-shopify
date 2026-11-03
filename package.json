@@ -4,5 +4,8 @@
   "type": "module",
   "dependencies": {
     "libphonenumber-js": "1.12.43"
+  },
+  "scripts": {
+    "test": "node --test"
   }
 }
