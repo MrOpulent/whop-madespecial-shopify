@@ -1,6 +1,8 @@
 // api/whop-webhook.js — Whop "payment succeeded" -> paid Shopify order (same prices + discount as the cart).
-// Self-contained on purpose (only needs lib/shopify.js + lib/whop.js). api/reconcile.js reuses fulfil().
+// api/reconcile.js reuses fulfil(). Ad pixels are optional and run only after the order exists (lib/server-ads.js).
 // Env: lib/shopify.js vars + WHOP_API_KEY, WHOP_WEBHOOK_SECRET, optional REDTRACK_POSTBACK_URL / REDTRACK_TRACKING_ORIGIN / REDTRACK_EVENT
+// Purchase pixels (TikTok / Snap / Pinterest) are a separate step after the order exists. They run only when
+// SERVER_ADS_ENABLED is on, and a failure there cannot change this response. See lib/server-ads.js.
 import { adminGql } from "../lib/shopify.js";
 import { getPayment, verifyWebhook, unpackMeta } from "../lib/whop.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
@@ -8,6 +10,7 @@ import { SHIP_TITLE, delivery } from "./session.js";
 import { journey } from "../lib/http.js";
 import { whopRefundToShopify } from "./shopify-webhook.js";
 import { clickIdFrom, postRedtrack } from "../lib/ads.js";
+import { reportServerAds } from "../lib/server-ads.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 
@@ -139,6 +142,29 @@ export async function fulfil(d) {
 
     if (!r.orderCreate.userErrors.length && r.orderCreate.order?.id)
       await addRisk(r.orderCreate.order.id, d, sa, ba).catch((e) => console.error("order_risk", e.message));
+
+    // After the order exists and after RedTrack. Off unless SERVER_ADS_ENABLED is set.
+    // This cannot change the webhook result: it does not throw, and it gives up after ~2.5s.
+    if (!r.orderCreate.userErrors.length && r.orderCreate.order?.id) {
+      try {
+        await reportServerAds({
+          payId: d.id,
+          orderName: r.orderCreate.order.name,
+          attrs,
+          email,
+          phone: rawPhone,
+          country: sa.country,
+          currency: o.c,
+          totalCents: o.t,
+          lines: o.l,
+          names: o.nm,
+          ip: (p && p.ip_address) || d.ip_address || "",
+          paidAt: d.paid_at,
+        });
+      } catch {
+        console.log("server_ads network=- event_id=- status=- error=guard");
+      }
+    }
 
     const err = r.orderCreate.userErrors;
     if (err.length) { console.error("orderCreate", JSON.stringify(err)); journey(d.metadata?.j, "order_failed", { payment: d.id, err: err.slice(0, 3) }, true); return { status: 500, body: { err } }; }
