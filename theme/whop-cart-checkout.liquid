@@ -62,9 +62,9 @@
   // RedTrack click, UTMs and subs from cookies, storage and the page URL. They go on the checkout
   // session. Cookies on madespecial.store are not visible on checkout.madespecial.store, so the
   // checkout writes the click id back into its own URL and rtkclickid-store cookie.
-  // ttclid, ScCid and epik are the ad click ids (not the _ttp / _scid cookies). The server reads
-  // them off the order when SERVER_ADS_ENABLED is on. This block does not fire any ad pixel.
-  var TRACK = /clickid|^_*ref_id$|^rtk|^utm_|^tw_|^sub\d{1,2}$|^ttclid$|^sccid$|^sc_click_id$|^_scclid$|^epik$/i;
+  // Click ids and the store's pixel cookies. checkout.madespecial.store cannot read madespecial.store
+  // cookies, so they are copied onto the checkout session and the thank-you page fires Purchase there.
+  var TRACK = /clickid|^_*ref_id$|^rtk|^utm_|^tw_|^sub\d{1,2}$|^ttclid$|^sccid$|^sc_click_id$|^_scclid$|^epik$|^fbclid$|^_fbp$|^_fbc$|^_ttp$|^_scid$/i;
   // A real tracking value is a short ID or text: skip data blobs, JSON and binary that other apps keep in storage
   var GOOD = function (v) { return v.length <= 300 && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
   function cookieVal(name) {
