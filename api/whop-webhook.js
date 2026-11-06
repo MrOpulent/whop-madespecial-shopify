@@ -127,7 +127,7 @@ export async function fulfil(d) {
     }
     if (used !== "full") console.error("order created with fallback:", used);
 
-    // Same click and event id the checkout page sends, so RedTrack counts one purchase when both arrive.
+    // The only Purchase revenue postback. The thank-you page does not send this sum, or RedTrack counts the sale twice.
     // A separate upsell order is an extra payment, reported as Upsell so it does not replace the original.
     if (!r.orderCreate.userErrors.length) {
       const upsellOrder = (d._tags || []).includes("upsell-separate-order");

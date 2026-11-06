@@ -481,31 +481,42 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     if (adsOn) return;
     adsOn = true;
   }
-  // Shopify's Meta, TikTok, Snapchat and Pinterest pixels only run on madespecial.store.
-  // This domain loads the same pixels and sends Purchase from the thank-you page.
-  // event id is whop-<payment id>, the same id the server Conversions API sends, so the two count once.
+  // One network per order. AppLovin and an unmatched visit fire no browser Purchase.
+  // event id is whop-<payment id>, the same id that network's server event uses, so the two count once.
+  function adsNet() {
+    var n = ADS && ADS.network;
+    return n === 'meta' || n === 'tiktok' || n === 'snap' || n === 'pinterest' ? n : '';
+  }
   function adsEnsurePixels() {
-    if (!ADS || ADS.track === false || !ADS.pixels || ADS._px) return !!ADS && ADS.track !== false && !!ADS.pixels && !!ADS._px;
+    var net = adsNet();
+    if (!ADS || ADS.track === false || !ADS.pixels || !net) return false;
+    if (ADS._px) return true;
     ADS._px = 1;
     var ids = ADS.ids || {};
     var fbc = ids.fbc || (ids.fbclid ? 'fb.1.' + Date.now() + '.' + ids.fbclid : '');
-    adsPut('_fbp', ids.fbp); adsPut('_fbc', fbc); adsPut('_ttp', ids.ttp);
-    adsPut('_scid', ids.scid); adsPut('ScCid', ids.sccid); adsPut('_epik', ids.epik);
+    if (net === 'meta') { adsPut('_fbp', ids.fbp); adsPut('_fbc', fbc); }
+    if (net === 'tiktok') adsPut('_ttp', ids.ttp);
+    if (net === 'snap') { adsPut('_scid', ids.scid); adsPut('ScCid', ids.sccid); }
+    if (net === 'pinterest') adsPut('_epik', ids.epik);
     try {
-      var u = new URL(location.href), add = { ScCid: ids.sccid, fbclid: ids.fbclid, ttclid: ids.ttclid, epik: ids.epik }, changed = false;
+      var u = new URL(location.href), add = {}, changed = false;
+      if (net === 'meta') add.fbclid = ids.fbclid;
+      if (net === 'tiktok') add.ttclid = ids.ttclid;
+      if (net === 'snap') add.ScCid = ids.sccid;
+      if (net === 'pinterest') add.epik = ids.epik;
       Object.keys(add).forEach(function (k) { if (add[k] && !u.searchParams.get(k)) { u.searchParams.set(k, add[k]); changed = true; } });
       if (changed && u.href.length <= 1800) history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
     } catch (e) {}
     var p = ADS.pixels;
     try {
-      if (p.meta && !window.fbq) {
+      if (net === 'meta' && p.meta && !window.fbq) {
         !function (f, b, e, v, n, t, s) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
           if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s); }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
         fbq('init', p.meta);
       }
     } catch (e) {}
     try {
-      if (p.tiktok && !window.ttq) {
+      if (net === 'tiktok' && p.tiktok && !window.ttq) {
         !function (w, d, t) { w.TiktokAnalyticsObject = t; var ttq = w[t] = w[t] || []; ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie', 'holdConsent', 'revokeConsent', 'grantConsent'];
           ttq.setAndDefer = function (t, e) { t[e] = function () { t.push([e].concat(Array.prototype.slice.call(arguments, 0))); }; }; for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
           ttq.instance = function (t) { for (var e = ttq._i[t] || [], n = 0; n < ttq.methods.length; n++) ttq.setAndDefer(e, ttq.methods[n]); return e; };
@@ -515,13 +526,13 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       }
     } catch (e) {}
     try {
-      if (p.pinterest && !window.pintrk) {
+      if (net === 'pinterest' && p.pinterest && !window.pintrk) {
         !function (e) { if (!window.pintrk) { window.pintrk = function () { window.pintrk.queue.push(Array.prototype.slice.call(arguments)); }; var n = window.pintrk; n.queue = []; n.version = '3.0'; var t = document.createElement('script'); t.async = !0; t.src = e; var r = document.getElementsByTagName('script')[0]; r.parentNode.insertBefore(t, r); } }('https://s.pinimg.com/ct/core.js');
         pintrk('load', p.pinterest); pintrk('page');
       }
     } catch (e) {}
     try {
-      if (p.snap && !window.snaptr) {
+      if (net === 'snap' && p.snap && !window.snaptr) {
         (function (e, t, n) {
           var a = e.snaptr = function () { a.handleRequest ? a.handleRequest.apply(a, arguments) : a.queue.push(arguments); };
           a.queue = [];
@@ -545,31 +556,32 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   }
   function adsTrackPixels(kind, eventId) {
     if (!adsEnsurePixels()) return;
+    var net = adsNet();
     var purchase = kind === 'purchase';
     var p = ADS.pixels || {}, items = ADS.items || [], value = Number(ADS.value), currency = ADS.currency || 'USD';
     var qty = items.reduce(function (n, it) { return n + (Number(it.quantity) || 1); }, 0);
     var buyer = purchase ? adsBuyer() : { email: '', phone: '', fn: '', ln: '', city: '', zip: '', country: '' };
     var eid = eventId || '';
     try {
-      if (p.meta && window.fbq) {
+      if (net === 'meta' && p.meta && window.fbq) {
         if (buyer.email || buyer.phone) fbq('init', p.meta, { em: buyer.email || undefined, ph: buyer.phone || undefined, fn: buyer.fn || undefined, ln: buyer.ln || undefined, ct: buyer.city || undefined, zp: buyer.zip || undefined, country: buyer.country ? buyer.country.toLowerCase() : undefined, external_id: eid || undefined });
         fbq('track', purchase ? 'Purchase' : 'InitiateCheckout', { content_type: 'product', content_ids: items.map(function (it) { return it.item_id; }), contents: items.map(function (it) { return { id: it.item_id, quantity: it.quantity, item_price: it.price }; }), value: value, currency: currency, num_items: qty }, eid ? { eventID: eid } : undefined);
       }
     } catch (e) {}
     try {
-      if (p.tiktok && window.ttq) {
+      if (net === 'tiktok' && p.tiktok && window.ttq) {
         if (purchase && ttq.identify) ttq.identify({ email: buyer.email || undefined, phone_number: buyer.phone || undefined, external_id: eid || undefined });
         ttq.track(purchase ? 'CompletePayment' : 'InitiateCheckout', { content_type: 'product', contents: items.map(function (it) { return { content_id: it.item_id, content_name: it.item_name, quantity: it.quantity, price: it.price }; }), value: value, currency: currency }, eid ? { event_id: eid } : undefined);
       }
     } catch (e) {}
     try {
-      if (p.pinterest && window.pintrk) {
+      if (net === 'pinterest' && p.pinterest && window.pintrk) {
         if (buyer.email) pintrk('load', p.pinterest, { em: buyer.email });
         pintrk('track', purchase ? 'checkout' : 'initiatecheckout', { value: value, currency: currency, order_quantity: qty, line_items: items.map(function (it) { return { product_id: it.item_id, product_name: it.item_name, product_price: it.price, product_quantity: it.quantity }; }), event_id: eid || undefined });
       }
     } catch (e) {}
     try {
-      if (p.snap && window.snaptr) {
+      if (net === 'snap' && p.snap && window.snaptr) {
         var init = {};
         if (buyer.email) init.user_email = buyer.email;
         var phone = buyer.phone ? String(buyer.phone).replace(/\D/g, '') : '';
@@ -586,7 +598,10 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     if (!ADS) return;
     var eventId = extra.eventId || (ADS.eventId ? (type === 'Purchase' ? ADS.eventId : ADS.eventId + ':' + type) : '');
     if (!adsOnce(extra.once || type, extra.eventId || ADS.eventId || '')) return;
-    adsRedtrack(type, extra, eventId);
+    var paid = String(type || '').toLowerCase() === 'purchase' || type === 'Upsell';
+    // Purchase and Upsell revenue is posted once by the webhook, after the Shopify order exists.
+    // Sending it here as well made RedTrack count the sale twice.
+    if (!paid) adsRedtrack(type, extra, eventId);
     if (String(type || '').toLowerCase() === 'purchase') adsTrackPixels('purchase', extra.pixelEventId || eventId);
     else if (type === 'InitiateCheckout') adsTrackPixels('checkout', eventId);
   }
@@ -629,7 +644,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     if (!s || !s.ads) return;
     adsInstall(s.ads);
     adsFire('PageView');
-    adsFire('InitiateCheckout', { money: true, sum: ADS.value, currency: ADS.currency });
+    adsFire('InitiateCheckout');
     adsAxon('page_view');
     adsAxon('begin_checkout', (ADS.eventId || 'checkout') + ':begin_checkout');
   }
@@ -650,7 +665,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       adsFire(cfg.purchaseType || 'Purchase', { once: 'Purchase', eventId: cfg.eventId, money: true, pixelEventId: pid ? 'whop-' + pid : (cfg.eventId || '') });
     };
     var cfg = adsRemember();
-    if (cfg && cfg.pixels) return go(cfg);
+    if (cfg && cfg.pixels && cfg.network != null) return go(cfg);
     var t = token; try { t = t || sessionStorage.getItem('ms-s'); } catch (e) {}
     if (!t) return;
     fetch(API + '/api/session?s=' + encodeURIComponent(t), { cache: 'no-store' })

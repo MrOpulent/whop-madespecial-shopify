@@ -9,6 +9,7 @@ import {
   hashPhoneDigits,
   hashPhoneE164,
   reportServerAds,
+  pixelNetwork,
   selectNetwork,
   SERVER_ADS_TIMEOUT_MS,
 } from "../lib/server-ads.js";
@@ -91,6 +92,26 @@ describe("server ads", { concurrency: false }, () => {
     assert.equal(selectNetwork({ tw_source: "google", utm_source: "tiktok" }), "");
     assert.equal(selectNetwork({ utm_source: "snapshot" }), "");
     assert.equal(selectNetwork({ TTCLID: "CLICK123" }), "tiktok");
+    assert.equal(selectNetwork({ utm_source: "facebook" }), "");
+  });
+
+  test("browser purchase is one network, and AppLovin gets none", () => {
+    assert.equal(pixelNetwork({ ttclid: "CLICK123" }), "tiktok");
+    assert.equal(pixelNetwork({ ScCid: "snap-click-1" }), "snap");
+    assert.equal(pixelNetwork({ epik: "pin-click-1" }), "pinterest");
+    assert.equal(pixelNetwork({ fbclid: "fb-click-1" }), "meta");
+    assert.equal(pixelNetwork({ utm_source: "facebook" }), "meta");
+    assert.equal(pixelNetwork({ utm_source: "ig" }), "meta");
+    assert.equal(pixelNetwork({ _fbp: "cookie", _ttp: "cookie", _scid: "cookie" }), "");
+    assert.equal(pixelNetwork({}), "");
+    assert.equal(pixelNetwork({ utm_source: "applovin" }), "applovin");
+    assert.equal(pixelNetwork({ tw_source: "axon", ttclid: "CLICK123" }), "applovin");
+    assert.equal(pixelNetwork({ utm_source: "applovin", fbclid: "fb-click-1" }), "applovin");
+    assert.equal(pixelNetwork({ aleid: "axon-click" }), "applovin");
+    assert.equal(pixelNetwork({ aleid: "axon-click", fbclid: "fb-click-1" }), "applovin");
+    assert.equal(pixelNetwork({ aleid: "axon-click", ttclid: "CLICK123" }), "tiktok");
+    assert.equal(pixelNetwork({ ttclid: "CLICK123", fbclid: "fb-click-1" }), "tiktok");
+    assert.equal(pixelNetwork({ ttclid: "CLICK123", ScCid: "snap-click-1" }), "");
   });
 
   test("event id is the Whop payment id and does not change between builds", () => {

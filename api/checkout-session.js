@@ -48,17 +48,9 @@ export default async function handler(req, res) {
     const click = clickIdFrom(at);
     journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: click || null });
     // Same event id the checkout page sends, so a closed tab still records the step once.
-    const checkoutValue = Math.round(Number(p.total) || 0) / 100;
-    // RedTrack type names are case-sensitive. The Shopify guide uses InitiateCheckout.
-    // The store script uses lowercase names (viewcontent, addtocart), so send both.
+    // No sum: RedTrack treats sum as revenue. Checkout opens are not store sales.
     for (const type of ["InitiateCheckout"]) {
-      await postRedtrack({
-        clickid: click,
-        type,
-        sum: checkoutValue,
-        currency: p.currency,
-        eventId: `${j}:${type}`,
-      });
+      await postRedtrack({ clickid: click, type, eventId: `${j}:${type}` });
     }
     const url = `${baseUrl(req)}/?s=${token}` + (click ? `&clickid=${encodeURIComponent(click)}` : "");
     if (form) {
