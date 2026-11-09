@@ -563,7 +563,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     var buyer = purchase ? adsBuyer() : { email: '', phone: '', fn: '', ln: '', city: '', zip: '', country: '' };
     var eid = eventId || '';
     try {
-      if (net === 'meta' && p.meta && window.fbq) {
+      if (net === 'meta' && p.meta && window.fbq && !(purchase && ADS.whopAds)) {
         if (buyer.email || buyer.phone) fbq('init', p.meta, { em: buyer.email || undefined, ph: buyer.phone || undefined, fn: buyer.fn || undefined, ln: buyer.ln || undefined, ct: buyer.city || undefined, zp: buyer.zip || undefined, country: buyer.country ? buyer.country.toLowerCase() : undefined, external_id: eid || undefined });
         fbq('track', purchase ? 'Purchase' : 'InitiateCheckout', { content_type: 'product', content_ids: items.map(function (it) { return it.item_id; }), contents: items.map(function (it) { return { id: it.item_id, quantity: it.quantity, item_price: it.price }; }), value: value, currency: currency, num_items: qty }, eid ? { eventID: eid } : undefined);
       }
