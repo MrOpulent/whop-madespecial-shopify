@@ -606,7 +606,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     else if (type === 'InitiateCheckout') adsTrackPixels('checkout', eventId);
   }
   // AppLovin only. The Shopify Axon pixel never runs on this domain, so begin_checkout was missing.
-  // Purchase is left to the RedTrack server postback, which already reaches AppLovin.
+  // Purchase is sent from the thank-you page for an AppLovin click, with the Whop payment id.
   function adsAxonReady() {
     if (!ADS || ADS.track === false || !ADS.axon) return false;
     if (ADS.aleid) {
@@ -640,6 +640,26 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     value = Math.round(value * 100) / 100;
     axon('track', name, { currency: ADS.currency, value: value, items: items }, dedupe ? { dedupe_id: dedupe } : undefined);
   }
+  // Shopify's AppLovin pixel sees the Admin API order with no checkout, so transaction id, email and item price are empty.
+  // This sends the purchase only for an AppLovin click. Other networks stay on their own pixels.
+  function adsAxonPurchase(paymentId) {
+    try {
+      if (!ADS || ADS.network !== 'applovin') return;
+      var pid = String(paymentId || '').trim();
+      if (!pid || pid === 'undefined' || pid === 'null') return;
+      if (!adsAxonReady()) return;
+      if (!adsOnce('AxonPurchase', pid)) return;
+      var items = ADS.items || [];
+      var value = Number(ADS.value);
+      if (!isFinite(value)) value = 0;
+      value = Math.round(value * 100) / 100;
+      var email = '';
+      try { email = String((readOrder() || {}).email || '').trim(); } catch (e) {}
+      var payload = { currency: ADS.currency || 'USD', value: value, transaction_id: pid, shipping: 0, tax: 0, items: items };
+      if (email) payload.user_data = { email: email };
+      axon('track', 'purchase', payload, { dedupe_id: 'whop-' + pid });
+    } catch (e) {}
+  }
   function adsBegin(s) {
     if (!s || !s.ads) return;
     adsInstall(s.ads);
@@ -663,6 +683,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       var pid = paymentId || '';
       try { if (!pid) pid = (readOrder() || {}).payment || ''; } catch (e) {}
       adsFire(cfg.purchaseType || 'Purchase', { once: 'Purchase', eventId: cfg.eventId, money: true, pixelEventId: pid ? 'whop-' + pid : (cfg.eventId || '') });
+      adsAxonPurchase(pid);
     };
     var cfg = adsRemember();
     if (cfg && cfg.pixels && cfg.network != null) return go(cfg);

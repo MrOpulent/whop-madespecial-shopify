@@ -114,6 +114,25 @@ describe("server ads", { concurrency: false }, () => {
     assert.equal(pixelNetwork({ ttclid: "CLICK123", ScCid: "snap-click-1" }), "");
   });
 
+  test("Pinterest source URL is the checkout page, not a Shopify admin or return URL", () => {
+    adsEnv();
+    const plain = buildServerAds(purchase({ epik: "pin-click-1" }));
+    assert.equal(plain.body.data[0].event_source_url.includes("return=1"), false);
+    assert.equal(plain.body.data[0].event_source_url.startsWith("https://checkout.madespecial.store/"), true);
+    assert.equal(plain.body.data[0].event_source_url.includes("epik=pin-click-1"), true);
+
+    const admin = buildServerAds(purchase({ epik: "pin-click-1", landing_site: "https://admin.shopify.com/store/x/orders" }));
+    assert.equal(admin.body.data[0].event_source_url.includes("admin.shopify.com"), false);
+    assert.equal(admin.body.data[0].event_source_url.startsWith("https://checkout.madespecial.store/"), true);
+
+    const shop = buildServerAds(purchase({ epik: "pin-click-1", landing_page: "https://0muhvz-sr.myshopify.com/products/drum" }));
+    assert.equal(shop.body.data[0].event_source_url.includes("myshopify.com"), false);
+
+    const store = buildServerAds(purchase({ epik: "pin-click-1", landing_site: "https://madespecial.store/products/drum" }));
+    assert.equal(store.body.data[0].event_source_url.startsWith("https://madespecial.store/products/drum"), true);
+    assert.equal(store.body.data[0].event_source_url.includes("epik=pin-click-1"), true);
+  });
+
   test("event id is the Whop payment id and does not change between builds", () => {
     assert.equal(eventIdFor("pay_abc"), "whop-pay_abc");
     assert.equal(eventIdFor("pay_abc"), eventIdFor("pay_abc"));
