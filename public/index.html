@@ -683,7 +683,6 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       var pid = paymentId || '';
       try { if (!pid) pid = (readOrder() || {}).payment || ''; } catch (e) {}
       adsFire(cfg.purchaseType || 'Purchase', { once: 'Purchase', eventId: cfg.eventId, money: true, pixelEventId: pid ? 'whop-' + pid : (cfg.eventId || '') });
-      adsAxonPurchase(pid);
     };
     var cfg = adsRemember();
     if (cfg && cfg.pixels && cfg.network != null) return go(cfg);
