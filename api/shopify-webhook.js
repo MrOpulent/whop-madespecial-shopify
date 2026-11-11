@@ -5,7 +5,11 @@
 //    to the shopper's original payment method, for the same amount, in the currency they paid.
 //  • orders/cancelled: an order cancelled WITHOUT refunding gets whatever is still unrefunded refunded in Whop,
 //    and the refund is recorded on the Shopify order (turn off with REFUND_ON_CANCEL=false).
+//  • fulfillments/create and fulfillments/update: when a vendor adds a carrier tracking number, and the order's
+//    Payment method is PayPal, that number is sent to Whop (POST /shipments) on the Whop payment. Card orders
+//    are left alone. Whop already holds the PayPal charge, so this does not call PayPal.
 //  An order can hold several Whop payments (original + post-purchase upsell): the original is refunded first.
+//  Tracking is attached to the original payment only (the one stored as whop_payment_id).
 //
 // Whop -> Shopify (whopRefundToShopify, called by api/whop-webhook.js on refund.created / refund.updated):
 //  • a refund made in Whop (dashboard, dispute, etc.) is recorded on the Shopify order; once the order is fully
@@ -19,7 +23,7 @@
 // Env: SHOPIFY_CLIENT_SECRET (app webhooks) and/or SHOPIFY_WEBHOOK_SECRET (webhooks made in Shopify admin), REFUND_ON_CANCEL
 import crypto from "node:crypto";
 import { adminGql } from "../lib/shopify.js";
-import { getPayment, refundPayment, scopeProblem } from "../lib/whop.js";
+import { createShipment, getPayment, refundPayment, scopeProblem } from "../lib/whop.js";
 import { journey } from "../lib/http.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -53,6 +57,84 @@ const CANCEL_OLD = `mutation($id: ID!, $note: String) { orderCancel(orderId: $id
 const MARK = "[whop]"; // notes on refunds recorded by this code, so they are never refunded a second time
 const cents = (x) => Math.round(Number(x) * 100);
 const jid = (order) => order.customAttributes.find((a) => a.key === "checkout_journey_id")?.value;
+const attr = (order, key) => order.customAttributes?.find((a) => a.key === key)?.value || "";
+const DEAD_FULFILLMENT = new Set(["cancelled", "canceled", "failure", "error"]);
+
+// Carrier numbers from a Shopify fulfillment notification. Blank entries are dropped.
+export function trackingNumbers(body) {
+  const list = [];
+  const add = (v) => {
+    const s = String(v ?? "").trim().slice(0, 128);
+    if (s && !list.includes(s)) list.push(s);
+  };
+  if (Array.isArray(body?.tracking_numbers)) for (const n of body.tracking_numbers) add(n);
+  add(body?.tracking_number);
+  if (Array.isArray(body?.tracking_info)) for (const t of body.tracking_info) add(t?.number);
+  return list;
+}
+
+function whopPaymentId(order) {
+  const fromAttr = String(attr(order, "whop_payment_id") || attr(order, "Payment id") || "").trim();
+  if (/^pay_[A-Za-z0-9]+$/.test(fromAttr)) return fromAttr;
+  for (const t of order?.tags || []) {
+    const m = String(t).match(/^whop-(pay_[A-Za-z0-9]+)$/);
+    if (m) return m[1];
+  }
+  return "";
+}
+
+// What to send for this fulfillment. method_unknown means the order was created before Payment method was stored;
+// the caller reads the Whop payment and continues only when that payment is PayPal.
+export function paypalTrackingJob(order, body) {
+  const status = String(body?.status || "").toLowerCase();
+  if (DEAD_FULFILLMENT.has(status)) return { skip: "fulfillment_not_active" };
+  const numbers = trackingNumbers(body);
+  if (!numbers.length) return { skip: "no_tracking" };
+  const method = String(attr(order, "Payment method")).trim();
+  const paymentId = whopPaymentId(order);
+  if (method && !/^paypal$/i.test(method)) return { skip: "not_paypal" };
+  if (!method) return { skip: "method_unknown", paymentId, numbers };
+  if (!paymentId) return { skip: "no_payment_id" };
+  return { paymentId, numbers };
+}
+
+function trackKey(fulfillmentId, tracking) {
+  const h = crypto.createHash("sha256").update(`${fulfillmentId}\n${tracking}`).digest("hex").slice(0, 32);
+  return `shopify-track-${h}`;
+}
+
+function isPaypalPayment(p) {
+  const type = String(p?.payment_method_type || p?.payment_instrument?.payment_method_type || "").trim().toLowerCase();
+  const shown = String(p?.payment_instrument?.display_name || "");
+  return type === "paypal" || /\bpaypal\b/i.test(shown);
+}
+
+// Send each carrier number to Whop. 409 means Whop already has it (a retry, or a second number on one payment).
+export async function sendPaypalTracking(order, body, lookup = getPayment) {
+  let job = paypalTrackingJob(order, body);
+  if (job.skip === "method_unknown") {
+    if (!job.paymentId) return { skip: "no_payment_id" };
+    let p;
+    try { p = await lookup(job.paymentId); }
+    catch (e) {
+      if (/Whop 404/.test(String(e.message || ""))) return { skip: "payment_not_found" };
+      throw e;
+    }
+    if (!isPaypalPayment(p)) return { skip: "not_paypal" };
+    job = { paymentId: job.paymentId, numbers: job.numbers };
+  }
+  if (job.skip) return { skip: job.skip };
+  const sent = [], failed = [];
+  for (const tracking of job.numbers) {
+    const r = await createShipment(job.paymentId, tracking, trackKey(body?.id, tracking));
+    if (r.ok || r.status === 409) { sent.push(tracking); continue; }
+    const hint = scopeProblem(r.data);
+    if (hint) console.error(`SETUP PROBLEM — ${hint}`);
+    failed.push({ tracking, status: r.status || 0 });
+    if (!r.status || r.status >= 500) return { paymentId: job.paymentId, sent, failed, retry: true };
+  }
+  return { paymentId: job.paymentId, sent, ...(failed.length && { failed }) };
+}
 
 // The order's Whop payments, original first, each with how much was paid (in the shopper's currency)
 async function orderPayments(order) {
@@ -156,11 +238,27 @@ export default async function handler(req, res) {
   let body; try { body = JSON.parse(raw); } catch { return res.status(200).json({ skipped: "bad_json" }); }
 
   try {
-    const orderGid = `gid://shopify/Order/${topic === "refunds/create" ? body.order_id : body.id}`;
+    const orderGid = `gid://shopify/Order/${topic === "refunds/create" || topic.startsWith("fulfillments/") ? body.order_id : body.id}`;
     const { order } = await adminGql(ORDER, { id: orderGid });
     if (!order) return res.status(200).json({ skipped: "order_not_found" });
     if (!order.tags.some((t) => /^whop-pay_/.test(t))) return res.status(200).json({ skipped: "not_a_whop_order" });
     const j = jid(order);
+
+    if (topic === "fulfillments/create" || topic === "fulfillments/update") {
+      const result = await sendPaypalTracking(order, body);
+      if (result.retry) {
+        journey(j, "paypal_tracking_failed", { order: order.name, failed: result.failed }, true);
+        return res.status(500).json({ error: "whop_shipment_retry" });
+      }
+      if (result.sent?.length) {
+        await adminGql(TAGS_ADD, { id: order.id, tags: ["whop-paypal-tracking"] }).catch(() => {});
+        journey(j, "paypal_tracking_sent", { order: order.name, payment: result.paymentId, tracking: result.sent });
+      } else if (result.failed?.length) {
+        journey(j, "paypal_tracking_failed", { order: order.name, failed: result.failed }, true);
+      }
+      return res.status(200).json(result);
+    }
+
     const received = order.totalReceivedSet.presentmentMoney, refunded = order.totalRefundedSet.presentmentMoney;
     const currency = received.currencyCode.toLowerCase();
 

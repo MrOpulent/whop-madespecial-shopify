@@ -1,7 +1,7 @@
 // api/whop-setup.js — one-time helpers, protected by SETUP_KEY.
 //  • Apple Pay on your checkout domain:  /api/whop-setup?key=<SETUP_KEY>&domain=checkout.madespecial.store
 //    (needs the API key permissions domain:read + domain:manage). Run again later to see the status.
-//  • Shopify refunds/cancellations -> Whop refunds:  /api/whop-setup?key=<SETUP_KEY>&shopify_webhooks=1
+//  • Shopify refunds, cancellations, and tracking -> Whop:  /api/whop-setup?key=<SETUP_KEY>&shopify_webhooks=1
 //  • (Legacy Whop-hosted flow only) product with shipping address:  /api/whop-setup?key=<SETUP_KEY>&product=1
 // Env: WHOP_API_KEY, WHOP_COMPANY_ID, SETUP_KEY
 import { createShippingProduct, registerApplePayDomain, scopeProblem } from "../lib/whop.js";
@@ -37,13 +37,13 @@ export default async function handler(req, res) {
       try { have = (await adminGql(SUBS)).webhookSubscriptions.nodes; }
       catch { legacy = true; have = (await adminGql(SUBS_OLD)).webhookSubscriptions.nodes.map((w) => ({ ...w, uri: w.endpoint?.callbackUrl })); }
       const result = {};
-      for (const topic of ["REFUNDS_CREATE", "ORDERS_CANCELLED"]) {
+      for (const topic of ["REFUNDS_CREATE", "ORDERS_CANCELLED", "FULFILLMENTS_CREATE", "FULFILLMENTS_UPDATE"]) {
         if (have.some((w) => w.topic === topic && w.uri === uri)) { result[topic] = "already registered"; continue; }
         const r = await adminGql(legacy ? SUB_CREATE_OLD : SUB_CREATE, { topic, uri });
         const e = r.webhookSubscriptionCreate.userErrors;
         result[topic] = e.length ? { error: e } : "registered";
       }
-      return res.status(200).json({ uri, result, next: "Refund or cancel a test order in Shopify and check Vercel Logs for step=refund_sent_to_whop" });
+      return res.status(200).json({ uri, result, next: "Refunds and cancels log step=refund_sent_to_whop. A PayPal order with a tracking number logs step=paypal_tracking_sent." });
     }
     if (req.query.product) {
       if (process.env.WHOP_PRODUCT_ID) return res.status(200).json({ already_set: process.env.WHOP_PRODUCT_ID });
