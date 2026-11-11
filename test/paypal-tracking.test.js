@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { createShipment } from "../lib/whop.js";
-import { paypalTrackingJob, sendPaypalTracking, trackingNumbers } from "../api/shopify-webhook.js";
+import { fulfillmentNotices, paypalTrackingJob, sendPaypalTracking, syncPaypalTracking, trackingNumbers } from "../api/shopify-webhook.js";
 
 const order = (method, payment = "pay_UEhHhXnbPu2lJW") => ({
   customAttributes: [
@@ -117,5 +117,42 @@ describe("paypal tracking", () => {
     const r = await createShipment("pay_abc", "1Z1", "shopify-track-test");
     assert.equal(r.ok, true);
     assert.deepEqual(seen, ["Bearer new", "Bearer old"]);
+  });
+
+  test("old shipped PayPal orders are sent, and card orders are left alone", async () => {
+    process.env.WHOP_API_KEY = "key";
+    process.env.WHOP_COMPANY_ID = "biz_test";
+    delete process.env.WHOP_API_KEY_OLD;
+    const calls = [];
+    const tagged = [];
+    globalThis.fetch = async (url, opt) => {
+      calls.push(JSON.parse(opt.body));
+      return { ok: true, status: 201, text: async () => "{}" };
+    };
+    const paypal = {
+      id: "gid://shopify/Order/1", name: "#100", tags: ["whop", "whop-pay_old"],
+      customAttributes: [{ key: "Payment method", value: "PayPal" }, { key: "whop_payment_id", value: "pay_old" }],
+      fulfillments: [
+        { id: "gid://shopify/Fulfillment/9", status: "SUCCESS", trackingInfo: [{ number: "1ZOLD" }] },
+        { id: "gid://shopify/Fulfillment/10", status: "CANCELLED", trackingInfo: [{ number: "1ZDEAD" }] },
+      ],
+    };
+    const card = {
+      id: "gid://shopify/Order/2", name: "#101", tags: ["whop", "whop-pay_card"],
+      customAttributes: [{ key: "Payment method", value: "Visa •••• 4242" }, { key: "whop_payment_id", value: "pay_card" }],
+      fulfillments: [{ id: "gid://shopify/Fulfillment/11", status: "SUCCESS", trackingInfo: [{ number: "1ZCARD" }] }],
+    };
+    assert.equal(fulfillmentNotices(paypal)[0].status, "success");
+    const gql = async (query, vars) => {
+      if (String(query).includes("tagsAdd")) { tagged.push(vars); return { tagsAdd: { userErrors: [] } }; }
+      return { orders: { pageInfo: { hasNextPage: true, endCursor: "page-2" }, nodes: [paypal, card] } };
+    };
+    const r = await syncPaypalTracking(gql, {});
+    assert.deepEqual(r.sent, [{ order: "#100", tracking: ["1ZOLD"] }]);
+    assert.equal(r.skipped.not_paypal, 1);
+    assert.equal(r.next_cursor, "page-2");
+    assert.deepEqual(calls.map((c) => c.tracking_number), ["1ZOLD"]);
+    assert.equal(calls[0].payment_id, "pay_old");
+    assert.deepEqual(tagged, [{ id: paypal.id, tags: ["whop-paypal-tracking"] }]);
   });
 });

@@ -136,6 +136,65 @@ export async function sendPaypalTracking(order, body, lookup = getPayment) {
   return { paymentId: job.paymentId, sent, ...(failed.length && { failed }) };
 }
 
+// One Shopify fulfillment, in the same shape the fulfillment webhook sends.
+export function fulfillmentNotices(order) {
+  const list = Array.isArray(order?.fulfillments) ? order.fulfillments : (order?.fulfillments?.nodes || []);
+  return list.map((f) => {
+    const info = Array.isArray(f?.trackingInfo) ? f.trackingInfo : (f?.trackingInfo?.nodes || []);
+    return { id: f?.id, status: String(f?.status || "").toLowerCase(), tracking_numbers: info.map((t) => t?.number) };
+  });
+}
+
+const TRACKED_ORDERS = `query($n: Int!, $cursor: String) {
+  orders(first: $n, after: $cursor, query: "tag:whop AND (fulfillment_status:shipped OR fulfillment_status:partial)") {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      id name tags
+      customAttributes { key value }
+      fulfillments { id status trackingInfo(first: 10) { number } }
+    }
+  }
+}`;
+
+// Send tracking numbers already stored on shipped PayPal orders. One page per call; pass next_cursor for the rest.
+// Card orders are skipped. A Whop outage keeps the same cursor so the page can be run again.
+export async function syncPaypalTracking(gql, { cursor = null, pageSize = 15 } = {}) {
+  const n = Math.min(Math.max(Number(pageSize) || 15, 1), 40);
+  const data = await gql(TRACKED_ORDERS, { n, cursor: cursor || null });
+  const conn = data.orders;
+  const result = { checked: 0, sent: [], skipped: {}, failed: [], next_cursor: conn.pageInfo.hasNextPage ? conn.pageInfo.endCursor : null };
+  const skip = (k) => { result.skipped[k] = (result.skipped[k] || 0) + 1; };
+  let retry = false;
+  for (const order of conn.nodes) {
+    result.checked++;
+    if ((order.tags || []).includes("whop-paypal-tracking")) { skip("already_sent"); continue; }
+    const sent = [];
+    let skipReason = "";
+    for (const body of fulfillmentNotices(order)) {
+      const r = await sendPaypalTracking(order, body);
+      if (r.skip === "not_paypal" || r.skip === "no_payment_id" || r.skip === "payment_not_found") { skipReason = r.skip; break; }
+      if (r.skip) continue;
+      if (r.sent?.length) sent.push(...r.sent);
+      if (r.retry || r.failed?.length) {
+        if (r.retry) retry = true;
+        result.failed.push({ order: order.name, payment: r.paymentId, failed: r.failed });
+      }
+    }
+    const unique = [...new Set(sent)];
+    const orderFailed = result.failed.some((f) => f.order === order.name);
+    if (!unique.length && !orderFailed) { if (skipReason) skip(skipReason); else skip("no_tracking"); continue; }
+    if (unique.length && !orderFailed) {
+      try { await gql(TAGS_ADD, { id: order.id, tags: ["whop-paypal-tracking"] }); } catch { /* the number is already at Whop; the tag is only a skip marker */ }
+      result.sent.push({ order: order.name, tracking: unique });
+    }
+  }
+  if (retry) {
+    result.retry = true;
+    result.next_cursor = cursor || null;
+  }
+  return result;
+}
+
 // The order's Whop payments, original first, each with how much was paid (in the shopper's currency)
 async function orderPayments(order) {
   const ids = [];

@@ -2,11 +2,16 @@
 //  • Apple Pay on your checkout domain:  /api/whop-setup?key=<SETUP_KEY>&domain=checkout.madespecial.store
 //    (needs the API key permissions domain:read + domain:manage). Run again later to see the status.
 //  • Shopify refunds, cancellations, and tracking -> Whop:  /api/whop-setup?key=<SETUP_KEY>&shopify_webhooks=1
+//  • Tracking already on old PayPal orders -> Whop:  /api/whop-setup?key=<SETUP_KEY>&paypal_tracking=1
+//    Repeat with &cursor=<next_cursor> until next_cursor is null.
 //  • (Legacy Whop-hosted flow only) product with shipping address:  /api/whop-setup?key=<SETUP_KEY>&product=1
 // Env: WHOP_API_KEY, WHOP_COMPANY_ID, SETUP_KEY
 import { createShippingProduct, registerApplePayDomain, scopeProblem } from "../lib/whop.js";
 import { adminGql } from "../lib/shopify.js";
 import { baseUrl } from "../lib/http.js";
+import { syncPaypalTracking } from "./shopify-webhook.js";
+
+export const config = { maxDuration: 60 };
 
 const SUBS = `query { webhookSubscriptions(first: 100) { nodes { id topic uri } } }`;
 const SUBS_OLD = `query { webhookSubscriptions(first: 100) { nodes { id topic endpoint { ... on WebhookHttpEndpoint { callbackUrl } } } } }`;
@@ -44,6 +49,18 @@ export default async function handler(req, res) {
         result[topic] = e.length ? { error: e } : "registered";
       }
       return res.status(200).json({ uri, result, next: "Refunds and cancels log step=refund_sent_to_whop. A PayPal order with a tracking number logs step=paypal_tracking_sent." });
+    }
+    if (req.query.paypal_tracking) {
+      const cursor = String(req.query.cursor || "").slice(0, 2000) || null;
+      const result = await syncPaypalTracking(adminGql, { cursor });
+      return res.status(result.retry ? 500 : 200).json({
+        ...result,
+        next: result.retry
+          ? "Whop did not accept every order on this page. Open this same link again."
+          : result.next_cursor
+            ? "Open this same link again with &cursor= set to next_cursor. Repeat until next_cursor is null."
+            : "Done. Shipped PayPal orders from this pass are now on their Whop payments.",
+      });
     }
     if (req.query.product) {
       if (process.env.WHOP_PRODUCT_ID) return res.status(200).json({ already_set: process.env.WHOP_PRODUCT_ID });
