@@ -4,9 +4,10 @@
 //  • Shopify refunds, cancellations, and tracking -> Whop:  /api/whop-setup?key=<SETUP_KEY>&shopify_webhooks=1
 //  • Tracking already on old PayPal orders -> Whop:  /api/whop-setup?key=<SETUP_KEY>&paypal_tracking=1
 //    Repeat with &cursor=<next_cursor> until next_cursor is null.
+//  • Check one payment's shipment:  /api/whop-setup?key=<SETUP_KEY>&check_shipment=pay_…
 //  • (Legacy Whop-hosted flow only) product with shipping address:  /api/whop-setup?key=<SETUP_KEY>&product=1
 // Env: WHOP_API_KEY, WHOP_COMPANY_ID, SETUP_KEY
-import { createShippingProduct, registerApplePayDomain, scopeProblem } from "../lib/whop.js";
+import { createShippingProduct, getPayment, getShipment, registerApplePayDomain, scopeProblem } from "../lib/whop.js";
 import { adminGql } from "../lib/shopify.js";
 import { baseUrl } from "../lib/http.js";
 import { syncPaypalTracking } from "./shopify-webhook.js";
@@ -49,6 +50,48 @@ export default async function handler(req, res) {
         result[topic] = e.length ? { error: e } : "registered";
       }
       return res.status(200).json({ uri, result, next: "Refunds and cancels log step=refund_sent_to_whop. A PayPal order with a tracking number logs step=paypal_tracking_sent." });
+    }
+    if (req.query.check_shipment) {
+      const id = String(req.query.check_shipment).trim();
+      if (!/^pay_[A-Za-z0-9]+$|^ship_[A-Za-z0-9]+$/.test(id)) {
+        return res.status(400).json({ error: "check_shipment must be a pay_… or ship_… id from the Shopify order" });
+      }
+      let shipment = null, payment = null;
+      try { shipment = await getShipment(id); }
+      catch (e) {
+        if (!/Whop 404/.test(String(e.message || ""))) throw e;
+      }
+      if (id.startsWith("pay_")) {
+        try {
+          payment = await getPayment(id);
+          payment = {
+            id: payment.id,
+            status: payment.status,
+            payment_method_type: payment.payment_method_type || payment.payment_instrument?.payment_method_type || null,
+            missing_tracking: payment.missing_tracking,
+            needs_tracking: payment.needs_tracking,
+            holds: payment.holds || [],
+          };
+        } catch (e) {
+          if (!/Whop 404/.test(String(e.message || ""))) throw e;
+        }
+      }
+      const found = !!(shipment && shipment.id);
+      return res.status(found || payment ? 200 : 404).json({
+        found,
+        shipment: found ? {
+          id: shipment.id,
+          payment_id: shipment.payment_id,
+          tracking_number: shipment.tracking_number,
+          tracking_url: shipment.tracking_url,
+          carrier: shipment.carrier,
+          status: shipment.status,
+        } : null,
+        payment,
+        next: found
+          ? "Whop has this shipment. The payment page may not show a Shipments panel; this API reply is the source of truth."
+          : "No shipment on Whop for this id. Re-run paypal_tracking for that order, or confirm the Shopify whop_payment_id matches the Whop payment you opened.",
+      });
     }
     if (req.query.paypal_tracking) {
       const cursor = String(req.query.cursor || "").slice(0, 2000) || null;

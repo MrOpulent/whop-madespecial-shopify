@@ -91,9 +91,13 @@ describe("paypal tracking", () => {
     process.env.WHOP_API_KEY = "key";
     process.env.WHOP_COMPANY_ID = "biz_test";
     delete process.env.WHOP_API_KEY_OLD;
-    globalThis.fetch = async () => ({ ok: false, status: 409, text: async () => "{}" });
+    globalThis.fetch = async (url, opt) => {
+      if (opt?.method === "POST") return { ok: false, status: 409, text: async () => "{}" };
+      return { ok: true, status: 200, text: async () => JSON.stringify({ id: "ship_dup", tracking_number: "1Z1", payment_id: "pay_UEhHhXnbPu2lJW" }) };
+    };
     const dup = await sendPaypalTracking(order("PayPal"), { id: 1, tracking_number: "1Z1" });
     assert.deepEqual(dup.sent, ["1Z1"]);
+    assert.deepEqual(dup.shipments, [{ id: "ship_dup", tracking: "1Z1" }]);
     assert.equal(dup.retry, undefined);
 
     globalThis.fetch = async () => ({ ok: false, status: 500, text: async () => "{}" });
@@ -146,7 +150,7 @@ describe("paypal tracking", () => {
       return { orders: { pageInfo: { hasNextPage: true, endCursor: "page-2" }, nodes: [paypal, card] } };
     };
     const r = await syncPaypalTracking(gql, {});
-    assert.deepEqual(r.sent, [{ order: "#100", tracking: ["1ZOLD"] }]);
+    assert.deepEqual(r.sent, [{ order: "#100", payment: "pay_old", tracking: ["1ZOLD"] }]);
     assert.equal(r.skipped.not_paypal, 1);
     assert.equal(r.next_cursor, "page-2");
     assert.deepEqual(calls.map((c) => c.tracking_number), ["1ZOLD"]);

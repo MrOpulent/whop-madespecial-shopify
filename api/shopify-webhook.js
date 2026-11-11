@@ -23,7 +23,7 @@
 // Env: SHOPIFY_CLIENT_SECRET (app webhooks) and/or SHOPIFY_WEBHOOK_SECRET (webhooks made in Shopify admin), REFUND_ON_CANCEL
 import crypto from "node:crypto";
 import { adminGql } from "../lib/shopify.js";
-import { createShipment, getPayment, refundPayment, scopeProblem } from "../lib/whop.js";
+import { createShipment, getPayment, getShipment, refundPayment, scopeProblem } from "../lib/whop.js";
 import { journey } from "../lib/http.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
@@ -103,20 +103,42 @@ function trackKey(fulfillmentId, tracking) {
   return `shopify-track-${h}`;
 }
 
-// Send each carrier number to Whop. 409 means Whop already has it (a retry, or a second number on one payment).
+// Confirm Whop has this tracking on the payment. Used after create, and after a 409 conflict.
+async function shipmentMatches(paymentId, tracking) {
+  try {
+    const s = await getShipment(paymentId);
+    return String(s?.tracking_number || "").trim() === tracking ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+// Send each carrier number to Whop. 409 is only treated as success when that payment already has this tracking number.
 export async function sendPaypalTracking(order, body) {
   const job = paypalTrackingJob(order, body);
   if (job.skip) return { skip: job.skip };
-  const sent = [], failed = [];
+  const sent = [], shipments = [], failed = [];
   for (const tracking of job.numbers) {
     const r = await createShipment(job.paymentId, tracking, trackKey(body?.id, tracking));
-    if (r.ok || r.status === 409) { sent.push(tracking); continue; }
+    if (r.ok) {
+      sent.push(tracking);
+      if (r.data?.id) shipments.push({ id: r.data.id, tracking });
+      continue;
+    }
+    if (r.status === 409) {
+      const existing = await shipmentMatches(job.paymentId, tracking);
+      if (existing) {
+        sent.push(tracking);
+        shipments.push({ id: existing.id, tracking });
+        continue;
+      }
+    }
     const hint = scopeProblem(r.data);
     if (hint) console.error(`SETUP PROBLEM — ${hint}`);
     failed.push({ tracking, status: r.status || 0, message: hint || undefined });
-    if (!r.status || r.status >= 500) return { paymentId: job.paymentId, sent, failed, retry: true };
+    if (!r.status || r.status >= 500) return { paymentId: job.paymentId, sent, shipments, failed, retry: true };
   }
-  return { paymentId: job.paymentId, sent, ...(failed.length && { failed }) };
+  return { paymentId: job.paymentId, sent, shipments, ...(failed.length && { failed }) };
 }
 
 // One Shopify fulfillment, in the same shape the fulfillment webhook sends.
@@ -168,7 +190,8 @@ export async function syncPaypalTracking(gql, { cursor = null, pageSize = 15 } =
     if (!unique.length && !orderFailed) { if (skipReason) skip(skipReason); else skip("no_tracking"); continue; }
     if (unique.length && !orderFailed) {
       try { await gql(TAGS_ADD, { id: order.id, tags: ["whop-paypal-tracking"] }); } catch { /* the number is already at Whop; the tag is only a skip marker */ }
-      result.sent.push({ order: order.name, tracking: unique });
+      const paymentId = whopPaymentId(order);
+      result.sent.push({ order: order.name, payment: paymentId || undefined, tracking: unique });
     }
   }
   if (retry) {
