@@ -72,7 +72,7 @@ describe("paypal tracking", () => {
     assert.equal(paypalTrackingJob(order("PayPal"), { status: "cancelled", tracking_number: "1Z1" }).skip, "fulfillment_not_active");
   });
 
-  test("an order saved before the PayPal label is checked on the Whop payment", async () => {
+  test("an order with no Payment method label still sends using the Whop payment id", async () => {
     process.env.WHOP_API_KEY = "key";
     process.env.WHOP_COMPANY_ID = "biz_test";
     delete process.env.WHOP_API_KEY_OLD;
@@ -81,12 +81,10 @@ describe("paypal tracking", () => {
       calls.push(JSON.parse(opt.body));
       return { ok: true, status: 201, text: async () => "{}" };
     };
-    const card = await sendPaypalTracking(order(""), { id: 1, tracking_number: "1Z1" }, async () => ({ payment_method_type: "card" }));
-    assert.equal(card.skip, "not_paypal");
-    assert.equal(calls.length, 0);
-    const paypal = await sendPaypalTracking(order(""), { id: 1, tracking_number: "1Z1" }, async () => ({ payment_method_type: "paypal" }));
-    assert.deepEqual(paypal.sent, ["1Z1"]);
+    const r = await sendPaypalTracking(order(""), { id: 1, tracking_number: "1Z1" });
+    assert.deepEqual(r.sent, ["1Z1"]);
     assert.equal(calls[0].payment_id, "pay_UEhHhXnbPu2lJW");
+    assert.equal(calls.length, 1);
   });
 
   test("Whop already having the shipment is success, and a Whop outage is retried", async () => {

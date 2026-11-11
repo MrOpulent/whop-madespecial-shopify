@@ -83,8 +83,9 @@ function whopPaymentId(order) {
   return "";
 }
 
-// What to send for this fulfillment. method_unknown means the order was created before Payment method was stored;
-// the caller reads the Whop payment and continues only when that payment is PayPal.
+// What to send for this fulfillment.
+// No Payment method label = old order: still send when a Whop payment id exists (backfill / later tracking edits).
+// A non-PayPal label is skipped. A PayPal label is sent.
 export function paypalTrackingJob(order, body) {
   const status = String(body?.status || "").toLowerCase();
   if (DEAD_FULFILLMENT.has(status)) return { skip: "fulfillment_not_active" };
@@ -93,7 +94,6 @@ export function paypalTrackingJob(order, body) {
   const method = String(attr(order, "Payment method")).trim();
   const paymentId = whopPaymentId(order);
   if (method && !/^paypal$/i.test(method)) return { skip: "not_paypal" };
-  if (!method) return { skip: "method_unknown", paymentId, numbers };
   if (!paymentId) return { skip: "no_payment_id" };
   return { paymentId, numbers };
 }
@@ -103,26 +103,9 @@ function trackKey(fulfillmentId, tracking) {
   return `shopify-track-${h}`;
 }
 
-function isPaypalPayment(p) {
-  const type = String(p?.payment_method_type || p?.payment_instrument?.payment_method_type || "").trim().toLowerCase();
-  const shown = String(p?.payment_instrument?.display_name || "");
-  return type === "paypal" || /\bpaypal\b/i.test(shown);
-}
-
 // Send each carrier number to Whop. 409 means Whop already has it (a retry, or a second number on one payment).
-export async function sendPaypalTracking(order, body, lookup = getPayment) {
-  let job = paypalTrackingJob(order, body);
-  if (job.skip === "method_unknown") {
-    if (!job.paymentId) return { skip: "no_payment_id" };
-    let p;
-    try { p = await lookup(job.paymentId); }
-    catch (e) {
-      if (/Whop 404/.test(String(e.message || ""))) return { skip: "payment_not_found" };
-      throw e;
-    }
-    if (!isPaypalPayment(p)) return { skip: "not_paypal" };
-    job = { paymentId: job.paymentId, numbers: job.numbers };
-  }
+export async function sendPaypalTracking(order, body) {
+  const job = paypalTrackingJob(order, body);
   if (job.skip) return { skip: job.skip };
   const sent = [], failed = [];
   for (const tracking of job.numbers) {
@@ -130,7 +113,7 @@ export async function sendPaypalTracking(order, body, lookup = getPayment) {
     if (r.ok || r.status === 409) { sent.push(tracking); continue; }
     const hint = scopeProblem(r.data);
     if (hint) console.error(`SETUP PROBLEM — ${hint}`);
-    failed.push({ tracking, status: r.status || 0 });
+    failed.push({ tracking, status: r.status || 0, message: hint || undefined });
     if (!r.status || r.status >= 500) return { paymentId: job.paymentId, sent, failed, retry: true };
   }
   return { paymentId: job.paymentId, sent, ...(failed.length && { failed }) };
@@ -172,7 +155,7 @@ export async function syncPaypalTracking(gql, { cursor = null, pageSize = 15 } =
     let skipReason = "";
     for (const body of fulfillmentNotices(order)) {
       const r = await sendPaypalTracking(order, body);
-      if (r.skip === "not_paypal" || r.skip === "no_payment_id" || r.skip === "payment_not_found") { skipReason = r.skip; break; }
+      if (r.skip === "not_paypal" || r.skip === "no_payment_id") { skipReason = r.skip; break; }
       if (r.skip) continue;
       if (r.sent?.length) sent.push(...r.sent);
       if (r.retry || r.failed?.length) {
