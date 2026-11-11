@@ -14,6 +14,16 @@ import { reportServerAds } from "../lib/server-ads.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 
+// Buyer-facing method for the Shopify order. PayPal is named PayPal; a card uses Whop's own label.
+function paymentMethodName(p) {
+  const type = String(p?.payment_method_type || p?.payment_instrument?.payment_method_type || "").trim().toLowerCase();
+  const shown = String(p?.payment_instrument?.display_name || "").trim();
+  if (type === "paypal" || /\bpaypal\b/i.test(shown)) return "PayPal";
+  if (shown) return shown.slice(0, 80);
+  if (!type) return "";
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Shop currency + the currency the shopper actually paid in (e.g. USD shop, GBP shopper)
 const bag = (shopC, shopCur, payC, payCur) => ({
   shopMoney: { amount: amt(shopC), currencyCode: shopCur },
@@ -74,6 +84,10 @@ export async function fulfil(d) {
     const addr = toAddr(sa), billAddr = toAddr(ba);
     const noAddress = !form && !p.shipping_address;
 
+    if (!paymentMethodName(p)) {
+      try { p = { ...p, ...(await getPayment(d.id)) }; } catch (e) { console.error("getPayment", e.message); }
+    }
+    const methodName = paymentMethodName(p);
     const eta = delivery(d.paid_at ? new Date(d.paid_at) : new Date());
     const order = {
       email,
@@ -91,6 +105,7 @@ export async function fulfil(d) {
       ...(o.d > 0 && { discountCode: { itemFixedDiscountCode: { code: o.dc || "BUNDLE-UPSELL", amountSet: bag(o.sd ?? o.d, sc, o.d, o.c) } } }),
       // Tracking (RedTrack click ID, UTMs, ad IDs) + cart attributes -> order "Additional details"
       customAttributes: [...Object.entries(attrs).map(([key, value]) => ({ key, value: String(value) })), { key: "whop_payment_id", value: String(d.id) },
+        ...(methodName ? [{ key: "Payment method", value: methodName }, { key: "Payment id", value: String(d.id) }] : []),
         ...(d.metadata?.j ? [{ key: "checkout_journey_id", value: String(d.metadata.j) }] : []),
         ...(eta ? [{ key: "Estimated delivery", value: eta.text }] : [])],
       financialStatus: "PAID",
