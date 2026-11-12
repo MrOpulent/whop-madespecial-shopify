@@ -641,12 +641,21 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     axon('track', name, { currency: ADS.currency, value: value, items: items }, dedupe ? { dedupe_id: dedupe } : undefined);
   }
   // Shopify's AppLovin pixel sees the Admin API order with no checkout, so transaction id, email and item price are empty.
-  // This sends the purchase only for an AppLovin click. Other networks stay on their own pixels.
+  // Thank-you Purchase for an AppLovin click. GATED to test orders only until Sanu confirms (step a).
+  // Live traffic keeps the Shopify Axon Purchase. Undo: remove the adsAxonPurchase(pid) call.
+  function adsAxonPurchaseTestOk(paymentId) {
+    try { if (params.get('axon_test') === '1') return true; } catch (e) {}
+    try { if (sessionStorage.getItem('ms-axon-test') === '1') return true; } catch (e) {}
+    var allow = (ADS && ADS.axonTestPayments) || [];
+    var pid = String(paymentId || '').trim();
+    return !!(pid && allow.indexOf(pid) >= 0);
+  }
   function adsAxonPurchase(paymentId) {
     try {
       if (!ADS || ADS.network !== 'applovin') return;
       var pid = String(paymentId || '').trim();
       if (!pid || pid === 'undefined' || pid === 'null') return;
+      if (!adsAxonPurchaseTestOk(pid)) return;
       if (!adsAxonReady()) return;
       if (!adsOnce('AxonPurchase', pid)) return;
       var items = ADS.items || [];
@@ -682,6 +691,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       adsInstall(cfg);
       var pid = paymentId || '';
       try { if (!pid) pid = (readOrder() || {}).payment || ''; } catch (e) {}
+      adsAxonPurchase(pid);
       adsFire(cfg.purchaseType || 'Purchase', { once: 'Purchase', eventId: cfg.eventId, money: true, pixelEventId: pid ? 'whop-' + pid : (cfg.eventId || '') });
     };
     var cfg = adsRemember();
@@ -698,6 +708,8 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     adsFire('Upsell', { sum: Math.round(Number(priceCents) || 0) / 100, currency: currency, eventId: 'upsell-' + paymentId, once: 'Upsell:' + paymentId });
   }
   try { if (params.get('clickid')) adsPut('rtkclickid-store', params.get('clickid'), true); } catch (e) {}
+  // Marks this checkout as the AppLovin Purchase test (step a). Survives return=1 / thank-you.
+  try { if (params.get('axon_test') === '1') sessionStorage.setItem('ms-axon-test', '1'); } catch (e) {}
 
   window.addEventListener('error', function (e) { track('js_error', { msg: String(e.message).slice(0, 200), at: (e.filename || '').split('/').pop() + ':' + e.lineno }); });
   window.addEventListener('unhandledrejection', function (e) { track('js_error', { msg: String(e.reason && (e.reason.message || e.reason)).slice(0, 200) }); });
