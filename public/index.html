@@ -646,6 +646,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   function adsAxonPurchaseTestOk(paymentId) {
     try { if (params.get('axon_test') === '1') return true; } catch (e) {}
     try { if (sessionStorage.getItem('ms-axon-test') === '1') return true; } catch (e) {}
+    if (ADS && ADS.axonPurchaseTest) return true;
     var allow = (ADS && ADS.axonTestPayments) || [];
     var pid = String(paymentId || '').trim();
     return !!(pid && allow.indexOf(pid) >= 0);
@@ -669,9 +670,15 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       axon('track', 'purchase', payload, { dedupe_id: 'whop-' + pid });
     } catch (e) {}
   }
+  function adsMarkAxonTest(cfg) {
+    try {
+      if ((cfg && cfg.axonPurchaseTest) || (params.get('axon_test') === '1')) sessionStorage.setItem('ms-axon-test', '1');
+    } catch (e) {}
+  }
   function adsBegin(s) {
     if (!s || !s.ads) return;
     adsInstall(s.ads);
+    adsMarkAxonTest(s.ads);
     adsFire('PageView');
     adsFire('InitiateCheckout');
     adsAxon('page_view');
@@ -681,6 +688,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     if (!s || !s.ads) return;
     if (!adsOn) return adsBegin(s);
     ADS = s.ads;
+    adsMarkAxonTest(ADS);
     try { sessionStorage.setItem('ms-ads', JSON.stringify(ADS)); } catch (e) {}
     if (ADS.clickid) adsPut('rtkclickid-store', ADS.clickid, true);
   }
@@ -709,7 +717,11 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   }
   try { if (params.get('clickid')) adsPut('rtkclickid-store', params.get('clickid'), true); } catch (e) {}
   // Marks this checkout as the AppLovin Purchase test (step a). Survives return=1 / thank-you.
-  try { if (params.get('axon_test') === '1') sessionStorage.setItem('ms-axon-test', '1'); } catch (e) {}
+  // Prefer ADS.axonPurchaseTest from landing_site — store and checkout do not share sessionStorage.
+  try {
+    if (params.get('axon_test') === '1') sessionStorage.setItem('ms-axon-test', '1');
+    else if (ADS && ADS.axonPurchaseTest) sessionStorage.setItem('ms-axon-test', '1');
+  } catch (e) {}
 
   window.addEventListener('error', function (e) { track('js_error', { msg: String(e.message).slice(0, 200), at: (e.filename || '').split('/').pop() + ':' + e.lineno }); });
   window.addEventListener('unhandledrejection', function (e) { track('js_error', { msg: String(e.reason && (e.reason.message || e.reason)).slice(0, 200) }); });
