@@ -5,6 +5,8 @@ import { priceCart, orderAttributes } from "../lib/pricing.js";
 import { createSession } from "../lib/session.js";
 import { cors, baseUrl, journey } from "../lib/http.js";
 import { clickIdFrom, postRedtrack } from "../lib/ads.js";
+import { campaignTags } from "../lib/campaign.js";
+import { retainCheckoutStart } from "../lib/checkout-log.js";
 import crypto from "node:crypto";
 
 // The shopper's cookie choice on the store (Shopify consent), so the checkout respects it for Clarity
@@ -46,12 +48,19 @@ export default async function handler(req, res) {
       ...(cl && { cl }),
     });
     const click = clickIdFrom(at);
-    journey(j, "checkout_started", { total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: click || null });
+    const started = {
+      total: p.total, currency: p.currency, market: p.market, items: p.qty, clickid: click || null,
+      ...campaignTags(b.tracking, b.attributes),
+    };
+    journey(j, "checkout_started", started, false, 4000);
+    // Vercel drops the line above in about a day. Keep this same record for 30 days. A missing store never blocks checkout.
+    const retained = retainCheckoutStart({ j, t: new Date().toISOString(), ...started });
     // Same event id the checkout page sends, so a closed tab still records the step once.
     // No sum: RedTrack treats sum as revenue. Checkout opens are not store sales.
     for (const type of ["InitiateCheckout"]) {
       await postRedtrack({ clickid: click, type, eventId: `${j}:${type}` });
     }
+    await retained;
     const url = `${baseUrl(req)}/?s=${token}` + (click ? `&clickid=${encodeURIComponent(click)}` : "");
     if (form) {
       const x = String(req.query?.x || "").replace(/[^a-z_]/g, "").slice(0, 20); // express wallet chosen in the drawer

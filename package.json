@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@vercel/blob": "^2.9.0",
     "libphonenumber-js": "1.12.43"
   },
   "scripts": {

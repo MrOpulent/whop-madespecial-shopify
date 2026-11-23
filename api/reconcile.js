@@ -3,6 +3,7 @@
 // Runs by itself via the cron in vercel.json; run by hand: /api/reconcile?key=<SETUP_KEY>   (&days=7 to look further back)
 // Env: same as the webhook + SETUP_KEY (manual runs). Vercel sends CRON_SECRET automatically for its cron.
 import { listPaidPayments } from "../lib/whop.js";
+import { pruneCheckoutStarts } from "../lib/checkout-log.js";
 import { fulfil } from "./whop-webhook.js";
 
 export const config = { maxDuration: 60 };
@@ -36,5 +37,7 @@ export default async function handler(req, res) {
   }
   if (result.created.length) console.error("RECONCILE created missing orders:", JSON.stringify(result.created));
   if (result.failed.length) console.error("RECONCILE failed:", JSON.stringify(result.failed));
+  try { await pruneCheckoutStarts(); }
+  catch (e) { console.error("checkout_log_prune", String(e.message).slice(0, 200)); }
   return res.status(result.failed.length ? 500 : 200).json(result);
 }
