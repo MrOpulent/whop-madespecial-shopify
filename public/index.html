@@ -1020,7 +1020,8 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   // Payment methods hidden on every Whop payment form (main checkout + upsell card form).
   // include_platform_defaults keeps Whop's normal methods (card, Apple/Google Pay, bank...);
   // "disabled" removes only the ones listed here.
-  // PayPal is off for now — flip SHOW_PAYPAL to re-enable the button + payment form option.
+  // PayPal: Whop's native popup (paypal_express) when the account offers it, else the redirect PayPal in the payment form.
+  // Set SHOW_PAYPAL to false to hide PayPal everywhere.
   var SHOW_PAYPAL = true;
   var PAY_METHODS = { enabled: [], disabled: ['crypto', 'coinbase', 'coinflow', 'wechat_pay'].concat(SHOW_PAYPAL ? [] : ['paypal']), include_platform_defaults: true };
   var CHECKOUT_METHODS = SHOW_PAYPAL
@@ -1095,7 +1096,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     if (c && ISO.indexOf(c) === -1) return ev.updateWith({ errors: [{ code: 'shipping_address_unserviceable', message: 'Sorry, we can\u2019t ship to this country.' }] });
     ev.updateWith({ amount: minorUnits(S.amount, S.currency), shippingOptions: [{ id: 'tracked', label: S.shippingTitle, detail: eta() || 'Free', amount: 0 }] });
   }
-  // This account offers PayPal as a checkout method with its own button, not as the paypal_express wallet.
+  // Fallback PayPal: the redirect-type method in the payment form (used when paypal_express isn't offered or fails).
   function paypalButtonArt() {
     var cur = String(S.currency || 'usd').toLowerCase();
     return fetch('https://api.whop.com/api/v1/payment_method_types/paypal?account_id=' + encodeURIComponent(S.accountId) + '&currency=' + encodeURIComponent(cur))
@@ -1109,6 +1110,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   function setupExpress() {
     var box = $('#express'); if (!box || !whop || !whop.payments || !whop.payments.paymentRequest) return;
     var gen = ++expressGen, walletsReq = null, paypalReq = null;
+    paypalFallback = null;
     try { walletsReq = whop.payments.paymentRequest.create(expressOpts(true)); } catch (e) { console.error('express', e); }
     if (SHOW_PAYPAL) {
       try { paypalReq = whop.payments.paymentRequest.create(expressOpts(false)); } catch (e) { console.error('express paypal', e); }
@@ -1126,6 +1128,8 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       if (gen !== expressGen) return;
       var av = pair[0] || {}, pv = pair[1] || {}, redirectArt = pair[2];
       var paypalMode = SHOW_PAYPAL ? (pv.payPal ? 'sheet' : (redirectArt ? 'redirect' : null)) : null;
+      // If the native popup is used but fails, the next tap goes through the redirect PayPal instead.
+      paypalFallback = paypalMode === 'sheet' && redirectArt ? startPayPalRedirect : null;
       var ok = { apple_pay: !!(av && av.applePay), google_pay: !!(av && av.googlePay) };
       // Apple Pay first when available, then Google Pay; PayPal only when SHOW_PAYPAL is on.
       var types = [];
@@ -1148,7 +1152,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
         wrap.appendChild(b);
       });
       box.hidden = false;
-      track('express_shown', { wallets: types }, true);
+      track('express_shown', { wallets: types, paypal: paypalMode }, true);
       var want = params.get('x'); var hb = want && $('#xbtns [data-type="' + want + '"]');
       if (hb) { hb.classList.add('hl'); box.scrollIntoView({ block: 'center' }); }
     });
@@ -1171,18 +1175,26 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       onSubmit({ preventDefault: function () {} });
     }).catch(function () { $('#e-express').textContent = 'PayPal is not available right now. Please use a card below.'; });
   }
+  var paypalFallback = null, paypalFailed = false;
   function expressPay(req, type) {
-    if (busy) return; fitPageUrl(); $('#e-express').textContent = '';
+    if (busy) return;
+    if (type === 'paypal_express' && paypalFailed && paypalFallback) { track('paypal_fallback', {}); return paypalFallback(); }
+    fitPageUrl(); $('#e-express').textContent = '';
     var email = $('#email').value.trim();
     var p;
     try { p = req.show(type, /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { email: email } : undefined); } // must run inside the tap
-    catch (e) { $('#e-express').textContent = 'This payment method is not available right now. Please pay by card below.'; track('express_error', { type: type, msg: String(e && e.message).slice(0, 120) }); return; }
+    catch (e) {
+      track('express_error', { type: type, msg: String(e && e.message).slice(0, 120) });
+      if (type === 'paypal_express' && paypalFallback) { paypalFailed = true; track('paypal_fallback', {}); return paypalFallback(); }
+      $('#e-express').textContent = 'This payment method is not available right now. Please pay by card below.'; return;
+    }
     track('express_opened', { type: type });
     p.then(function (res) { fillFromWallet(res); track('express_authorized', { type: type, country: res.shipping && res.shipping.address && res.shipping.address.country }); expressTok = res.ctok; onSubmit({ preventDefault: function () {} }); })
      .catch(function (e) {
        var code = e && (e.code || e.name) || '';
        if (/cancel|abort|dismiss/i.test(code + ' ' + (e && e.message))) { track('express_cancelled', { type: type }); return; }
        track('express_error', { type: type, msg: String(e && (e.message || code)).slice(0, 120) });
+       if (type === 'paypal_express' && paypalFallback) { paypalFailed = true; $('#e-express').textContent = 'Please tap PayPal again to continue on PayPal\u2019s site.'; return; }
        $('#e-express').textContent = 'That didn\u2019t work. Please try again or pay by card below.';
      });
   }
