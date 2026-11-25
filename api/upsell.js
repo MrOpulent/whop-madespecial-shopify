@@ -150,7 +150,10 @@ export default async function handler(req, res) {
   const acceptedSet = idSet(b.accepted);
   if (req.method === "GET" && b.status) {
     try { return res.status(200).json(await offerStatus(b, step)); }
-    catch (e) { console.error("upsell_status_call", e.message); return res.status(200).json({ status: "pending" }); } // unknown is never a decline
+    catch (e) {
+      if (e.code) return res.status(200).json({ error: "not_found" }); // bad or expired checkout session
+      console.error("upsell_status_call", e.message); return res.status(200).json({ status: "pending" }); // unknown is never a decline
+    }
   }
   let x;
   try { x = await load(b.s, b.payment, step, declinedSet, acceptedSet); }

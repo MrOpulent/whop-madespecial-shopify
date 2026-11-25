@@ -1,6 +1,6 @@
 // Local server for the offer-page browser test: serves public/ and runs the real api/upsell.js against a fake Whop
 // and mocked Shopify pricing. No real payment or Shopify call is made. Scenario: POST /__scenario {name}
-// Run: node --experimental-test-module-mocks test/e2e/offer-server.mjs <port> <offers.json>
+// Run: node --experimental-test-module-mocks e2e/offer-server.mjs <port> <offers.json>
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,13 +12,13 @@ process.env.UPSELL_POLL_MS = "2000"; process.env.CHECKOUT_URL = `http://127.0.0.
 process.env.UPSELL_OFFERS = fs.readFileSync(process.argv[3], "utf8");
 const XL = 68105383870646, NINE = 67665328799926;
 const SHOP = { [XL]: { GBP: 13999, USD: 17999, title: "Margaret’s Hand-Tuned Steel Drum’s (10 Inches + 11 Tones)" }, [NINE]: { GBP: 2299, USD: 2999, title: "Add 1 More Rain Drum" } };
-mock.module("../../lib/pricing.js", { exports: { priceCart: async (b) => {
+mock.module("../lib/pricing.js", { exports: { priceCart: async (b) => {
   const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur];
   return { currency: cur, shopCurrency: "USD", total: u * it.quantity, shopTotal: SHOP[it.variant_id].USD * it.quantity, lines: [[it.variant_id, it.quantity, u, SHOP[it.variant_id].USD]],
     display: [{ title: SHOP[it.variant_id].title, options: [], image: "", qty: it.quantity }] };
 } } });
-const { createSession } = await import("../../lib/session.js");
-const { default: upsell } = await import("../../api/upsell.js");
+const { createSession } = await import("../lib/session.js");
+const { default: upsell } = await import("../api/upsell.js");
 
 let scenario = "success", payments = {}, keys = {}, creates = 0;
 const order = { l: [[XL, 1, 13999, 17999]], c: "GBP", t: 13999 };
@@ -46,7 +46,7 @@ globalThis.fetch = async (url, init = {}) => {
   throw new Error(`unexpected ${m} ${url}`);
 };
 
-const PUB = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../public");
+const PUB = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../public");
 http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://127.0.0.1:${PORT}`);
   if (u.pathname === "/__scenario") { scenario = u.searchParams.get("name"); reset();

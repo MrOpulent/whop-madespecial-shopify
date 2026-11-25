@@ -1,5 +1,5 @@
-# Browser test of the real thank-you offer page (public/index.html) against test/e2e/offer-server.mjs (fake Whop).
-# python3 test/e2e/offer_page.py http://127.0.0.1:8787 <shots dir>
+# Browser test of the real thank-you offer page (public/index.html) against e2e/offer-server.mjs (fake Whop).
+# python3 e2e/offer_page.py http://127.0.0.1:8787 <shots dir>
 import sys, json, urllib.request
 from playwright.sync_api import sync_playwright
 BASE, OUT = sys.argv[1], sys.argv[2]
