@@ -20,7 +20,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
 <link rel="preconnect" href="https://cdn.whop.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://trk.madespecial.store" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
 <link rel="preload" as="script" href="https://cdn.whop.com/elements/amber/elements.js">
 <script src="https://cdn.whop.com/elements/amber/elements.js" data-whop-elements defer></script>
@@ -166,26 +166,163 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   /* states */
   .center{max-width:490px;margin:40px auto;padding:0 16px;text-align:center}
   .done{text-align:left}
-  .ups{border:2px solid var(--accent);border-radius:12px;padding:18px;margin:18px 0;background:#fff}
-  .ups .hd{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
-  .ups h2{font-size:19px;margin:0;line-height:1.25}
-  .ups .tm{font-size:13px;font-weight:600;color:#b91c1c;white-space:nowrap;background:#fef2f2;border-radius:6px;padding:4px 8px}
-  .ups .pr{display:flex;gap:14px;align-items:center}
-  .ups .pr img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none}
-  .ups .nm{font-weight:600;font-size:15px}.ups small{display:block;color:var(--muted);font-size:13px}
-  .ups .px{margin-top:6px;font-size:17px;font-weight:700}.ups .px s{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px}
-  .ups .px em{font-style:normal;font-size:12px;font-weight:600;color:#15803d;background:#dcfce7;border-radius:4px;padding:2px 6px;margin-left:6px}
-  .ups p.tx{margin:12px 0 0;font-size:14px}
-  .ups .yes{width:100%;height:54px;margin-top:14px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-size:17px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-  .ups .yes:disabled{opacity:.7;cursor:default}
-  .ups .no{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);text-decoration:underline;font:inherit;font-size:14px;cursor:pointer}
-  .ups .err{display:block;color:var(--err);font-size:13px;margin-top:8px}.ups .card{margin-top:14px}
-  .ups .ok2{color:#15803d;font-weight:600;font-size:15px}
+  /* ===== post-purchase offer (v2) ===== */
+  @keyframes ppupulse{50%{opacity:.35}}
+  body:has(.done.has-ups){background:#F7F3EC}
+  .center.done.has-ups{max-width:1180px;margin:0 auto;padding:0 16px 120px;text-align:left}
+  .done.has-ups > :not(.ppu){display:none!important}
+  .ppu{--ink:#0E2A1B;--text:#22302A;--muted:#5F6B64;--line:#E4DCCD;--line2:#EFE8DC;--cream:#F7F3EC;--paper:#fff;--red:#8A2A1B;--gold:#B08A4E;--green:#1E6B3D;--greenbg:#E5F1E8;--serif:"Fraunces",Georgia,serif;--sans:"Instrument Sans",Inter,system-ui,sans-serif;font:16px/1.5 var(--sans);color:var(--text)}
+  .ppu img,.ppu video{display:block;max-width:100%}
+  .ppu .brand{display:flex;justify-content:center;padding:14px 0 10px}.ppu .brand img{height:28px;width:auto}
+.ppu .conf{display:flex;align-items:center;gap:10px;padding:10px 0 12px;border-bottom:1px solid var(--line)}
+.ppu .conf .ck{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--green);color:var(--green);display:grid;place-items:center;flex:none}
+.ppu .conf .t1{font-size:12px;color:var(--muted);line-height:1.2}
+.ppu .conf .t2{font-size:14px;font-weight:600;color:var(--ink);line-height:1.3}
+.ppu .conf a{font-size:12.5px;color:var(--green);text-decoration:none;font-weight:600;margin-left:auto;white-space:nowrap}
+.ppu .prog{position:relative;display:flex;justify-content:space-between;align-items:flex-start;margin:14px 4px 0;padding:0}
+.ppu .prog:before{content:"";position:absolute;left:14px;right:14px;top:13px;height:2px;background:var(--line)}
+.ppu .prog .fill{position:absolute;left:14px;top:13px;height:2px;background:var(--ink);width:calc(66.6% - 18px)}
+.ppu .prog .st{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;width:64px}
+.ppu .prog .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#fff}
+.ppu .prog .st.now .dot{width:30px;height:30px;margin-top:-2px;background:var(--red);box-shadow:0 0 0 5px rgba(138,42,27,.14)}
+.ppu .prog .st.next .dot{background:var(--cream);border:2px solid var(--line);color:#A39C8F}
+.ppu .prog .lb{font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.01em;text-align:center}
+.ppu .prog .st.now .lb{color:var(--red)}
+.ppu .banner{margin:14px 0 0;background:var(--ink);color:#fff;border-radius:12px;padding:11px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center}
+.ppu .banner .tag{display:inline-flex;align-items:center;flex:none;background:var(--red);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border-radius:6px}
+.ppu .banner .tx{font-size:16px;font-weight:600;line-height:1.35;text-align:center;max-width:42em}
+.ppu .banner .tx .soft{display:block;font-weight:400;opacity:.78;font-size:14px;line-height:1.4;margin-top:4px}
+.ppu .banner .tx .nw{white-space:nowrap}
+.ppu .offer{display:grid;grid-template-columns:1fr;gap:16px;margin-top:20px}
+.ppu .hd .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--red);margin:0 0 8px}
+.ppu .hd h1{font-family:var(--serif);font-weight:400;color:var(--ink);font-size:31px;line-height:1.06;letter-spacing:-.02em;margin:0}
+.ppu .hd h1 em{font-style:italic;color:var(--red)}
+.ppu .hd p{margin:10px 0 0;font-size:15px;color:#3E4A43;line-height:1.5}
+.ppu .media{position:relative}
+.ppu .stage{position:relative;aspect-ratio:1/1;border-radius:18px;overflow:hidden;background:#ECEAE6}
+.ppu .stage video,.ppu .stage img{width:100%;height:100%;object-fit:cover}
+.ppu .sticker{position:absolute;top:14px;right:14px;width:84px;height:84px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;text-align:center;transform:rotate(8deg);box-shadow:0 8px 20px rgba(138,42,27,.28)}
+.ppu .sticker b{display:block;font-family:var(--serif);font-weight:500;font-size:25px;line-height:1}
+.ppu .sticker small{display:block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.ppu .chip{position:absolute;left:14px;bottom:14px;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);color:var(--ink);font-size:12px;font-weight:600;padding:7px 11px;border-radius:99px;display:flex;align-items:center;gap:6px}
+.ppu .chip i{width:7px;height:7px;border-radius:50%;background:var(--red);display:block;animation:ppupulse 1.6s infinite}
+.ppu .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.ppu .thumbs button{padding:0;border:1.5px solid transparent;border-radius:11px;overflow:hidden;aspect-ratio:1/1;background:#eee;cursor:pointer;position:relative}
+.ppu .thumbs button.on{border-color:var(--ink)}
+.ppu .thumbs img{width:100%;height:100%;object-fit:cover}
+.ppu .thumbs .play{position:absolute;inset:0;display:grid;place-items:center;background:rgba(14,42,27,.18);color:#fff}
+.ppu .buy{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px 18px}
+.ppu .buy .row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ppu .pill{display:inline-flex;align-items:center;gap:6px;background:var(--greenbg);color:var(--green);font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:99px}
+.ppu .stars{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.ppu .stars span{color:#B7791F;letter-spacing:1px;font-size:13px}
+.ppu .buy h2{font-family:var(--sans);font-size:19px;font-weight:600;color:var(--ink);margin:12px 0 2px;line-height:1.25;letter-spacing:-.01em}
+.ppu .buy .var{font-size:13.5px;color:var(--muted)}
+.ppu .price{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin:14px 0 4px}
+.ppu .price .now{font-size:38px;font-weight:700;color:var(--ink);letter-spacing:-.025em;line-height:1}
+.ppu .price s{font-size:18px;color:#8C948F}
+.ppu .price .save{font-size:13px;font-weight:700;color:#fff;background:var(--green);padding:5px 9px;border-radius:7px;align-self:center}
+.ppu .why{font-size:13.5px;color:var(--red);font-weight:600;margin:6px 0 0}
+.ppu .bl{list-style:none;margin:16px 0 0;padding:16px 0 0;border-top:1px solid var(--line2);display:grid;gap:11px}
+.ppu .bl li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:14.5px;line-height:1.42;color:var(--text)}
+.ppu .bl li b{color:var(--ink);font-weight:600}
+.ppu .bl .ic{width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;margin-top:-1px}
+.ppu .rcpt{margin:18px 0 0;background:var(--cream);border-radius:12px;padding:12px 14px;font-size:14px}
+.ppu .rcpt div{display:flex;justify-content:space-between;padding:5px 0}
+.ppu .rcpt .d{color:var(--green);font-weight:600}
+.ppu .rcpt .tot{border-top:1px solid var(--line);margin-top:6px;padding-top:10px;font-weight:700;color:var(--ink);font-size:16px}
+.ppu .cta{width:100%;min-height:62px;margin-top:16px;border:0;border-radius:14px;background:var(--ink);color:#fff;font-size:17.5px;font-weight:600;letter-spacing:-.005em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 24px rgba(14,42,27,.22);transition:transform .08s,background .15s}
+.ppu .cta:hover{background:#163A27}
+.ppu .cta:active{transform:scale(.99)}
+.ppu .cta .ar{transition:transform .15s}
+.ppu .cta:hover .ar{transform:translateX(3px)}
+.ppu .sub{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px;font-size:12.5px;color:var(--muted)}
+.ppu .decl{display:block;margin:14px auto 0;background:none;border:0;color:var(--muted);font-size:14px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px 10px}
+.ppu .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line2)}
+.ppu .trust div{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.25}
+.ppu .trust svg{color:var(--ink)}
+.ppu .proof{margin-top:28px;background:var(--ink);color:#fff;border-radius:20px;padding:26px 20px;position:relative;overflow:hidden}
+.ppu .proof .q{font-family:var(--serif);font-size:72px;line-height:.6;color:var(--gold);height:30px}
+.ppu .proof .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ppu .proof .st5{color:#F2C14E;letter-spacing:2px;font-size:16px}
+.ppu .proof .vb{border:1px solid rgba(255,255,255,.35);font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;letter-spacing:.02em}
+.ppu .proof blockquote{margin:14px 0 0;font-family:var(--serif);font-weight:400;font-size:23px;line-height:1.3;letter-spacing:-.01em}
+.ppu .proof .who{margin-top:14px;font-size:13px;opacity:.8;display:flex;align-items:center;gap:8px}
+.ppu .proof .who:before{content:"";width:22px;height:1.5px;background:var(--gold)}
+.ppu .sec{margin-top:36px}
+.ppu .sec h3{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.1;color:var(--ink);margin:0 0 6px;letter-spacing:-.015em}
+.ppu .sec h3 em{font-style:italic;color:var(--red)}
+.ppu .sec .lede{margin:0 0 16px;color:var(--muted);font-size:15px}
+.ppu .gifts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ppu .gift{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ppu .gift img{aspect-ratio:1/1;object-fit:cover;width:100%}
+.ppu .gift div{padding:10px 10px 12px;font-size:13px;font-weight:600;color:var(--ink);line-height:1.25}
+.ppu .gift div small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.ppu .revs{display:grid;grid-template-columns:1fr;gap:10px}
+.ppu .rev{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px}
+.ppu .rev .st5{color:#B7791F;letter-spacing:1.5px;font-size:13px}
+.ppu .rev p{margin:8px 0 10px;font-size:14.5px;line-height:1.5;color:var(--text)}
+.ppu .rev .nm{font-size:12.5px;font-weight:600;color:var(--ink)}
+.ppu .rev .nm span{font-weight:400;color:var(--muted)}
+.ppu .close{margin-top:28px;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px 18px;text-align:center}
+.ppu .close h4{font-family:var(--serif);font-weight:400;font-size:24px;margin:0;color:var(--ink);line-height:1.15}
+.ppu .close p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.ppu .close-cta{display:flex;flex-direction:column;align-items:center;margin-top:16px}
+.ppu .close-cta .cta{margin-top:0;width:100%}
+.ppu .close-cta .sub{margin-top:9px}
+.ppu .close-cta .decl{margin-top:12px}
+.ppu .foot{margin-top:26px;text-align:center;font-size:12px;color:#8A918C}
+.ppu .sticky{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px;transform:translateY(110%);transition:transform .25s}
+.ppu .sticky.show{transform:none}
+.ppu .sticky .p{flex:none;line-height:1.1}
+.ppu .sticky .p b{display:block;font-size:19px;color:var(--ink)}
+.ppu .sticky .p s{font-size:12.5px;color:#8C948F}
+.ppu .sticky .cta{margin:0;min-height:52px;font-size:16px;box-shadow:none;flex:1}
+  .ppu .sticky{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:12px;transform:translateY(110%);transition:transform .25s}
+  .ppu .sticky.show{transform:none}.ppu .sticky .p{flex:none;line-height:1.1}.ppu .sticky .p b{display:block;font-size:19px;color:var(--ink)}.ppu .sticky .p s{font-size:12.5px;color:#8C948F}
+  .ppu .sticky .cta{margin:0;min-height:52px;font-size:16px;box-shadow:none;flex:1}
+  .ppu .err{display:block;color:#dc2626;font-size:13px;margin-top:8px;text-align:center}.ppu .card{margin-top:14px}
+  .ppu .spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:rot .8s linear infinite}
+  .ups-ok{color:#1E6B3D;background:#E5F1E8;border-radius:12px;padding:12px 14px;font-weight:600;font-size:15px;margin:12px 0}
+  @media(min-width:900px){
+  .center.done.has-ups{padding:0 32px 80px}
+  .ppu .sticky{display:none}
+  .ppu .brand{padding:26px 0 18px}.ppu .brand img{height:40px}
+.ppu .shell{padding:0 32px 80px}
+.ppu .brand{padding:26px 0 18px}
+.ppu .brand img{height:40px}
+.ppu .top{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center}
+.ppu .prog{margin:0 10px}
+.ppu .banner{padding:16px 24px}
+.ppu .banner .tag{display:inline-flex;align-items:center}
+.ppu .banner .tx{font-size:17px}
+.ppu .banner .tx .soft{font-size:15px}
+.ppu .conf{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.ppu .conf .t2{font-size:15px}
+.ppu .gift img{aspect-ratio:3/2}
+.ppu .offer{grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:48px;margin-top:34px;align-items:start}
+.ppu .media{position:sticky;top:24px;grid-row:1/span 2}
+.ppu .hd{grid-column:2}
+.ppu .buy{grid-column:2}
+.ppu .hd h1{font-size:46px}
+.ppu .hd p{font-size:16.5px}
+.ppu .buy{padding:24px}
+.ppu .proof{padding:44px 56px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start}
+.ppu .proof blockquote{font-size:30px;margin-top:0}
+.ppu .proof .q{font-size:120px;height:auto}
+.ppu .gifts{gap:16px}
+.ppu .gift div{font-size:15px;padding:14px}
+.ppu .revs{grid-template-columns:repeat(3,1fr);gap:16px}
+.ppu .sec h3{font-size:36px}
+.ppu .close{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:24px;padding:24px 28px}
+.ppu .close-cta{margin-top:0;flex:none;min-width:280px;max-width:380px}
+.ppu .close .cta{width:100%;padding:0 32px;margin:0;min-height:56px}
+  }
   .done .ok{width:56px;height:56px;border-radius:50%;border:2px solid #16a34a;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
   .done h1{font-size:22px;font-weight:600;margin:0 0 6px}
   .done p{margin:0 0 6px;color:#374151;font-size:15px}
   .box{border:1px solid #e5e7eb;border-radius:var(--r);padding:16px;margin:18px 0;font-size:14px;line-height:1.5}
-  .btn2{display:inline-flex;align-items:center;justify-content:center;height:50px;padding:0 22px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-weight:500;margin-top:6px}
+  .btn2{display:inline-flex;align-items:center;justify-content:center;height:50px;padding:0 22px;border-radius:10px;background:#173226;color:#fff;text-decoration:none;font-weight:500;margin-top:6px}
 </style>
 </head>
 <body>
@@ -1345,62 +1482,170 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     }
   }
 
-  // ---------- post-purchase upsell (one click, like Zipify OCU) ----------
+  // ---------- post-purchase upsell & decline-only downsell ----------
   var U; // set in upsellStart (this code can run before this line on a bank-redirect return)
   function upsState() { try { return JSON.parse(sessionStorage.getItem('ms-ups') || '{}'); } catch (e) { return {}; } }
   function upsSave(v) { try { sessionStorage.setItem('ms-ups', JSON.stringify(v)); } catch (e) {} }
   function fmt(c, cur) { var d = 2; try { d = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
     try { return new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: cur }).format(c / 100); } catch (e) { return (c / 100).toFixed(d) + ' ' + cur; } }
+  function upsFirstName() { var o = readOrder() || {}; return (o.ship && o.ship.first_name) ? String(o.ship.first_name).trim() : ''; }
   function upsellStart() {
-    if (!U) U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, payments: null, card: false, busy: false };
+    if (!U) U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, bar: null, payments: null, card: false, busy: false };
     var o = readOrder() || {};
     try { U.tok = token || sessionStorage.getItem('ms-s'); } catch (e) { U.tok = token; }
     U.pay = o.payment || params.get('payment');
     if (!U.tok || !U.pay) return;
-    var st = upsState(); if (st.pay !== U.pay) st = { pay: U.pay, step: 0, added: [] };
+    var st = upsState(); if (st.pay !== U.pay) st = { pay: U.pay, step: 0, added: [], declined: [], accepted: [] };
+    if (!Array.isArray(st.declined)) st.declined = [];
+    if (!Array.isArray(st.accepted)) st.accepted = [];
     // back from a bank / 3D Secure step for an upsell payment
     if (params.get('upsell') === '1') {
       var upOk = params.get('status') === 'succeeded' || params.get('status') === 'paid';
-      if (st.pending != null && upOk) { st.added.push(st.pending); st.step = st.pending + 1; }
+      if (st.pending != null && upOk) {
+        st.added.push(st.pending);
+        if (st.accepted.indexOf(st.pending) < 0) st.accepted.push(st.pending);
+        st.step = st.pending + 1;
+      }
       if (upOk && st.pendingPurchase) rtUpsell(st.pendingPurchase.id || params.get('payment'), st.pendingPurchase.price, st.pendingPurchase.currency);
       delete st.pending; delete st.pendingPurchase;
     }
     U.st = st; upsSave(st); upsLoad();
   }
   function upsLoad() {
-    fetch(API + '/api/upsell?s=' + encodeURIComponent(U.tok) + '&payment=' + encodeURIComponent(U.pay) + '&step=' + U.st.step, { cache: 'no-store' })
+    var q = '&step=' + U.st.step + '&declined=' + encodeURIComponent((U.st.declined || []).join(',')) + '&accepted=' + encodeURIComponent((U.st.accepted || []).join(','));
+    fetch(API + '/api/upsell?s=' + encodeURIComponent(U.tok) + '&payment=' + encodeURIComponent(U.pay) + q, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(function (j) { if (j && !j.done) { upsShow(j); track('upsell_shown', { step: j.step, price: j.price, currency: j.currency, one_click: j.oneClick }); } else upsClose(); })
-      .catch(function () { upsClose(); });
+      .then(function (j) { if (j && !j.done) { upsShow(j); track('upsell_shown', { step: j.step, when: j.when, price: j.price, currency: j.currency, one_click: j.oneClick }); } else upsClose(); })
+      .catch(function (e) { console.error("ups_render", e && e.stack); upsClose(); });
   }
   function upsClose(msg) {
     clearInterval(U.timer); try { U.payments && U.payments.destroy(); } catch (e) {} U.payments = null; U.card = false;
-    if (U.el) { if (msg) U.el.innerHTML = '<div class="ok2">' + msg + '</div>'; else U.el.remove(); if (!msg) U.el = null; }
+    try { U.io && U.io.disconnect(); } catch (e) {} U.io = null;
+    var doneEl = $('.done');
+    if (U.el) { U.el.remove(); U.el = null; }
+    if (doneEl) doneEl.classList.remove('has-ups');
+    if (msg && doneEl) { var ok = document.createElement('div'); ok.className = 'ups-ok'; ok.innerHTML = msg; var h1 = $('.done h1'); (h1 || doneEl).insertAdjacentElement('afterend', ok); }
+    window.scrollTo(0, 0);
+  }
+  function upsIcons() { return {
+    check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    gift: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8C10.5 4.5 7 4.5 7 6.5S10 8 12 8zm0 0c1.5-3.5 5-3.5 5-1.5S14 8 12 8z"/></svg>',
+    dot: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="3"/></svg>',
+    arrow: '<svg class="ar" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    lock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
+    box: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/></svg>',
+    truck: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3v3h-7"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>',
+    shield: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+    play: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>'
+  }; }
+
+  // headline/text/bullets may contain <b>/<em> from UPSELL_OFFERS (our own config); everything else is escaped
+  function upsRich(s) { return esc(s || '').replace(/&lt;(\/?)(b|em|br)&gt;/g, '<$1$2>'); }
+  function upsStage(m, chip) {
+    return m.type === 'video'
+      ? '<video src="' + esc(m.src) + '" poster="' + esc(m.poster || '') + '" autoplay muted loop playsinline preload="auto"></video>' + (chip ? '<span class="chip"><i></i>' + esc(chip) + '</span>' : '')
+      : '<img src="' + esc(m.src) + '" alt="">';
   }
   function upsShow(j) {
     U.offer = j; U.busy = false; clearInterval(U.timer); try { U.payments && U.payments.destroy(); } catch (e) {} U.payments = null; U.card = false;
-    if (!U.el) { U.el = document.createElement('div'); U.el.className = 'ups'; var ref = $('.done h1').nextElementSibling || $('.done h1'); ref.parentNode.insertBefore(U.el, ref.nextSibling); }
-    U.el.innerHTML = '<div class="hd"><h2>' + esc(j.headline) + '</h2><span class="tm" id="ups-tm"></span></div>' +
-      '<div class="pr">' + (j.image ? '<img src="' + esc(j.image) + '" alt="">' : '') + '<div><div class="nm">' + (j.qty > 1 ? j.qty + ' × ' : '') + esc(j.title) + '</div>' +
-      j.options.map(function (o) { return '<small>' + esc(o) + '</small>'; }).join('') +
-      '<div class="px">' + fmt(j.price, j.currency) + (j.compare > j.price ? '<s>' + fmt(j.compare, j.currency) + '</s>' : '') + (j.discount ? '<em>' + j.discount + '% OFF</em>' : '') + '</div></div></div>' +
-      (j.text ? '<p class="tx">' + esc(j.text) + '</p>' : '') +
-      '<div class="card" id="ups-card" hidden><div id="ups-pay"></div><div id="ups-brand" style="margin-top:8px"></div></div>' +
-      '<button type="button" class="yes" id="ups-yes">' + esc(j.button) + ' · ' + fmt(j.price, j.currency) + '</button>' +
-      '<span class="err" id="ups-err"></span><button type="button" class="no" id="ups-no">No thanks</button>';
+    var UI = upsIcons(), doneEl = $('.done'); if (!doneEl) return;
+    doneEl.classList.add('has-ups');
+    if (!U.el) { U.el = document.createElement('div'); U.el.className = 'ppu'; doneEl.appendChild(U.el); }
+    var o = readOrder() || {}, fn = upsFirstName(), down = j.when === 'declined', last = !!j.last, stepN = Math.max(0, Number(j.step) || 0);
+    var save = j.compare > j.price ? j.compare - j.price : 0;
+    var offerLb = (last && down) ? 'Final offer' : (stepN === 0 ? 'Your offer' : ('Offer ' + (stepN + 1)));
+    var fillPct = stepN === 0 ? '66.6%' : (last ? '88%' : '78%');
+    var bannerTag = (down && last) ? 'Final offer' : (down ? 'Wait' : 'Before we pack');
+    var bannerTx = down
+      ? ('No problem' + (fn ? ', ' + esc(fn) : '') + '.<br>' + (last ? 'One smaller idea before you go.' : 'A smaller gift idea before you go.'))
+      : 'Your order isn’t packed yet, <span class="nw">so we can add to it.</span>';
+    var bannerSoft = (down && last)
+      ? 'This is your final offer. Your order is safe either way.'
+      : 'Anything you add ships in the same box. <span class="nw">Your order is safe either way.</span>';
+    var sticker = (j.sticker && j.sticker[0]) ? j.sticker : (j.discount ? [String(j.discount) + '%', 'off'] : null);
+    var media = (j.media && j.media.length) ? j.media : [{ type: 'img', src: j.image }];
+    var short = function (c) { return fmt(c, j.currency).replace(/[.,]00(?!\d)/, ''); };
+    var fill = function (s) { return String(s || '').replace(/\{name\}/g, fn || 'there').replace(/\{save\}/g, short(save)).replace(/\{price\}/g, fmt(j.price, j.currency)).replace(/\{compare\}/g, fmt(j.compare, j.currency)).replace(/\{unit\}/g, fmt((j.qty > 1 && j.compare) ? Math.round(j.compare / j.qty) : (j.compare || 0), j.currency)); };
+    var closeH = fill(j.close || '') || (down
+      ? ((j.qty > 1 ? 'Add both for ' : 'Add the 9-Note for ') + fmt(j.price, j.currency) + '.')
+      : ('Two drums, one box, ' + (j.currency === 'GBP' ? '£0' : '$0') + ' extra shipping.'));
+    var hl = fill(j.headline);
+    var btn = (j.button || 'Add to my order') + ' · ' + fmt(j.price, j.currency);
+    var logo = (S && S.store && S.store.logo) || 'https://madespecial.store/cdn/shop/files/5cef140f-9cc6-4a45-a33a-4101765340fd_1.png?v=1792153094&width=400';
+    var revs = (j.reviews || []).slice(0, 3);
+    U.el.innerHTML =
+      '<div class="brand"><img src="' + esc(logo) + '" alt=""></div>' +
+      '<div class="top"><div class="conf"><span class="ck">' + UI.check + '</span><div><div class="t1">' + (o.email ? 'Confirmation sent to ' + esc(o.email) : 'Order confirmed') + '</div><div class="t2">You’ve paid for your order' + (fn ? ', ' + esc(fn) : '') + '.</div></div></div>' +
+        '<div class="prog"><span class="fill" style="width:calc(' + fillPct + ' - 18px)"></span><div class="st"><span class="dot">' + UI.check + '</span><span class="lb">Cart</span></div><div class="st"><span class="dot">' + UI.check + '</span><span class="lb">Paid</span></div>' +
+        '<div class="st now"><span class="dot">' + UI.gift + '</span><span class="lb">' + offerLb + '</span></div><div class="st next"><span class="dot">' + UI.dot + '</span><span class="lb">Done</span></div></div></div>' +
+      '<div class="banner"><span class="tag">' + bannerTag + '</span><div class="tx">' + bannerTx + '<span class="soft">' + bannerSoft + '</span></div></div>' +
+      '<div class="offer">' +
+        '<div class="hd"><p class="eyebrow">' + esc(j.eyebrow || 'One-time offer for this order') + '</p><h1>' + upsRich(hl) + '</h1>' + (j.text ? '<p>' + esc(fill(j.text)) + '</p>' : '') + '</div>' +
+        '<div class="media"><div class="stage" id="ups-stage">' + upsStage(media[0], j.chip) + (sticker ? '<span class="sticker"><span><b>' + esc(sticker[0]) + '</b><small>' + esc(sticker[1] || 'off') + '</small></span></span>' : '') + '</div>' +
+          (media.length > 1 ? '<div class="thumbs">' + media.slice(0, 4).map(function (m, i) { return '<button type="button" data-mi="' + i + '" class="' + (i ? '' : 'on') + '"><img src="' + esc(m.thumb || m.poster || m.src) + '" alt="">' + (m.type === 'video' ? '<span class="play">' + UI.play + '</span>' : '') + '</button>'; }).join('') + '</div>' : '') +
+        '</div>' +
+        '<div class="buy">' +
+          '<div class="row1"><span class="pill">' + UI.check + ' ' + esc(j.badge || 'Only on this page') + '</span>' + (j.rating ? '<span class="stars"><span>★★★★★</span>' + esc(j.rating) + '</span>' : '') + '</div>' +
+          '<h2>' + (j.qty > 1 ? j.qty + ' × ' : '') + esc(j.title) + '</h2>' + (j.options && j.options.length ? '<div class="var">' + j.options.map(function (x) { return esc(fill(x)); }).join(' · ') + '</div>' : '') +
+          '<div class="price"><span class="now">' + fmt(j.price, j.currency) + '</span>' + (save ? '<s>' + fmt(j.compare, j.currency) + '</s><span class="save">Save ' + fmt(save, j.currency) + '</span>' : '') + '</div>' +
+          (j.why ? '<p class="why">' + esc(fill(j.why)) + '</p>' : '') +
+          (j.bullets && j.bullets.length ? '<ul class="bl">' + j.bullets.map(function (b) { return '<li><span class="ic">' + UI.check + '</span><span>' + upsRich(b) + '</span></li>'; }).join('') + '</ul>' : '') +
+          '<div class="rcpt"><div><span>' + esc(j.title) + '</span><span>' + fmt(j.compare, j.currency) + '</span></div>' + (save ? '<div class="d"><span>' + esc(j.disc || j.badge || 'One-time offer') + '</span><span>−' + fmt(save, j.currency) + '</span></div>' : '') +
+            '<div><span>Shipping</span><span>Free · same box</span></div><div class="tot"><span>Total today</span><span>' + fmt(j.price, j.currency) + '</span></div></div>' +
+          '<div class="card" id="ups-card" hidden><div id="ups-pay"></div><div id="ups-brand" style="margin-top:8px"></div></div>' +
+          '<button type="button" class="cta" id="ups-yes">' + esc(btn) + UI.arrow + '</button>' +
+          '<div class="sub">' + UI.lock + ' ' + esc(j.note || (j.oneClick ? 'One tap. Charged to the card you just used.' : 'Enter a card to add it to this order.')) + '</div>' +
+          '<span class="err" id="ups-err"></span>' +
+          '<button type="button" class="decl" id="ups-no">' + esc(j.decline || 'No thanks') + '</button>' +
+          '<div class="trust"><div>' + UI.box + 'Same box as your order</div><div>' + UI.truck + 'No extra shipping</div><div>' + UI.shield + 'Secure payment</div></div>' +
+        '</div>' +
+      '</div>' +
+      (j.quote && j.quote.text ? '<div class="proof"><div class="q">“</div><div><div class="top"><span class="st5">★★★★★</span><span class="vb">Verified buyer · Judge.me</span></div><blockquote>' + esc(j.quote.text) + '</blockquote><div class="who">' + esc(j.quote.author || '') + '</div></div></div>' : '') +
+      (j.gifts && j.gifts.length ? '<div class="sec"><h3>Who’s the <em>second one</em> for?</h3><p class="lede">Your sister, your mom, the friend who has everything.</p><div class="gifts">' + j.gifts.slice(0, 3).map(function (g) { return '<div class="gift"><img src="' + esc(g.image) + '" alt="" loading="lazy"><div>' + esc(g.title) + '<small>' + esc(g.text || '') + '</small></div></div>'; }).join('') + '</div></div>' : '') +
+      (revs.length ? '<div class="sec"><h3>What buyers <em>say</em></h3>' + (j.rating ? '<p class="lede">Real reviews from our rain drum customers · ' + esc(j.rating) + '</p>' : '') + '<div class="revs">' + revs.map(function (r) { return '<div class="rev"><div class="st5">★★★★★</div><p>“' + esc(r.text) + '”</p><div class="nm">' + esc(r.author) + ' <span>· Verified buyer</span></div></div>'; }).join('') + '</div></div>' : '') +
+      '<div class="close"><div><h4>' + closeH + '</h4><p>' + fmt(j.price, j.currency) + ' today instead of ' + fmt(j.compare, j.currency) + '.</p></div><div class="close-cta"><button type="button" class="cta" id="ups-yes3">' + esc(btn) + UI.arrow + '</button><div class="sub">' + UI.lock + ' ' + esc(j.note || (j.oneClick ? 'One tap. Charged to the card you just used.' : 'Enter a card to add it to this order.')) + '</div><button type="button" class="decl" id="ups-no2">' + esc(j.decline || 'No thanks') + '</button></div></div>' +
+      '<div class="foot">Your order is confirmed whether or not you add this.</div>' +
+      '<div class="sticky" id="ups-sticky"><div class="p"><b>' + fmt(j.price, j.currency) + '</b>' + (save ? '<s>' + fmt(j.compare, j.currency) + '</s>' : '') + '</div><button type="button" class="cta" id="ups-yes2">' + esc(j.button || 'Add to my order') + UI.arrow + '</button></div>';
+    window.scrollTo(0, 0);
     $('#ups-yes').addEventListener('click', upsAccept);
-    $('#ups-no').addEventListener('click', function () { if (U.busy) return; track('upsell_no_thanks', { step: U.st.step }); upsNext(); });
-    var tick = function () { var ms = j.expiresAt - Date.now(); if (ms <= 0) return upsClose(); var m = Math.floor(ms / 60000), s2 = Math.floor(ms / 1000) % 60; $('#ups-tm').textContent = 'Offer ends in ' + m + ':' + (s2 < 10 ? '0' : '') + s2; };
-    tick(); U.timer = setInterval(tick, 1000);
+    var yes3 = $('#ups-yes3'); if (yes3) yes3.addEventListener('click', upsAccept);
+    $('#ups-yes2').addEventListener('click', function () { $('#ups-yes').scrollIntoView({ block: 'center' }); upsAccept(); });
+    var decline = function () {
+      if (U.busy) return;
+      track('upsell_no_thanks', { step: U.st.step });
+      if (U.st.declined.indexOf(U.st.step) < 0) U.st.declined.push(U.st.step);
+      upsNext(false);
+    };
+    $('#ups-no').addEventListener('click', decline);
+    var no2 = $('#ups-no2'); if (no2) no2.addEventListener('click', decline);
+    U.el.querySelectorAll('[data-mi]').forEach(function (b) { b.addEventListener('click', function () {
+      var m = media[+b.getAttribute('data-mi')], stage = $('#ups-stage'), st = stage.querySelector('.sticker');
+      stage.innerHTML = upsStage(m, j.chip); if (st) stage.appendChild(st);
+      U.el.querySelectorAll('[data-mi]').forEach(function (x) { x.classList.toggle('on', x === b); });
+    }); });
+
+    try { U.io && U.io.disconnect(); } catch (e) {}
+    if ('IntersectionObserver' in window) { var sticky = $('#ups-sticky'); U.io = new IntersectionObserver(function (es) { sticky.classList.toggle('show', !es[0].isIntersecting); }); U.io.observe($('#ups-yes')); }
+    // the offer is only valid for the server-enforced window after payment; no countdown is shown, it just closes when it ends
+    U.timer = setInterval(function () { if (Date.now() >= j.expiresAt) upsClose(); }, 5000);
   }
-  function upsNext() { U.st.step++; upsSave(U.st); if (U.offer && U.offer.last) return upsClose(); upsLoad(); }
-  function upsBusy(b, label) { U.busy = b; var y = $('#ups-yes'); if (!y) return; y.disabled = b; y.innerHTML = b ? '<span class="spin"></span> ' + (label || 'Adding…') : esc(U.offer.button) + ' · ' + fmt(U.offer.price, U.offer.currency); }
+  function upsNext(accepted) {
+    var canContinue = accepted ? (U.offer && U.offer.hasAfterAccept) : (U.offer && U.offer.hasAfterDecline);
+    U.st.step++; upsSave(U.st);
+    if (!canContinue) return upsClose();
+    upsLoad();
+  }
+  function upsBusy(b, label) {
+    U.busy = b; var y = $('#ups-yes'); if (!y) return;
+    y.disabled = b;
+    y.innerHTML = b ? '<span class="spin"></span> ' + (label || 'Adding to your order…') : esc((U.offer.button || 'Add to my order') + ' · ' + fmt(U.offer.price, U.offer.currency)) + upsIcons().arrow;
+  }
   function upsCard() {
     U.card = true; $('#ups-card').hidden = false;
     try {
       U.payments = window.WhopElements().payments.create({ accountId: U.offer.accountId, currency: U.offer.currency.toLowerCase(), amount: minorUnits(U.offer.price, U.offer.currency),
         paymentMethodConfiguration: PAY_METHODS,
-        returnUrl: location.origin + withClick('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'blue', grayColor: 'slate' }, variables: { '--radius': '8px' } } });
+        returnUrl: location.origin + withClick('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'green', grayColor: 'slate' }, variables: { '--radius': '12px' } } });
       U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
       U.payments.create('branding').mount('#ups-brand');
     } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
@@ -1408,7 +1653,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   async function upsAccept() {
     if (U.busy) return; track('upsell_yes_clicked', { step: U.st.step, card_form: U.card }); $('#ups-err').textContent = ''; upsBusy(true);
     try {
-      var body = { s: U.tok, payment: U.pay, step: U.st.step };
+      var body = { s: U.tok, payment: U.pay, step: U.st.step, declined: (U.st.declined || []).join(','), accepted: (U.st.accepted || []).join(',') };
       if (U.card) {
         var o = readOrder() || {}, a = o.ship || {}, tk;
         try { tk = await U.payments.createConfirmationToken({ billingDetails: { email: o.email, name: ((a.first_name || '') + ' ' + (a.last_name || '')).trim(),
@@ -1432,11 +1677,15 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
         if (res.redirected) return;
         if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; delete U.st.pendingPurchase; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
       }
-      delete U.st.pending; delete U.st.pendingPurchase; U.st.added.push(U.st.step); upsSave(U.st); track('upsell_paid', { step: U.st.step });
+      delete U.st.pending; delete U.st.pendingPurchase; U.st.added.push(U.st.step);
+      if (U.st.accepted.indexOf(U.st.step) < 0) U.st.accepted.push(U.st.step);
+      upsSave(U.st); track('upsell_paid', { step: U.st.step });
       rtUpsell(d.id, U.offer.price, U.offer.currency);
-      var last = U.offer.last; U.st.step++; upsSave(U.st);
-      upsClose('✓ ' + esc(U.offer.title) + ' was added to your order.');
-      if (!last) { U.el = null; upsLoad(); }
+      var afterAccept = U.offer.hasAfterAccept;
+      var addedTitle = U.offer.title, addedPrice = fmt(U.offer.price, U.offer.currency);
+      U.st.step++; upsSave(U.st);
+      upsClose('✓ ' + esc(addedTitle) + ' (' + esc(addedPrice) + ') was added to your order. It ships in the same box.');
+      if (afterAccept) { U.el = null; upsLoad(); }
     } catch (e) { console.error(e); upsBusy(false); $('#ups-err').textContent = 'Something went wrong. You have not been charged.'; }
   }
   function showReturn() {
