@@ -1507,6 +1507,9 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
         st.step = st.pending + 1;
       }
       if (upOk && st.pendingPurchase) rtUpsell(st.pendingPurchase.id || params.get('payment'), st.pendingPurchase.price, st.pendingPurchase.currency);
+      var upBad = params.get('status') === 'failed' || params.get('status') === 'canceled';
+      // Back without a final answer (processing / no status): confirm with the server once the offer is on screen
+      if (st.pending != null && !upOk && !upBad) U.resume = { step: st.pending, id: (st.pendingPurchase && st.pendingPurchase.id) || null };
       delete st.pending; delete st.pendingPurchase;
     }
     U.st = st; upsSave(st); upsLoad();
@@ -1515,7 +1518,8 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     var q = '&step=' + U.st.step + '&declined=' + encodeURIComponent((U.st.declined || []).join(',')) + '&accepted=' + encodeURIComponent((U.st.accepted || []).join(','));
     fetch(API + '/api/upsell?s=' + encodeURIComponent(U.tok) + '&payment=' + encodeURIComponent(U.pay) + q, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(function (j) { if (j && !j.done) { upsShow(j); track('upsell_shown', { step: j.step, when: j.when, price: j.price, currency: j.currency, one_click: j.oneClick }); } else upsClose(); })
+      .then(function (j) { if (j && !j.done) { upsShow(j); track('upsell_shown', { step: j.step, when: j.when, price: j.price, currency: j.currency, one_click: j.oneClick });
+        if (U.resume && U.resume.step === j.step) { var rs = U.resume; U.resume = null; upsPending(rs.step, rs.id); } } else upsClose(); })
       .catch(function (e) { console.error("ups_render", e && e.stack); upsClose(); });
   }
   function upsClose(msg) {
@@ -1627,7 +1631,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     try { U.io && U.io.disconnect(); } catch (e) {}
     if ('IntersectionObserver' in window) { var sticky = $('#ups-sticky'); U.io = new IntersectionObserver(function (es) { sticky.classList.toggle('show', !es[0].isIntersecting); }); U.io.observe($('#ups-yes')); }
     // the offer is only valid for the server-enforced window after payment; no countdown is shown, it just closes when it ends
-    U.timer = setInterval(function () { if (Date.now() >= j.expiresAt) upsClose(); }, 5000);
+    U.timer = setInterval(function () { if (Date.now() >= j.expiresAt && !U.busy) upsClose(); }, 5000); // never mid-payment
   }
   function upsNext(accepted) {
     var canContinue = accepted ? (U.offer && U.offer.hasAfterAccept) : (U.offer && U.offer.hasAfterDecline);
@@ -1648,10 +1652,11 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
         returnUrl: location.origin + withClick('/?return=1&upsell=1'), appearance: { theme: { appearance: 'light', accentColor: 'green', grayColor: 'slate' }, variables: { '--radius': '12px' } } });
       U.payments.create('payment', { fields: { billingDetails: 'never', phone: 'never' } }).mount('#ups-pay');
       U.payments.create('branding').mount('#ups-brand');
-    } catch (e) { console.error(e); $('#ups-err').textContent = 'The card form could not load.'; }
+    } catch (e) { console.error(e); var ue = $('#ups-err'); ue.textContent = (ue.textContent ? ue.textContent + ' ' : '') + 'The card form could not load.'; }
   }
   async function upsAccept() {
     if (U.busy) return; track('upsell_yes_clicked', { step: U.st.step, card_form: U.card }); $('#ups-err').textContent = ''; upsBusy(true);
+    var step0 = U.st.step, sent = false;
     try {
       var body = { s: U.tok, payment: U.pay, step: U.st.step, declined: (U.st.declined || []).join(','), accepted: (U.st.accepted || []).join(',') };
       if (U.card) {
@@ -1661,32 +1666,74 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
         catch (e) { upsBusy(false); if (!(e && e.code === 'payment_request_cancelled')) $('#ups-err').textContent = (e && e.message) || 'Please check your card details.'; return; }
         body.confirmationToken = tk.confirmationToken;
       }
+      sent = true;
       var r = await fetch(API + '/api/upsell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      var d = await r.json().catch(function () { return { error: 'server_error' }; });
+      var d = await r.json().catch(function () { return { status: 'pending' }; }); // no readable answer: the charge may exist, so check, never assume
       if (d.error === 'needs_card' || (d.error === 'payment_failed' && d.needsCard)) {
         upsBusy(false); if (d.message) $('#ups-err').textContent = d.message + ' Please enter a card below.'; if (!U.card) upsCard(); return;
       }
       if (d.error) { track('upsell_error', { error: d.error, msg: (d.message || '').slice(0, 150) }); upsBusy(false); $('#ups-err').textContent = d.message || 'We could not add this item. You have not been charged.'; return; }
-      if (d.status !== 'paid' && d.status !== 'succeeded') {
-        if (!d.client_secret) { upsBusy(false); $('#ups-err').textContent = 'Your payment was declined. You have not been charged.'; return; }
-        U.st.pending = U.st.step;
-        U.st.pendingPurchase = { id: d.id, price: U.offer.price, currency: U.offer.currency, qty: U.offer.qty };
-        upsSave(U.st);
-        var w = (U.payments || window.WhopElements().payments);
-        var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withClick('/?return=1&upsell=1') });
-        if (res.redirected) return;
-        if (res.status !== 'succeeded' && res.status !== 'paid' && res.status !== 'processing') { delete U.st.pending; delete U.st.pendingPurchase; upsSave(U.st); upsBusy(false); $('#ups-err').textContent = (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.'; return; }
-      }
-      delete U.st.pending; delete U.st.pendingPurchase; U.st.added.push(U.st.step);
-      if (U.st.accepted.indexOf(U.st.step) < 0) U.st.accepted.push(U.st.step);
-      upsSave(U.st); track('upsell_paid', { step: U.st.step });
-      rtUpsell(d.id, U.offer.price, U.offer.currency);
-      var afterAccept = U.offer.hasAfterAccept;
-      var addedTitle = U.offer.title, addedPrice = fmt(U.offer.price, U.offer.currency);
-      U.st.step++; upsSave(U.st);
-      upsClose('✓ ' + esc(addedTitle) + ' (' + esc(addedPrice) + ') was added to your order. It ships in the same box.');
-      if (afterAccept) { U.el = null; upsLoad(); }
-    } catch (e) { console.error(e); upsBusy(false); $('#ups-err').textContent = 'Something went wrong. You have not been charged.'; }
+      await upsOutcome(d, step0);
+    } catch (e) { console.error(e); if (sent) return upsPending(step0, null); upsBusy(false); $('#ups-err').textContent = 'Something went wrong. You have not been charged.'; }
+  }
+  // One answer from the server: paid | failed (a confirmed decline) | requires_action | pending. Never a decline unless Whop said so.
+  async function upsOutcome(d, step0) {
+    if (d.status === 'paid' || d.status === 'succeeded') return upsPaid(d, step0);
+    if (d.status === 'failed') {
+      track('upsell_declined', { step: step0 }); upsBusy(false);
+      $('#ups-err').textContent = (d.message ? d.message + ' ' : 'Your payment was declined. ') + 'You have not been charged.' + (d.needsCard ? ' You can try another card below.' : '');
+      if (d.needsCard && !U.card) upsCard();
+      return;
+    }
+    if (d.status === 'requires_action' && (d.client_secret || (d.next_action && d.next_action.data && d.next_action.data.url))) {
+      U.st.pending = step0;
+      U.st.pendingPurchase = { id: d.id, price: U.offer.price, currency: U.offer.currency, qty: U.offer.qty };
+      upsSave(U.st);
+      if (!d.client_secret) { location.href = d.next_action.data.url; return; }
+      var w = (U.payments || window.WhopElements().payments);
+      var res = await w.handleNextAction({ clientSecret: d.client_secret, returnUrl: location.origin + withClick('/?return=1&upsell=1') });
+      if (res.redirected) return;
+      delete U.st.pending; delete U.st.pendingPurchase; upsSave(U.st);
+      if (res.status === 'succeeded' || res.status === 'paid') return upsPaid(d, step0);
+      // Not finished in the bank step: ask the server what really happened before saying anything
+      return upsPending(step0, d.id, (res.lastPaymentError && res.lastPaymentError.message) || 'The payment was not completed.');
+    }
+    return upsPending(step0, d.id);
+  }
+  // Neutral "confirming" state: poll the status call (about a minute), then success, a confirmed decline, or a calm note
+  async function upsPending(step0, id, failMsg) {
+    track('upsell_confirming', { step: step0 });
+    upsBusy(true, 'Confirming your payment…'); $('#ups-err').textContent = '';
+    var t0 = Date.now(), wait = 1500;
+    while (Date.now() - t0 < 60000) {
+      await new Promise(function (ok) { setTimeout(ok, wait); }); wait = Math.min(wait + 500, 4000);
+      var d = null;
+      try {
+        var q = '?status=1&s=' + encodeURIComponent(U.tok) + '&payment=' + encodeURIComponent(U.pay) + '&step=' + step0 + (id ? '&id=' + encodeURIComponent(id) : '');
+        d = await (await fetch(API + '/api/upsell' + q, { cache: 'no-store' })).json();
+      } catch (e) { d = null; }
+      if (!d || d.error || d.status === 'pending') continue;
+      if (d.id) id = d.id;
+      if (d.status === 'paid' || d.status === 'succeeded') return upsPaid(d, step0);
+      if (d.status === 'failed') { if (failMsg && !d.message) d.message = failMsg; return upsOutcome(d, step0); }
+      if (d.status === 'requires_action') { if (failMsg) { upsBusy(false); $('#ups-err').textContent = failMsg + ' You have not been charged.'; return; } return upsOutcome(d, step0); }
+    }
+    // Still not confirmed: don't offer anything else, don't claim a decline
+    track('upsell_confirm_timeout', { step: step0, payment: id || '' });
+    if (U.st.accepted.indexOf(step0) < 0) U.st.accepted.push(step0);
+    U.st.step = step0 + 1; upsSave(U.st);
+    upsClose('Your payment for ' + esc(U.offer.title) + ' is still being confirmed. If it goes through, we’ll add it to this order and ship it in the same box. You won’t be charged twice.');
+  }
+  function upsPaid(d, step0) {
+    delete U.st.pending; delete U.st.pendingPurchase; if (U.st.added.indexOf(step0) < 0) U.st.added.push(step0);
+    if (U.st.accepted.indexOf(step0) < 0) U.st.accepted.push(step0);
+    upsSave(U.st); track('upsell_paid', { step: step0 });
+    rtUpsell(d.id, U.offer.price, U.offer.currency);
+    var afterAccept = U.offer.hasAfterAccept;
+    var addedTitle = U.offer.title, addedPrice = fmt(U.offer.price, U.offer.currency);
+    U.st.step = step0 + 1; upsSave(U.st);
+    upsClose('✓ ' + esc(addedTitle) + ' (' + esc(addedPrice) + ') was added to your order. It ships in the same box.');
+    if (afterAccept) { U.el = null; upsLoad(); }
   }
   function showReturn() {
     // Whop brings the buyer back here after a bank / 3D Secure step, with ?payment=&status=
