@@ -18,7 +18,7 @@ process.env.UPSELL_OFFERS = JSON.stringify([
 
 // Shopify prices (GBP market): XL Pro £139.99, 9-note £22.99
 const SHOP = { [XL]: { GBP: 13999, USD: 17999, title: "XL Pro" }, [NINE]: { GBP: 2299, USD: 2999, title: "9-note" } };
-mock.module("../lib/pricing.js", { exports: {
+mock.module("../lib/pricing.js", { namedExports: {
   priceCart: async (b) => {
     const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur], su = SHOP[it.variant_id].USD;
     return { currency: cur, shopCurrency: "USD", total: u * it.quantity, shopTotal: su * it.quantity, lines: [[it.variant_id, it.quantity, u, su]],
@@ -27,7 +27,7 @@ mock.module("../lib/pricing.js", { exports: {
 } });
 const gql = [];
 let gqlHandler = () => ({});
-mock.module("../lib/shopify.js", { exports: {
+mock.module("../lib/shopify.js", { namedExports: {
   API: "test", adminToken: async () => "t",
   adminGql: async (q, v) => { gql.push({ q, v }); return gqlHandler(q, v); },
   storefrontGql: async () => ({}),
