@@ -196,17 +196,60 @@ function appTags(o, attrs) {
   return kaching ? KACHING_TAG().split(",").map((t) => t.trim()).filter(Boolean) : [];
 }
 
+const MB = "shopMoney { amount currencyCode } presentmentMoney { amount currencyCode }";
 const EDIT_BEGIN = `mutation($id: ID!) { orderEditBegin(id: $id) { calculatedOrder { id } userErrors { field message } } }`;
 const EDIT_ADD = `mutation($id: ID!, $variantId: ID!, $quantity: Int!) {
-  orderEditAddVariant(id: $id, variantId: $variantId, quantity: $quantity, allowDuplicates: true) { calculatedLineItem { id } userErrors { field message } } }`;
+  orderEditAddVariant(id: $id, variantId: $variantId, quantity: $quantity, allowDuplicates: true) {
+    calculatedLineItem { id originalUnitPriceSet { ${MB} } } userErrors { field message } } }`;
 const EDIT_DISC = `mutation($id: ID!, $lineItemId: ID!, $discount: OrderEditAppliedDiscountInput!) {
-  orderEditAddLineItemDiscount(id: $id, lineItemId: $lineItemId, discount: $discount) { userErrors { field message } } }`;
+  orderEditAddLineItemDiscount(id: $id, lineItemId: $lineItemId, discount: $discount) {
+    calculatedLineItem { id calculatedDiscountAllocations { allocatedAmountSet { ${MB} } } } userErrors { field message } } }`;
+const EDIT_CUSTOM = `mutation($id: ID!, $title: String!, $price: MoneyInput!, $quantity: Int!) {
+  orderEditAddCustomItem(id: $id, title: $title, price: $price, quantity: $quantity, requiresShipping: false, taxable: false) {
+    calculatedLineItem { id } userErrors { field message } } }`;
 const EDIT_COMMIT = `mutation($id: ID!, $staffNote: String) {
   orderEditCommit(id: $id, notifyCustomer: false, staffNote: $staffNote) { order { id name } userErrors { field message } } }`;
 const TAGS_ADD = `mutation($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { field message } } }`;
 const MANUAL_PAY = `mutation($id: ID!, $name: String) { orderCreateManualPayment(id: $id, paymentMethodName: $name) { userErrors { field message } } }`;
 const MARK_PAID = `mutation($input: OrderMarkAsPaidInput!) { orderMarkAsPaid(input: $input) { userErrors { field message } } }`;
 const ue = (x) => Object.values(x || {})[0]?.userErrors || [];
+
+const cents = (x) => Math.round(Number(x) * 100);
+// Prices the just-added offer line so it totals exactly the charged amount (before tax). Returns { got, cur, note, off }.
+export async function priceOfferLine(calc, li, u) {
+  const P = li?.originalUnitPriceSet || {};
+  // Order edits run in the order's presentment currency; the charge is in u.c (shop-currency amount u.st as a fallback)
+  let side = "presentmentMoney", target = u.t, cur = u.c;
+  if (P.presentmentMoney?.currencyCode !== u.c) {
+    if (P.shopMoney?.currencyCode === u.sc && u.st != null) { side = "shopMoney"; target = u.st; cur = u.sc; }
+    else { console.error("upsell_price_currency", JSON.stringify(P), u.c, u.sc); return { got: null, cur: u.c, note: "price not adjusted: currency mismatch", off: true }; }
+  }
+  const unit = cents(P[side]?.amount), full = unit * u.q;
+  let got = full, note = "";
+  if (full > target) {
+    const diff = full - target;
+    const tryDisc = async (discount) => {
+      const x = await adminGql(EDIT_DISC, { id: calc, lineItemId: li.id, discount: { ...discount, description: "Post-purchase offer" } });
+      if (ue(x).length) { console.error("upsell_discount", JSON.stringify(ue(x))); return null; }
+      return full - (x.orderEditAddLineItemDiscount.calculatedLineItem?.calculatedDiscountAllocations || []).reduce((a, d) => a + cents(d.allocatedAmountSet?.[side]?.amount || 0), 0);
+    };
+    // One unit: an exact fixed amount. Several: a precise percentage (a fixed amount may be applied per unit).
+    let r = u.q === 1 && side === "presentmentMoney" ? await tryDisc({ fixedValue: { amount: (diff / 100).toFixed(2), currencyCode: cur } }) : null;
+    if (r == null) r = await tryDisc({ percentValue: Math.round((diff / full) * 100 * 1e6) / 1e6 });
+    if (r == null) throw new Error("offer discount refused");
+    got = r;
+  }
+  if (got < target) {
+    // Offer above the Shopify price (or a rounding cent): add the difference as a non-shipping, non-taxable line
+    const add = target - got;
+    const x = await adminGql(EDIT_CUSTOM, { id: calc, title: "Post-purchase offer price adjustment", price: { amount: (add / 100).toFixed(2), currencyCode: cur }, quantity: 1 });
+    if (ue(x).length) { console.error("upsell_adjust", JSON.stringify(ue(x))); note = `line is ${(got / 100).toFixed(2)} ${cur}, ${(add / 100).toFixed(2)} short of the charge`; }
+    else { note = `includes ${(add / 100).toFixed(2)} ${cur} price adjustment line`; got = target; }
+  }
+  const off = got !== target;
+  if (off) console.error("upsell_price_mismatch", JSON.stringify({ got, target, cur }));
+  return { got, cur, note: note || (off ? `line ${(got / 100).toFixed(2)} vs charge ${(target / 100).toFixed(2)} ${cur}` : ""), off };
+}
 
 // Post-purchase upsell paid on the thank-you page: add it to the original Shopify order (like Zipify OCU does).
 // If the original order can't be edited, create a separate paid order linked to it. Never both, never twice.
@@ -221,18 +264,18 @@ async function fulfilUpsell(d) {
   if (!parent) { await new Promise((ok) => setTimeout(ok, 8000)); parent = (await adminGql(FIND, { q: `tag:'whop-${parentPay}'` })).orders.nodes[0]; }
 
   if (parent) {
-    let committed = false;
+    let committed = false, adj = null;
     try {
       const b = await adminGql(EDIT_BEGIN, { id: parent.id });
       if (ue(b).length) throw new Error(JSON.stringify(ue(b)));
       const calc = b.orderEditBegin.calculatedOrder.id;
       const a = await adminGql(EDIT_ADD, { id: calc, variantId: `gid://shopify/ProductVariant/${u.v}`, quantity: u.q });
       if (ue(a).length) throw new Error(JSON.stringify(ue(a)));
-      if (u.pct > 0) {
-        const x = await adminGql(EDIT_DISC, { id: calc, lineItemId: a.orderEditAddVariant.calculatedLineItem.id, discount: { percentValue: u.pct, description: "Post-purchase offer" } });
-        if (ue(x).length) throw new Error(JSON.stringify(ue(x)));
-      }
-      const c = await adminGql(EDIT_COMMIT, { id: calc, staffNote: `Post-purchase upsell paid with Whop payment ${d.id}: ${(u.t / 100).toFixed(2)} ${u.c}` });
+      // The Shopify line must record what the buyer was charged before tax (u.t in u.c), whatever the variant costs
+      // in Shopify. Variant line (keeps SKU, inventory and fulfillment), then a discount down to the price, or a
+      // non-shipping adjustment line up to it when the offer is priced above the variant.
+      adj = await priceOfferLine(calc, a.orderEditAddVariant.calculatedLineItem, u);
+      const c = await adminGql(EDIT_COMMIT, { id: calc, staffNote: `Post-purchase upsell paid with Whop payment ${d.id}: ${(u.t / 100).toFixed(2)} ${u.c} before tax${adj?.note ? ` (${adj.note})` : ""}` });
       if (ue(c).length) throw new Error(JSON.stringify(ue(c)));
       committed = true;
     } catch (e) { console.error("upsell_order_edit", e.message); }
@@ -256,12 +299,15 @@ async function fulfilUpsell(d) {
         currency: u.c,
         eventId: `upsell-${d.id}`,
       });
-      journey(d.metadata?.j, "upsell_added_to_order", { payment: d.id, order: parent.name });
+      journey(d.metadata?.j, "upsell_added_to_order", { payment: d.id, order: parent.name, line_total: adj?.got, target: u.t, currency: adj?.cur }, !!adj?.off);
       return { status: 200, body: { order: parent.name, upsell: "added_to_order" } };
     }
   }
   // Fallback: separate paid order with the same customer, address and tracking
-  const o = { l: [[u.v, u.q, u.u, u.su]], c: u.c, t: u.t, d: u.q * u.u - u.t, sc: u.sc, st: u.st, sd: u.q * u.su - u.st, dc: "POST-PURCHASE", ...(u.n && { nm: [String(u.n).slice(0, 120)] }) };
+  // Offer priced above the variant (e.g. a pair): raise the unit price so line total minus discount is exactly what was charged
+  const unit = u.q * u.u < u.t ? Math.ceil(u.t / u.q) : u.u;
+  const sunit = u.su != null && u.st != null && u.q * u.su < u.st ? Math.ceil(u.st / u.q) : u.su;
+  const o = { l: [[u.v, u.q, unit, sunit]], c: u.c, t: u.t, d: u.q * unit - u.t, sc: u.sc, st: u.st, sd: sunit != null && u.st != null ? u.q * sunit - u.st : undefined, dc: "POST-PURCHASE", ...(u.n && { nm: [String(u.n).slice(0, 120)] }) };
   return fulfil({ ...d, metadata: { order: JSON.stringify(o), attrs: d.metadata.attrs, ship: d.metadata.ship, j: d.metadata.j, cx: d.metadata.cx },
     _tags: [...UPSELL_TAG().split(",").map((x) => x.trim()).filter(Boolean), "upsell-separate-order"],
     _note: `Post-purchase upsell for ${parent ? parent.name : `Whop payment ${parentPay}`} (could not be added to that order)` });

@@ -28,5 +28,10 @@
       "path": "/api/reconcile",
       "schedule": "17 3 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/upsell.js": {
+      "maxDuration": 30
+    }
+  }
 }
