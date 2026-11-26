@@ -472,7 +472,9 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   var COUNTRIES = ISO.map(function (c) { return [c, countryName(c)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); });
   var flag = function (c) { return String.fromCodePoint.apply(null, c.split('').map(function (ch) { return 127397 + ch.charCodeAt(0); })); };
   var esc = function (s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
-  var money = function (c) { try { return new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: S.currency }).format(c / 100); } catch (e) { return (c / 100).toFixed(2) + ' ' + S.currency; } };
+  var money = function (c) { return fmt(c, S.currency); };
+  // The Total row's small currency label, left out when the price already starts with the code (AUD $…).
+  var totalLabel = function () { var cur = String(S.currency || '').toUpperCase(); return fmt(0, cur).indexOf(cur) === 0 ? '' : cur; };
   var hasZip = function (c) { return NO_ZIP.indexOf(' ' + c + ' ') === -1; };
   var get = function (o, path) { return path.split('.').reduce(function (a, k) { return a && a[k]; }, o); };
   var store = { get: function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } },
@@ -897,7 +899,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   function fill(root) {
     $$('[data-href]', root).forEach(function (a) { a.href = get(S, a.getAttribute('data-href')) || '#'; });
     $$('[data-src]', root).forEach(function (i) { i.src = get(S, i.getAttribute('data-src')); i.alt = S.store.name; });
-    var vals = { total: money(S.amount), subtotal: money(S.subtotal), savingsNeg: '-' + money(S.savings), couponNeg: S.coupon ? '-' + money(S.coupon) : '', currency: S.currency, shippingTitle: S.shippingTitle, eta: eta() };
+    var vals = { total: money(S.amount), subtotal: money(S.subtotal), savingsNeg: '-' + money(S.savings), couponNeg: S.coupon ? '-' + money(S.coupon) : '', currency: totalLabel(),shippingTitle: S.shippingTitle, eta: eta() };
     $$('[data-text]', root).forEach(function (e) { e.textContent = vals[e.getAttribute('data-text')]; });
     $$('[data-if]', root).forEach(function (e) { e.hidden = !S[e.getAttribute('data-if')]; });
   }
@@ -1146,7 +1148,11 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     $('#email').value = v.email || ''; $('#phone').value = v.phone || ''; $('#marketing').checked = !!v.marketing;
     $('#billing_same').checked = v.billing_same !== false; $('#billing-box').hidden = $('#billing_same').checked;
     ['s', 'b'].forEach(function (p) {
-      var o = v[p] || {}; if (o.country_code && ISO.indexOf(o.country_code) > -1) { F(p, 'country_code').value = o.country_code; setCountry(p); }
+      var o = v[p] || {};
+      // A delivery address saved for another country is not reused: the store's market (the cart's
+      // currency) wins, instead of the page re-pricing the order into that old country's currency.
+      if (p === 's' && o.country_code && o.country_code !== S.market) return;
+      if (o.country_code && ISO.indexOf(o.country_code) > -1) { F(p, 'country_code').value = o.country_code; setCountry(p); }
       Object.keys(o).forEach(function (k) { var el = F(p, k); if (el && k !== 'country_code' && o[k] != null) el.value = o[k]; });
     });
     if (v.phone_country) { phoneTouched = true; setPhoneCountry(v.phone_country); } else setPhoneCountry(F('s', 'country_code').value);
@@ -1486,9 +1492,18 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   var U; // set in upsellStart (this code can run before this line on a bank-redirect return)
   function upsState() { try { return JSON.parse(sessionStorage.getItem('ms-ups') || '{}'); } catch (e) { return {}; } }
   function upsSave(v) { try { sessionStorage.setItem('ms-ups', JSON.stringify(v)); } catch (e) {} }
-  function fmt(c, cur) { var d = 2; try { d = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e) {}
-    try { return new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: cur }).format(c / 100); } catch (e) { return (c / 100).toFixed(d) + ' ' + cur; } }
-  function upsFirstName() { var o = readOrder() || {}; return (o.ship && o.ship.first_name) ? String(o.ship.first_name).trim() : ''; }
+  // One price format for the checkout and the upsell. Any dollar that isn't USD carries its code
+  // (AUD $123.99, NZD $148.99), whatever the browser language, so it never reads as US dollars.
+  function fmt(c, cur) {
+    cur = String(cur || 'USD').toUpperCase();
+    try {
+      var s = new Intl.NumberFormat(navigator.language || 'en', { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol' }).format(c / 100);
+      return cur !== 'USD' && s.indexOf('$') > -1 ? cur + ' ' + s : s;
+    } catch (e) {
+      var d = 2; try { d = new Intl.NumberFormat('en', { style: 'currency', currency: cur }).resolvedOptions().maximumFractionDigits; } catch (e2) {}
+      return (c / 100).toFixed(d) + ' ' + cur;
+    }
+  }
   function upsellStart() {
     if (!U) U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, bar: null, payments: null, card: false, busy: false };
     var o = readOrder() || {};
