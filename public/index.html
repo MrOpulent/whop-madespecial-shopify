@@ -1504,6 +1504,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
       return (c / 100).toFixed(d) + ' ' + cur;
     }
   }
+  function upsFirstName() { var o = readOrder() || {}; return (o.ship && o.ship.first_name) ? String(o.ship.first_name).trim() : ''; }
   function upsellStart() {
     if (!U) U = { st: null, tok: null, pay: null, offer: null, timer: null, el: null, bar: null, payments: null, card: false, busy: false };
     var o = readOrder() || {};
