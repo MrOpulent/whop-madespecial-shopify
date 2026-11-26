@@ -942,6 +942,8 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
     $('#form').addEventListener('change', saveSoon);
     mountWhop(); setupExpress();
     if (F('s', 'country_code').value !== S.market) reprice(F('s', 'country_code').value);
+    abandonSoon(); // a returning shopper's saved email or phone counts without typing
+    window.addEventListener('pagehide', function () { if (abandonT) { clearTimeout(abandonT); abandonSend(); } });
   }
   function paintSummary() {
     fill($('#app'));
@@ -992,7 +994,7 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
   }
   function adoptSession(j) {
     if (!j || !j.s || !j.session) return false;
-    token = j.s; S = j.session;
+    token = j.s; S = j.session; abandonSoon(); // new price (country or discount): Outcraft gets the current cart
     try {
       sessionStorage.setItem('ms-s', token);
       var u = new URL(location.href);
@@ -1136,7 +1138,25 @@ window.TriplePixelData={TripleName:"0muhvz-sr.myshopify.com",ver:"2.18",plat:"SH
 
   // remember fields (this browser only)
   var saveT;
-  function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 300); }
+  function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 300); abandonSoon(); }
+
+  // OutcraftAI abandoned-checkout recovery: what the shopper has filled in so far, 4s after they stop typing.
+  // The server adds the cart from the signed session. Only sent once there is an email or a valid phone,
+  // and only when something changed. Nothing is sent once the payment is done.
+  var abandonT, abandonLast = '';
+  function abandonSoon() { clearTimeout(abandonT); abandonT = setTimeout(abandonSend, 4000); }
+  function abandonSend() {
+    if (!token || !S || payComplete || !$('#email')) return;
+    var email = $('#email').value.trim(), phone = phoneE164() || '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !phone) return;
+    var c = readAddr('s'); c.email = email; c.phone = phone;
+    c.language = String(navigator.language || 'en').split('-')[0];
+    try { c.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+    var body = JSON.stringify({ s: token, c: c });
+    if (body === abandonLast) return;
+    abandonLast = body;
+    fetch(API + '/api/abandon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
+  }
   function save() {
     if (!$("#email")) return;   // checkout already finished
     var v = { email: $('#email').value, phone: $('#phone').value, phone_country: $('#phone_country').value, marketing: $('#marketing').checked, billing_same: $('#billing_same').checked, s: {}, b: {} };

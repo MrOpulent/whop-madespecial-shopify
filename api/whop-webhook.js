@@ -11,6 +11,7 @@ import { journey } from "../lib/http.js";
 import { whopRefundToShopify } from "./shopify-webhook.js";
 import { clickIdFrom, postRedtrack } from "../lib/ads.js";
 import { reportServerAds } from "../lib/server-ads.js";
+import { buildCompleted, sendOutcraft } from "../lib/outcraft.js";
 
 const amt = (c) => (c / 100).toFixed(2);
 
@@ -154,6 +155,11 @@ export async function fulfil(d) {
         eventId: upsellOrder ? `upsell-${d.id}` : (d.metadata?.j || ""),
       });
     }
+
+    // OutcraftAI: the checkout was paid, stop its recovery outreach. Same unique_id (journey id) as checkout/updated.
+    // Sent even if Shopify refused the order: the payment succeeded either way. Never throws, gives up after ~2.5s.
+    if (d.metadata?.j && !(d._tags || []).includes("upsell-separate-order"))
+      await sendOutcraft(buildCompleted({ j: String(d.metadata.j), paidCents: paid, o, attrs, email, phone: phone || rawPhone, ship: sa, method: methodName }));
 
     if (!r.orderCreate.userErrors.length && r.orderCreate.order?.id)
       await addRisk(r.orderCreate.order.id, d, sa, ba).catch((e) => console.error("order_risk", e.message));
