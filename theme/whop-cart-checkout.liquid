@@ -238,56 +238,6 @@
       axon('init');
     }
     var recent = {};
-    // Google Ads add to cart. The Google custom pixel only hears product_added_to_cart, which these adds
-    // don't publish. A per-variant mark (2s) is shared with the custom pixel so one add fires only once.
-    var ADS_ID = 'AW-18574882380';
-    var ADS_ATC = 'AW-18574882380/SbngCKbj57gdEMzsmJlF';
-    var gadsAtcCfg = false;
-    function gadsAtcKey(variantId) { return 'ms_gads_atc_' + String(variantId || ''); }
-    function gadsAtcClaimed(variantId) {
-      var k = gadsAtcKey(variantId), now = Date.now(), prev = 0;
-      try { prev = parseInt(localStorage.getItem(k) || '0', 10) || 0; } catch (e) {}
-      if (!prev) {
-        try {
-          var m = document.cookie.match(new RegExp('(?:^|; )' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=(\\d+)'));
-          if (m) prev = parseInt(m[1], 10) || 0;
-        } catch (e) {}
-      }
-      return !!(prev && now - prev < 2000);
-    }
-    function gadsAtcMark(variantId) {
-      var k = gadsAtcKey(variantId), now = Date.now();
-      try { localStorage.setItem(k, String(now)); } catch (e) {}
-      try { document.cookie = k + '=' + now + '; path=/; max-age=5; SameSite=Lax'; } catch (e) {}
-    }
-    function ensureGadsAtc(cb) {
-      window.dataLayer = window.dataLayer || [];
-      if (typeof window.gtag !== 'function') {
-        window.gtag = function () { window.dataLayer.push(arguments); };
-        window.gtag('js', new Date());
-      }
-      if (!gadsAtcCfg) {
-        gadsAtcCfg = true;
-        window.gtag('config', ADS_ID, { send_page_view: false, cookie_domain: 'madespecial.store' });
-        if (!document.querySelector('script[src*="googletagmanager.com/gtag/js"]')) {
-          var s = document.createElement('script');
-          s.async = true;
-          s.src = 'https://www.googletagmanager.com/gtag/js?id=' + ADS_ID;
-          document.head.appendChild(s);
-        }
-      }
-      cb();
-    }
-    function sendGoogleAtc(items, value, currency) {
-      if (!items || !items.length) return;
-      var i;
-      for (i = 0; i < items.length; i++) { if (gadsAtcClaimed(items[i].item_id)) return; }
-      for (i = 0; i < items.length; i++) gadsAtcMark(items[i].item_id);
-      var val = value || 1, cur = currency || 'USD';
-      ensureGadsAtc(function () {
-        window.gtag('event', 'conversion', { send_to: ADS_ATC, value: val, currency: cur });
-      });
-    }
     function clickId() {
       try { var s = sessionStorage.getItem('rtkclickid'); if (s && s !== 'undefined') return s; } catch (e) {}
       var m = document.cookie.match(/(?:^|; )rtkclickid-store=([^;]*)/);
@@ -329,11 +279,9 @@
       var id = clickId();
       var dedupe = (id || 'cart') + ':addtocart:' + items[0].item_id + ':' + now;
       try { axon('track', 'add_to_cart', { currency: cur, value: value, items: items }, { dedupe_id: dedupe }); } catch (e) {}
-      try { sendGoogleAtc(items, value, cur); } catch (e) {}
       if (!id) return;
-      // The store script sends "addtocart". The Shopify guide says "AddToCart".
-      // RedTrack matches the name exactly, so report both spellings under separate event ids.
-      ['addtocart', 'AddToCart'].forEach(function (type) {
+      // RedTrack counts the ATC only (no sum), so add-to-carts never show as revenue.
+      ['AddToCart'].forEach(function (type) {
         try {
           var eventId = dedupe + ':' + type;
           var u = new URL(RT);
