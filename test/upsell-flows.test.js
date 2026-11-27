@@ -21,7 +21,7 @@ const XL_FLOW = [
 ];
 const TEMPLATE = JSON.parse(fs.readFileSync(new URL("../config/upsell-6inch-L.template.json", import.meta.url), "utf8"));
 
-const SHOP = { [XL[0]]: { USD: 17999, GBP: 13999, title: "XL Pro" }, [SIX_TEAL]: { USD: 9999, GBP: 7732, title: "6-Inch L" }, [NINE]: { USD: 2999, GBP: 2299, title: "9-note" } };
+const SHOP = { [XL[0]]: { USD: 17999, GBP: 13999, title: "XL Pro" }, [SIX_TEAL]: { USD: 9999, GBP: 7999, title: "6-Inch L" }, [NINE]: { USD: 2999, GBP: 2299, title: "9-note" } };
 mock.module("../lib/pricing.js", { namedExports: {
   priceCart: async (b) => {
     const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur], su = SHOP[it.variant_id].USD;
@@ -99,7 +99,7 @@ const get = (q) => new Promise((ok) => {
 });
 
 describe("6-inch offer pages (GET /api/upsell)", () => {
-  for (const [mk, cur, p0, cmp0, off0] of [["US", "USD", 5999, 9999, 40], ["GB", "GBP", 4699, 7732, 39]]) {
+  for (const [mk, cur, p0, cmp0, off0] of [["US", "USD", 5999, 9999, 40], ["GB", "GBP", 4799, 7999, 40]]) {
     test(`${cur}: step 0 second 6-inch, then 9-note pair, then one 9-note`, async () => {
       ORDER = order(cur);
       const s = createSession({ order: ORDER, mk, j: "jt" });

@@ -9,11 +9,11 @@ Nothing is live. Production env was not touched. Turning it on needs the owner's
 ## The 6-inch L flow (US / UK prices)
 | Step | Shows when | Offer | Price | Compare (struck through) |
 |---|---|---|---|---|
-| 0 | any 6-inch L order | 1 more 6-inch L (Teal) | $59.99 / £46.99 | Shopify price of the 6-inch ($99.99) |
+| 0 | any 6-inch L order | 1 more 6-inch L (Teal) | $59.99 / £47.99 | Shopify price of the 6-inch ($99.99 / £79.99) |
 | 1 | step 0 declined, no 9-note in the order | 2x 9-note, second 50% off | $74.99 / £57.99 | $99.98 / £77.98 |
 | 2 | step 1 declined, no 9-note in the order | 1x 9-note | $29.99 / £22.99 | $49.99 / £38.99 |
 
-$59.99 is the same per-drum price the 2-pack gives ($159.99 - $99.99). Accepting any step ends the flow (same as XL).
+$59.99 / £47.99 is the second drum's price in the 2-pack ($159.99 - $99.99; UK £127.99 - £79.99 = £48.00). Accepting any step ends the flow (same as XL).
 Step 0 has no reviews, rating or lifestyle gallery: the 6-inch is a new product, so it shows Shopify's variant image
 only. Add real 6-inch photos to `media` once they exist. The 9-note steps are copied from the XL flow.
 If a cart has both an XL Pro and a 6-inch, only the XL flow shows (the flows never mix).
@@ -34,11 +34,15 @@ If a cart has both an XL Pro and a 6-inch, only the XL flow shows (the flows nev
 Browser e2e (`e2e/offer_page.py`, fake Whop, run on the merged production value): XL 4/4 and 6-inch 4/4 (success after the final offer, success, pending -> paid, decline). One Whop charge per accept.
 
 ## Go live (after the owner approves)
-The 6-inch L product exists (DRAFT): product 15516011856054, handle `6-inch-l-pro-drum`, $99.99 (UK £77.32 today).
+The 6-inch L product exists (DRAFT): product 15516011856054, handle `6-inch-l-pro-drum`, $99.99. UK: fixed £79.99 on all 5 variants in the
+"UK Pricing" price list (PriceList/30934368438), same method as the XL (£139.99). It applies once the product is in the UK market catalog (see 1).
 Variant ids are in `config/6inch-L-variants.json`; `config/upsell-6inch-L.json` is the template filled with them.
 1. Owner approves; the product is set ACTIVE and published to the Online Store (a draft can't be bought, so the flow can't trigger before that).
-   Optional: give it a rounded UK price (e.g. £77.99); today step 0 shows "£30.33 less / 39% off" against £77.32.
-2. The new value is ready: `UPSELL_OFFERS.new-production.json` (sha256 78880616…45fc17) = the current production value
+   Publish it to the Online Store, the Made Special.Store Headless channel (the XL is on both; the checkout most likely prices carts through Headless) and the
+   UK market catalog (Publication/224563200182, like the XL). Until it is in the UK catalog Shopify converts it to £77.32.
+   Kaching: the XL uses a separate UK-only deal with fixed GBP pack prices (9fbN); the 6-inch needs one too:
+   1 £79.99, 2 £127.99, 3 £177.99, 4 £223.99 (US deal: $99.99 / $159.99 / $221.99 / $279.99, UK excluded).
+2. The new value is ready: `UPSELL_OFFERS.new-production.json` (sha256 9e866695…4b7035) = the current production value
    (unchanged since 25 Nov, sha256 3698165d…5ee68c) + the 3 `6inch-L` offers. The XL offers are byte-for-byte the same.
    To rebuild it yourself: `node scripts/upsell-offers.mjs merge <current.json> config/upsell-6inch-L.json > new.json`
    Check: `node scripts/upsell-offers.mjs check new.json 68183895998646` -> 3 `[6inch-L]` steps;
