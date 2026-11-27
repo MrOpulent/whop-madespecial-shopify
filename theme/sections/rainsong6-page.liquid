@@ -11,6 +11,20 @@
     assign rs_unit = 9999
     assign rs_cmp = 9999
   endif
+  comment
+    RRP per drum (owner t141u/t142u/t143u): every "was" price and % off on this page is based on this RRP x quantity
+    (US $150, UK £120). Product compare-at is set to the same values so Kaching and the cart match.
+    To remove: delete from here to the matching endif below (the page falls back to the product compare-at price).
+  endcomment
+  assign rs_rrp = 0
+  if cart.currency.iso_code == 'USD'
+    assign rs_rrp = 15000
+  elsif cart.currency.iso_code == 'GBP'
+    assign rs_rrp = 12000
+  endif
+  if rs_rrp > rs_cmp
+    assign rs_cmp = rs_rrp
+  endif
   assign rs_head = section.settings.heading | default: 'Margaret’s Rain Drum'
   assign rs_from4 = 24999
   if cart.currency.iso_code == 'GBP'
@@ -21,7 +35,7 @@
   assign rs_from = rs_from4 | plus: 2 | divided_by: 4
   assign rs_w4 = rs_cmp | times: 4
   assign rs_s4 = rs_w4 | minus: rs_from4
-  assign rs_maxoff = rs_s4 | times: 100.0 | divided_by: rs_w4 | plus: 0.01 | floor
+  assign rs_maxoff = rs_s4 | times: 100.0 | divided_by: rs_w4 | round
 -%}
 
 {%- case section.settings.part -%}

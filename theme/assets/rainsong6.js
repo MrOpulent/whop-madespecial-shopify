@@ -73,10 +73,15 @@ function kPrices(){var out={};KS=KS||kSettings();if(!KS)return out;
   (KS.dealBars||[]).forEach(function(d){var bar=barFor(+d.quantity);if(!bar)return;
     var per=money((bar.querySelector('.kaching-bundles__bar-price')||{}).textContent),full=Math.max.apply(null,qa('.kaching-bundles__bar-full-price',bar).map(function(e){return money(e.textContent)||0}).concat([0]));
     var q=+d.quantity,tot=kDealTot(d,per,q);/* fixed bundle price: Kaching's exact total, not rounded per-drum x qty */
-    if(per)out[q]={per:per,tot:tot,was:full&&full>tot?full:null}});
+    var rw=rrpWas(q);
+    if(per)out[q]={per:per,tot:tot,was:rw>tot?rw:(full&&full>tot?full:null)}});
   return out}
-/* % off never overstates: floor with a 0.01 tolerance (19.997% -> 20%, 37.5% -> 37%) */
-function pctOff(s,w){return w>0?Math.floor(s*100/w+0.01):0}
+/* RRP per drum (owner t141u/t142u/t143u): "was" = RRP x qty in USD/GBP, same as the Liquid rs_rrp and the product compare-at.
+   To remove: set RS_RRP={} (falls back to Kaching's compare-at x qty). */
+var RS_RRP={USD:150,GBP:120};
+function rrpWas(q){var r=RS_RRP[String(cur$||'').toUpperCase()];return r?Math.round(r*100)*q:0}/* cents, like per/tot */
+/* % off rounds to the nearest whole number, same as Kaching (owner t142u "like your table": 33/47/56/58) */
+function pctOff(s,w){return w>0?Math.round(s*100/w):0}
 function paintPrices(){var P=kPrices();
   sets.forEach(function(s){var q=+s.dataset.q,p=P[q];if(!p)return;s._p=p;
     var set=function(f,v){var e=s.querySelector('[data-f="'+f+'"]');if(e)e.textContent=v};
@@ -248,7 +253,7 @@ var jdgmTries=0;(function waitJdgm(){if(initJdgmNav()||++jdgmTries>40)return;set
 
 /* ---------- countdown copy (owner t128u) ----------
    6-inch L only: the store-wide Essential banner says "up to 30% OFF"; this page shows its own true max instead
-   (4 drums $249.99 vs $399.96 = 37.5% -> "up to 37% OFF"; UK £199.99 vs £319.96 = 37.5% -> 37%).
+   (RRP t141u: 4 drums $249.99 vs $600 = 58.3% -> "up to 58% OFF"; UK £199.99 vs £480 = 58.3% -> 58%).
    The number comes from this page's own [data-f="maxoff"] (Liquid, then repainted from Kaching), so it always matches
    the pack prices. Same approach as the XL's 30%->65% swap in rainsong.js; the app and other pages are unchanged. */
 function rsMaxOff(){var e=document.querySelector('.rs [data-f="maxoff"]');var m=e&&String(e.textContent).match(/(\d{1,2})\s*%/);return m?+m[1]:0}
