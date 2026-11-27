@@ -1,0 +1,19 @@
+167a168,169
+> {%- comment -%} 6-inch page (product 15516011856054) only: never swap it via ?v= (a ?v=<anything> link rendered the old default product page). All other products keep the ?v= behavior. {%- endcomment -%}
+> {%- unless product.id == 15516011856054 -%}
+199a202,216
+> {%- endunless -%}
+> {%- comment -%} 6-inch page only: if opened with ?view=<other> it goes back to its own template, keeping ?v= and every other parameter. {%- endcomment -%}
+> {%- if request.page_type == 'product' and product.id == 15516011856054 and template.suffix != product.template_suffix -%}
+> <script>
+> (function () {
+>   try {
+>     var p = new URLSearchParams(location.search);
+>     if (!p.has('view')) return;
+>     p.delete('view');
+>     var q = p.toString();
+>     location.replace(location.pathname + (q ? '?' + q : '') + location.hash);
+>   } catch (e) {}
+> })();
+> </script>
+> {%- endif -%}

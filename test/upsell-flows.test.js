@@ -8,7 +8,7 @@ process.env.WHOP_API_KEY = "test_key"; process.env.WHOP_COMPANY_ID = "biz_test";
 process.env.CHECKOUT_URL = "https://checkout.test";
 
 const XL = [68105383870646, 68112843899062, 68114477449398, 68114477482166, 68114477514934], NINE = 67665328799926;
-// The real 6-inch L variants (product 15516011856054, handle 6-inch-l-pro-drum)
+// The real 6-inch L variants (product 15516011856054, handle steel-tongue-rain-drum)
 const SIX = JSON.parse(fs.readFileSync(new URL("../config/6inch-L-variants.json", import.meta.url), "utf8"));
 const FILLED = JSON.parse(fs.readFileSync(new URL("../config/upsell-6inch-L.json", import.meta.url), "utf8"));
 const SIX_TEAL = SIX["6INCH-PRODRUM-TEAL-Q1"], SIX_BLACK = SIX["6INCH-PRODRUM-BLACK-Q1"];

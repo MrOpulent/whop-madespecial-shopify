@@ -1,0 +1,115 @@
+{%- liquid
+  assign rs_opt = product.options_with_values | where: 'name', 'Colour' | first
+  if rs_opt == blank
+    assign rs_opt = product.options_with_values | first
+  endif
+-%}
+{%- liquid
+  assign rs_v = product.selected_or_first_available_variant
+  assign rs_unit = rs_v.price
+  assign rs_cmp = rs_v.compare_at_price | default: rs_v.price
+  comment
+    Preview-only: draft products can't be opened on the storefront, so the preview theme's
+    rainsong-6inch-demo template renders this page on another product at the 6-inch price.
+    Never true on the real 6-inch template.
+  endcomment
+  if template.suffix == 'rainsong-6inch-demo'
+    assign rs_unit = 9999
+    assign rs_cmp = 9999
+  endif
+  comment
+    RRP per drum (owner t141u/t142u/t143u): every "was" price and % off on this page is based on this RRP x quantity
+    (US $150, UK £120). Product compare-at is set to the same values so Kaching and the cart match.
+    To remove: delete from here to the matching endif below (the page falls back to the product compare-at price).
+  endcomment
+  assign rs_rrp = 0
+  if cart.currency.iso_code == 'USD'
+    assign rs_rrp = 15000
+  elsif cart.currency.iso_code == 'GBP'
+    assign rs_rrp = 12000
+  endif
+  if rs_rrp > rs_cmp
+    assign rs_cmp = rs_rrp
+  endif
+  assign rs_head = rs_heading | default: 'Margaret’s Rain Drum'
+  # On-page title only (owner t144u). The Shopify product name stays "*NEW* Hand Tuned Rain Drum (6 inch - L)" for cart, checkout, Whop, meta tags and JSON-LD.
+  assign rs6_title = 'Margaret’s Hand Tuned Rain Drum'
+  comment
+    Pack totals (owner t128u), same as the Kaching deals. These are first-paint fallbacks; rainsong6.js repaints from Kaching.
+    US $99.99 / $159.99 / $199.99 / $249.99. UK £79.99 / £127.99 / £159.99 / £199.99.
+    % off rounds to the nearest whole number, same as Kaching (owner t142u): vs $150 RRP 33% / 47% / 56% / 58%.
+  endcomment
+  assign rs_t2 = 15999
+  assign rs_t3 = 19999
+  assign rs_t4 = 24999
+  if cart.currency.iso_code == 'GBP'
+    assign rs_t2 = 12799
+    assign rs_t3 = 15999
+    assign rs_t4 = 19999
+  endif
+  assign p2t = rs_t2
+  assign p2 = p2t | plus: 1 | divided_by: 2
+  assign p2w = rs_cmp | times: 2
+  assign p2s = p2w | minus: p2t
+  assign p2c = p2s | times: 100.0 | divided_by: p2w | round
+  assign p1s = rs_cmp | minus: rs_unit
+  assign p1c = p1s | times: 100.0 | divided_by: rs_cmp | round
+-%}
+
+<style id="rs6-css">/* t135u mobile overflow: Judge.me review carousel slides its card strip with transform and nothing clipped it */body:has(.rs-top) .shopify-section:has(.jdgm-widget){overflow-x:hidden}@supports (overflow:clip){body:has(.rs-top) .shopify-section:has(.jdgm-widget){overflow-x:clip}html:has(.rs-top),body:has(.rs-top){overflow-x:clip}}.rs .priceline s:empty,.rs .priceline .off:empty{display:none}.rs .bgrid .bon.sum{grid-column:span 2}body:has(.rs-top) [id$="__custom_liquid_Y4UXN"],body:has(.rs-top) [id$="__custom_liquid_Y4UXN"] .color-scheme-1,body:has(.rs-top) [id$="__custom_liquid_Y4UXN"] .gradient{background:#f7f3ec!important}/* t147u: hide the empty Judge.me review widget (Customer Reviews / Be the first to write a review); the review carousel above stays. Shows again automatically once this product has its own reviews. */#judgeme_product_reviews:has(.jm-no-reviews-state),#judgeme_product_reviews:has(.jdgm-rev-widg__header .jdgm-write-rev-link):not(:has(.jdgm-rev)):has(.jdgm-empty-state){display:none!important}/* t150u: footer in the page green #0E2A1B (6-inch page only) */body:has(.rs-top) footer.footer{--color-background:14,42,27;--gradient-background:#0E2A1B;--color-foreground:247,243,236;--color-link:247,243,236;background:#0E2A1B!important;color:rgba(247,243,236,.72)}body:has(.rs-top) footer.footer .footer-block__heading{color:#F7F3EC}body:has(.rs-top) footer.footer a,body:has(.rs-top) footer.footer .list-menu__item--link,body:has(.rs-top) footer.footer .copyright__content,body:has(.rs-top) footer.footer .footer-block__details-content{color:rgba(247,243,236,.78)}body:has(.rs-top) footer.footer a:hover{color:#F7F3EC}body:has(.rs-top) footer.footer .footer__content-bottom{border-top:1px solid rgba(247,243,236,.14)}body:has(.rs-top) footer.footer .localization-form__select,body:has(.rs-top) footer.footer .disclosure__button{background:transparent!important;color:#F7F3EC!important;border:1px solid rgba(247,243,236,.45)!important;border-radius:999px!important;box-shadow:none!important}body:has(.rs-top) footer.footer .localization-form__select:after,body:has(.rs-top) footer.footer .localization-form__select:before{box-shadow:none!important;border:0!important}body:has(.rs-top) footer.footer .localization-form__select .icon,body:has(.rs-top) footer.footer .disclosure__button .icon{color:#F7F3EC}body:has(.rs-top) footer.footer .localization-form h2,body:has(.rs-top) footer.footer .localization-selector+.disclosure__list-wrapper{color:rgba(247,243,236,.78)}body:has(.rs-top) footer.footer .disclosure__list-wrapper{background:#0E2A1B;border:1px solid rgba(247,243,236,.2)}</style><style id="rs-price-boot">.blocky-featured-product:has(.rs-top) .blocky-product-submit{--rs-price:{{ rs_unit | money | json }}}</style>
+<div class="rs rs-info">
+<div class="pinfo"><p class="eyebrow"><span class="bfchip">Black Friday</span><span class="hot">🔥 Selling FAST! (Last Units Available)</span></p>
+<h1>{{ rs6_title }}</h1><p class="sub">A gift that plays itself when it rains.</p>
+<div class="priceline"><span class="p num" id="pp">{{ rs_unit | money }}</span>{%- if rs_cmp > rs_unit -%}<s class="num" id="ps">{{ rs_cmp | money }}</s><span class="off num" id="po">{{ p1c }}% off</span>{%- else -%}<s class="num" id="ps"></s><span class="off num" id="po"></span>{%- endif -%}</div>
+<p class="pq num" id="pq"><b>{{ rs_unit | money }} for one drum.</b> 2 drums: {{ p2 | money }} each.</p>
+<button type="button" class="ribbon" data-scroll="box"><span class="imgs" aria-hidden="true"><img src="{{ 'rainsong6-kit-rests.jpg' | file_img_url: '96x' }}" alt="" width="48" height="48"><img src="{{ 'rainsong-kit-book.jpg' | file_img_url: '96x' }}" alt="" width="48" height="48"><img src="{{ 'rainsong-kit-mallets.jpg' | file_img_url: '96x' }}" alt="" width="48" height="48"><img src="{{ 'rainsong-kit-picks.jpg' | file_img_url: '96x' }}" alt="" width="48" height="48"><img src="{{ 'rainsong-kit-stickers.jpg' | file_img_url: '96x' }}" alt="" width="48" height="48"><i class="m5">+1</i><i class="m3">+3</i></span><span class="t"><b>Included free</b>6 bonuses with every drum</span><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div>
+<fieldset class="sets" id="buy"><legend class="vh">Choose your set</legend><div class="sethead" aria-hidden="true"><p class="eyebrow" style="margin:0">Choose your set</p><span>Prices in {{ cart.currency.iso_code }}</span></div>
+{%- liquid
+  assign per = rs_unit
+  assign tot = rs_unit
+  assign was = rs_cmp | times: 1
+  assign save = was | minus: tot
+  assign pc = save | times: 100.0 | divided_by: was | round
+-%}<div class="set on" data-q="1" data-name="Just for me"><label class="sl"><input class="vh" type="radio" name="set" value="1" checked><span class="r" aria-hidden="true"></span><span class="sb"><span class="n">Just for me</span><span class="m">1 drum{%- if save > 0 -%}<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span>{%- endif -%}</span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b>{%- if save > 0 -%}<s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span>{%- endif -%}</span></label><div class="incl"><div class="cl"><span class="cn">Drum 1 <small>· color</small></span><span class="sws" role="radiogroup" aria-label="Drum 1 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c00" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.2C7 8 9.5 8 12 8zm0 0c1.5-3 5-3.5 5-1.2C17 8 14.5 8 12 8z"/></svg><span>1 bonus kit included free · 6 pieces</span></p></div></div>
+{%- liquid
+  assign per = rs_unit
+  assign tot = rs_unit
+  assign tot = rs_t2
+  assign per = tot | plus: 1 | divided_by: 2
+  assign was = rs_cmp | times: 2
+  assign save = was | minus: tot
+  assign pc = save | times: 100.0 | divided_by: was | round
+-%}<div class="set" data-q="2" data-name="Keep one, give one"><label class="sl"><input class="vh" type="radio" name="set" value="2"><span class="r" aria-hidden="true"></span><span class="sb"><span class="tag">Best for gifting</span><span class="n">Keep one, give one</span><span class="m"><span class="num" data-f="per">{{ per | money }}</span> each<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span></span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b><s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span></span></label><div class="incl"><div class="cl"><span class="cn">Drum 1 <small>· for you</small></span><span class="sws" role="radiogroup" aria-label="Drum 1 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c10" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><div class="cl"><span class="cn">Drum 2 <small>· to give</small></span><span class="sws" role="radiogroup" aria-label="Drum 2 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c11" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.2C7 8 9.5 8 12 8zm0 0c1.5-3 5-3.5 5-1.2C17 8 14.5 8 12 8z"/></svg><span>2 bonus kits included free · 12 pieces</span></p></div></div>
+{%- liquid
+  assign per = rs_unit
+  assign tot = rs_unit
+  assign tot = rs_t3
+  assign per = tot | plus: 2 | divided_by: 3
+  assign was = rs_cmp | times: 3
+  assign save = was | minus: tot
+  assign pc = save | times: 100.0 | divided_by: was | round
+-%}<div class="set" data-q="3" data-name="Family set"><label class="sl"><input class="vh" type="radio" name="set" value="3"><span class="r" aria-hidden="true"></span><span class="sb"><span class="n">Family set</span><span class="m"><span class="num" data-f="per">{{ per | money }}</span> each<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span></span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b><s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span></span></label><div class="incl"><div class="cl"><span class="cn">Drum 1 <small>· for you</small></span><span class="sws" role="radiogroup" aria-label="Drum 1 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c20" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><div class="cl"><span class="cn">Drum 2 <small>· to give</small></span><span class="sws" role="radiogroup" aria-label="Drum 2 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c21" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><div class="cl"><span class="cn">Drum 3 <small>· to give</small></span><span class="sws" role="radiogroup" aria-label="Drum 3 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c22" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.2C7 8 9.5 8 12 8zm0 0c1.5-3 5-3.5 5-1.2C17 8 14.5 8 12 8z"/></svg><span>3 bonus kits included free · 18 pieces</span></p></div></div>
+{%- liquid
+  assign per = rs_unit
+  assign tot = rs_unit
+  assign tot = rs_t4
+  assign per = tot | plus: 2 | divided_by: 4
+  assign was = rs_cmp | times: 4
+  assign save = was | minus: tot
+  assign pc = save | times: 100.0 | divided_by: was | round
+-%}<div class="set" data-q="4" data-name="Four to share (friends &amp; family)"><label class="sl"><input class="vh" type="radio" name="set" value="4"><span class="r" aria-hidden="true"></span><span class="sb"><span class="tag v">Lowest per drum</span><span class="n">Four to share (friends &amp; family)</span><span class="m"><span class="num" data-f="per">{{ per | money }}</span> each<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span></span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b><s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span></span></label><div class="incl"><div class="cl"><span class="cn">Drum 1 <small>· for you</small></span><span class="sws" role="radiogroup" aria-label="Drum 1 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c30" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><div class="cl"><span class="cn">Drum 2 <small>· to give</small></span><span class="sws" role="radiogroup" aria-label="Drum 2 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c31" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><div class="cl"><span class="cn">Drum 3 <small>· to give</small></span><span class="sws" role="radiogroup" aria-label="Drum 3 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c32" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><div class="cl"><span class="cn">Drum 4 <small>· to give</small></span><span class="sws" role="radiogroup" aria-label="Drum 4 color">{%- for v in rs_opt.values -%}<label class="sw" title="{{ v | escape }}"><input class="vh" type="radio" name="c33" value="{{ v | escape }}"{% if forloop.index0 == 0 %} checked{% endif %} aria-label="{{ v | escape }}"><i style="background:{%- case v -%}{%- when 'Teal' -%}#1F6B67{%- when 'Black' -%}#2E3230{%- when 'Purple' -%}#9C86C4{%- when 'Aqua' -%}#93CFCB{%- when 'Golden' -%}#C9A13B{%- else -%}#888{%- endcase -%}"></i></label>{%- endfor -%}</span></div><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="17" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.2C7 8 9.5 8 12 8zm0 0c1.5-3 5-3.5 5-1.2C17 8 14.5 8 12 8z"/></svg><span>4 bonus kits included free · 24 pieces</span></p></div></div>
+</fieldset></div>
+{%- comment -%} Not on sale yet (draft/preview): Shopify rejects the add ("Cannot find variant") and the store's cart sends people to an empty /cart. Show a clear message instead. Renders nothing once the product is published. {%- endcomment -%}
+{%- if product.published_at == blank -%}
+<div id="rs6-notsale" role="alert" aria-live="assertive" hidden style="position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:2147483000;width:min(92vw,440px);box-sizing:border-box;background:#0F2A1F;color:#fff;border-radius:14px;padding:14px 18px;font:500 15px/1.4 inherit;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center">This drum isn’t on sale yet. You’re viewing a preview, so Add to bag is turned off until it launches.</div>
+<script>
+(function(){var m=document.getElementById('rs6-notsale'),t=0;
+function hit(x){return x&&x.closest&&x.closest('form.blocky-product-form [data-blocky-add-button], .rs [data-atc], form[action*="/cart/add"] [type=submit]')}
+function stop(e){if(!hit(e.target))return;e.preventDefault();e.stopImmediatePropagation();
+  m.hidden=false;clearTimeout(t);t=setTimeout(function(){m.hidden=true},6000);
+  document.documentElement.classList.remove('rs-adding')}
+window.addEventListener('click',stop,true);
+window.addEventListener('submit',function(e){var f=e.target;if(f&&f.matches&&f.matches('form.blocky-product-form, form[action*="/cart/add"]')){e.preventDefault();e.stopImmediatePropagation()}},true);
+})();
+</script>
+{%- endif -%}
