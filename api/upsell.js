@@ -12,7 +12,8 @@
 //    {"variant_id":67665328799926,"quantity":2,"when":"declined","if_any_variant":[...],"unless_any_variant":[67665328799926],
 //     "price":{"USD":7499,"GBP":5799},"msrp":{"USD":9998,"GBP":7798},...},
 //    {"variant_id":67665328799926,"when":"declined",...,"price":{"USD":2999,"GBP":2299},"msrp":{"USD":4999,"GBP":3899},...}]
-// Optional per offer: "quantity" (default 1, max 10); "if_any_variant": [ids]; "unless_any_variant": [ids];
+// Several flows can share the list: see config/upsell-6inch-L.template.json and scripts/upsell-offers.mjs.
+// Optional per offer: "flow" (a label, e.g. "6inch-L"; not shown); "quantity" (default 1, max 10); "if_any_variant": [ids]; "unless_any_variant": [ids];
 // "when": "always" | "declined" | "accepted" (conditions on the previous eligible offer);
 // "price": {"USD":11999,"GBP":9299}; "msrp": {"USD":9998,"GBP":7798} (compare-at used for strikethrough and discount %);
 // display: "eyebrow", "headline" ({name}/{save}/{price}; <b>/<em>/<br> allowed), "text", "badge", "sticker": ["50%","off 2nd"],
@@ -26,15 +27,21 @@ import { baseUrl, journey } from "../lib/http.js";
 
 const WINDOW_MIN = Math.min(Math.max(Number(process.env.UPSELL_MINUTES) || 15, 2), 60); // offer valid this long after payment (UPSELL_MINUTES)
 
+// The offers a checkout gets, in step order: each flow (XL Pro, 6-inch L, ...) is keyed by the variants in the order
+// (if_any_variant / unless_any_variant), so one UPSELL_OFFERS list can hold several flows without them mixing.
+// An offer whose ids are still placeholders (e.g. "sku:6INCH-PRODRUM-TEAL-Q1") never matches, so it is skipped.
+export function selectOffers(all, variantIds) {
+  const have = new Set((variantIds || []).map(Number));
+  const any = (ids) => (Array.isArray(ids) ? ids : [ids]).some((id) => have.has(Number(id)));
+  return (Array.isArray(all) ? all : [all]).filter((x) => Number(x?.variant_id) > 0)
+    .filter((x) => !x.if_any_variant || any(x.if_any_variant))
+    .filter((x) => !x.unless_any_variant || !any(x.unless_any_variant))
+    .slice(0, 3);
+}
+
 function offers(s) {
   try {
-    const a = JSON.parse(process.env.UPSELL_OFFERS || "[]");
-    const have = new Set(((s && s.order && s.order.l) || []).map((l) => Number(l[0])));
-    const any = (ids) => (Array.isArray(ids) ? ids : [ids]).some((id) => have.has(Number(id)));
-    return (Array.isArray(a) ? a : [a]).filter((x) => Number(x?.variant_id) > 0)
-      .filter((x) => !x.if_any_variant || any(x.if_any_variant))
-      .filter((x) => !x.unless_any_variant || !any(x.unless_any_variant))
-      .slice(0, 3);
+    return selectOffers(JSON.parse(process.env.UPSELL_OFFERS || "[]"), ((s && s.order && s.order.l) || []).map((l) => l[0]));
   } catch (e) { console.error("UPSELL_OFFERS is not valid JSON", e.message); return []; }
 }
 

@@ -1,0 +1,190 @@
+[
+  {
+    "flow": "6inch-L",
+    "variant_id": "sku:6INCH-PRODRUM-TEAL-Q1",
+    "if_any_variant": "sku-prefix:6INCH-PRODRUM-",
+    "unless_any_variant": [
+      68105383870646,
+      68112843899062,
+      68114477449398,
+      68114477482166,
+      68114477514934
+    ],
+    "price": {
+      "USD": 5999,
+      "GBP": 4699
+    },
+    "eyebrow": "One-time offer for this order",
+    "headline": "Keep one. <em>Give one.</em><br>Add a second 6-Inch L for {save} less.",
+    "text": "Add a second drum now at our 2-pack price, without placing a new order. It ships in the same box, with no extra shipping.",
+    "title": "Second 6-Inch L Steel Drum",
+    "badge": "Ships in the same box",
+    "why": "The same price per drum as our 2-pack",
+    "chip": "What’s in the box",
+    "bullets": [
+      "<b>The same 6-inch, 11-note steel drum</b>, hand-tuned, in Teal",
+      "<b>Kit included:</b> 2 mallet rests, guide book, mallets, finger picks, stickers and pouch",
+      "<b>Gift-ready</b> in its own box, packed in the same shipment"
+    ],
+    "button": "Add to my order",
+    "decline": "No thanks, I’ll pass on this offer"
+  },
+  {
+    "flow": "6inch-L",
+    "variant_id": 67665328799926,
+    "quantity": 2,
+    "when": "declined",
+    "if_any_variant": "sku-prefix:6INCH-PRODRUM-",
+    "unless_any_variant": [
+      67665328799926,
+      68105383870646,
+      68112843899062,
+      68114477449398,
+      68114477482166,
+      68114477514934
+    ],
+    "price": {
+      "USD": 7499,
+      "GBP": 5799
+    },
+    "msrp": {
+      "USD": 9998,
+      "GBP": 7798
+    },
+    "sticker": [
+      "50%",
+      "off 2nd"
+    ],
+    "eyebrow": "Buy one, get one 50% off",
+    "headline": "Buy one, get one 50% off.<br><em>A gift for little loved ones.</em>",
+    "text": "Two 9-Note rain drums, valued at {unit} each ({compare}). You pay {price} — the second one is 50% off. Keep one, and give one to a grandchild or a child you love. They ship in the same box, with no extra shipping.",
+    "title": "9-Note Rain Drum",
+    "badge": "50% off the 2nd",
+    "rating": "4.58 · 50 reviews",
+    "why": "Valued at {unit} each. The second is 50% off — save {save}.",
+    "chip": "For little loved ones",
+    "bullets": [
+      "<b>Two 9-Note rain drums</b>, each with its own mallet, ready to gift",
+      "<b>Nine steel tongues in a pentatonic scale,</b> so there’s no wrong note",
+      "<b>Weather-resistant steel,</b> made to sit outdoors year-round"
+    ],
+    "media": [
+      {
+        "type": "img",
+        "src": "/media/bogo-hero.jpg",
+        "thumb": "/media/bogo-hero-thumb.jpg"
+      },
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-linen.png?v=1792151227&width=1000"
+      },
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-moss.png?v=1792151229&width=1000"
+      },
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-porch-railing.png?v=1792151227&width=1000"
+      }
+    ],
+    "quote": {
+      "text": "I bought these as Christmas gifts for my three adult children. Took one out and used the mallet and the clarity of the notes was amazing. I know they will love them!",
+      "author": "Peggy Fodness"
+    },
+    "reviews": [
+      {
+        "text": "I love them. I can't wait to give the other ones to my daughter's for Christmas. I'm positive they will love them as much as I do. Thank you. Christine",
+        "author": "Christine Junkins"
+      },
+      {
+        "text": "Unique gift and beautiful musical sounds. Great for Rainy Season and even fun to play.",
+        "author": "Karen Davis"
+      },
+      {
+        "text": "just as described, perfect size and sounds lovely! So excited to gift these:)",
+        "author": "Anonymous"
+      }
+    ],
+    "button": "Add both to my order",
+    "decline": "No thanks, I’ll pass on this offer",
+    "close": "Add both 9-Note drums for {price}.",
+    "disc": "50% off the second",
+    "options": [
+      "Valued at {unit} each",
+      "Mallet included with each"
+    ]
+  },
+  {
+    "flow": "6inch-L",
+    "variant_id": 67665328799926,
+    "when": "declined",
+    "if_any_variant": "sku-prefix:6INCH-PRODRUM-",
+    "unless_any_variant": [
+      67665328799926,
+      68105383870646,
+      68112843899062,
+      68114477449398,
+      68114477482166,
+      68114477514934
+    ],
+    "price": {
+      "USD": 2999,
+      "GBP": 2299
+    },
+    "msrp": {
+      "USD": 4999,
+      "GBP": 3899
+    },
+    "eyebrow": "This is your final offer",
+    "headline": "Not ready for two?<br><em>Add the 9-Note</em> for {price}.",
+    "text": "Our smaller rain drum. Set it outside and the rain plays it, one clean note per drop. An easy add-on gift that ships in the same box.",
+    "title": "9-Note Rain Drum",
+    "badge": "Rain-played · 9 notes",
+    "rating": "4.58 · 50 reviews",
+    "why": "Under a third of the 6-Inch L price",
+    "bullets": [
+      "<b>Nine steel tongues in a pentatonic scale,</b> so there’s no wrong note",
+      "<b>Weather-resistant steel,</b> made to sit outdoors year-round",
+      "<b>Includes a mallet</b> to play it on dry days"
+    ],
+    "media": [
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-linen.png?v=1792151227&width=1000"
+      },
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-moss.png?v=1792151229&width=1000"
+      },
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-porch-railing.png?v=1792151227&width=1000"
+      },
+      {
+        "type": "img",
+        "src": "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rain-drum-on-wet-slate.png?v=1792151228&width=1000"
+      }
+    ],
+    "quote": {
+      "text": "I love them. I can't wait to give the other ones to my daughter's for Christmas. I'm positive they will love them as much as I do. Thank you. Christine",
+      "author": "Christine Junkins"
+    },
+    "reviews": [
+      {
+        "text": "Unique gift and beautiful musical sounds. Great for Rainy Season and even fun to play.",
+        "author": "Karen Davis"
+      },
+      {
+        "text": "just as described, perfect size and sounds lovely! So excited to gift these:)",
+        "author": "Anonymous"
+      },
+      {
+        "text": "I bought these as Christmas gifts for my three adult children. Took one out and used the mallet and the clarity of the notes was amazing. I know they will love them!",
+        "author": "Peggy Fodness"
+      }
+    ],
+    "button": "Add to my order",
+    "decline": "No thanks, complete my order",
+    "close": "Add the 9-Note for {price}."
+  }
+]
