@@ -8,9 +8,9 @@ process.env.WHOP_API_KEY = "test_key"; process.env.WHOP_COMPANY_ID = "biz_test";
 process.env.CHECKOUT_URL = "https://checkout.test";
 
 const XL = [68105383870646, 68112843899062, 68114477449398, 68114477482166, 68114477514934], NINE = 67665328799926;
-// Stand-in 6-inch variant ids (the real ones come from the 6-inch product once it exists)
-const SIX = { "6INCH-PRODRUM-TEAL-Q1": 70000000000001, "6INCH-PRODRUM-BLACK-Q1": 70000000000002, "6INCH-PRODRUM-PURPLE-Q1": 70000000000003,
-  "6INCH-PRODRUM-AQUA-Q1": 70000000000004, "6INCH-PRODRUM-GOLDEN-Q1": 70000000000005 };
+// The real 6-inch L variants (product 15516011856054, handle 6-inch-l-pro-drum)
+const SIX = JSON.parse(fs.readFileSync(new URL("../config/6inch-L-variants.json", import.meta.url), "utf8"));
+const FILLED = JSON.parse(fs.readFileSync(new URL("../config/upsell-6inch-L.json", import.meta.url), "utf8"));
 const SIX_TEAL = SIX["6INCH-PRODRUM-TEAL-Q1"], SIX_BLACK = SIX["6INCH-PRODRUM-BLACK-Q1"];
 
 // The XL flow as configured on production (v2 config, trimmed to the fields that drive behavior)
@@ -21,7 +21,7 @@ const XL_FLOW = [
 ];
 const TEMPLATE = JSON.parse(fs.readFileSync(new URL("../config/upsell-6inch-L.template.json", import.meta.url), "utf8"));
 
-const SHOP = { [XL[0]]: { USD: 17999, GBP: 13999, title: "XL Pro" }, [SIX_TEAL]: { USD: 9999, GBP: 7799, title: "6-Inch L" }, [NINE]: { USD: 2999, GBP: 2299, title: "9-note" } };
+const SHOP = { [XL[0]]: { USD: 17999, GBP: 13999, title: "XL Pro" }, [SIX_TEAL]: { USD: 9999, GBP: 7732, title: "6-Inch L" }, [NINE]: { USD: 2999, GBP: 2299, title: "9-note" } };
 mock.module("../lib/pricing.js", { namedExports: {
   priceCart: async (b) => {
     const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur], su = SHOP[it.variant_id].USD;
@@ -45,6 +45,10 @@ describe("flow selection (selectOffers)", () => {
     assert.deepEqual(SIX_FLOW[0].if_any_variant.sort(), Object.values(SIX).sort());
     assert.deepEqual(SIX_FLOW.map((o) => o.price.USD), [5999, 7499, 2999]);
     assert.deepEqual(SIX_FLOW.map((o) => o.when || "always"), ["always", "declined", "declined"]);
+  });
+  test("config/upsell-6inch-L.json is the template filled with the real ids", () => {
+    assert.deepEqual(FILLED, SIX_FLOW);
+    assert.equal(FILLED[0].variant_id, 68183895998646);
   });
   test("XL Pro checkouts get exactly the XL flow, unchanged, with the 6-inch offers in the list", () => {
     for (const v of XL) assert.deepEqual(selectOffers(ALL, [v]), selectOffers(XL_FLOW, [v]));
@@ -95,7 +99,7 @@ const get = (q) => new Promise((ok) => {
 });
 
 describe("6-inch offer pages (GET /api/upsell)", () => {
-  for (const [mk, cur, p0, cmp0, off0] of [["US", "USD", 5999, 9999, 40], ["GB", "GBP", 4699, 7799, 40]]) {
+  for (const [mk, cur, p0, cmp0, off0] of [["US", "USD", 5999, 9999, 40], ["GB", "GBP", 4699, 7732, 39]]) {
     test(`${cur}: step 0 second 6-inch, then 9-note pair, then one 9-note`, async () => {
       ORDER = order(cur);
       const s = createSession({ order: ORDER, mk, j: "jt" });

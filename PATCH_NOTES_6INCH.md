@@ -21,6 +21,7 @@ If a cart has both an XL Pro and a 6-inch, only the XL flow shows (the flows nev
 ## Files
 - `api/upsell.js`: the variant filter moved into an exported `selectOffers(list, variantIds)` (same logic, now testable);
   doc lines for the optional `flow` label. No behavior change.
+- `config/6inch-L-variants.json` (SKU -> variant id) and `config/upsell-6inch-L.json` (filled flow).
 - `config/upsell-6inch-L.template.json`: the 3 offers, keyed by SKU placeholders
   (`"sku:6INCH-PRODRUM-TEAL-Q1"`, `"sku-prefix:6INCH-PRODRUM-"`). Unfilled placeholders never match, so the template is inert.
 - `scripts/upsell-offers.mjs`: `fill` (placeholders -> variant ids), `merge` (add/replace one flow, keep the rest),
@@ -29,23 +30,22 @@ If a cart has both an XL Pro and a 6-inch, only the XL flow shows (the flows nev
 - `e2e/offer-server.mjs`: optional 3rd arg `6inch` and `E2E_MARKET=US`; `e2e/offer_shots.py`: mobile shots of each step.
 
 ## Tests
-`npm test` (node --test --experimental-test-module-mocks): 59/59 pass (48 existing + 11 new).
-Browser e2e (`e2e/offer_page.py`, fake Whop): XL 4/4 and 6-inch 4/4 (success after the final offer, success, pending -> paid, decline). One Whop charge per accept.
+`npm test` (node --test --experimental-test-module-mocks): 60/60 pass (48 existing + 12 new), with the real 6-inch ids.
+Browser e2e (`e2e/offer_page.py`, fake Whop, run on the merged production value): XL 4/4 and 6-inch 4/4 (success after the final offer, success, pending -> paid, decline). One Whop charge per accept.
 
 ## Go live (after the owner approves)
-1. The 6-inch product exists with SKUs `6INCH-PRODRUM-<COLOR>-Q1` (Teal must exist; step 0 offers Teal).
-   Set its UK market price; if it is not £77.99, adjust the GBP prices in the template (keep step 0 at about 60% of it).
-2. Build the new value (needs the SHOPIFY_* env for `--shopify`, or pass `--ids map.json` of {"SKU": variantId}):
-   ```bash
-   node scripts/upsell-offers.mjs fill config/upsell-6inch-L.template.json --shopify > /tmp/six.json
-   # current production value saved to /tmp/current.json (Vercel dashboard > Settings > Environment Variables > UPSELL_OFFERS)
-   node scripts/upsell-offers.mjs merge /tmp/current.json /tmp/six.json > /tmp/new.json
-   node scripts/upsell-offers.mjs check /tmp/new.json <a 6-inch variant id>     # expect 3 [6inch-L] steps
-   node scripts/upsell-offers.mjs check /tmp/new.json 68105383870646            # expect the XL steps, unchanged
-   ```
-3. Replace `UPSELL_OFFERS` on Production with `/tmp/new.json` and redeploy (env changes need a new deployment).
-   This branch's code change is not required for the flow to work: the current production code already handles it.
-   Merging the branch only adds the helper, tests and template.
+The 6-inch L product exists (DRAFT): product 15516011856054, handle `6-inch-l-pro-drum`, $99.99 (UK £77.32 today).
+Variant ids are in `config/6inch-L-variants.json`; `config/upsell-6inch-L.json` is the template filled with them.
+1. Owner approves; the product is set ACTIVE and published to the Online Store (a draft can't be bought, so the flow can't trigger before that).
+   Optional: give it a rounded UK price (e.g. £77.99); today step 0 shows "£30.33 less / 39% off" against £77.32.
+2. The new value is ready: `UPSELL_OFFERS.new-production.json` (sha256 78880616…45fc17) = the current production value
+   (unchanged since 25 Nov, sha256 3698165d…5ee68c) + the 3 `6inch-L` offers. The XL offers are byte-for-byte the same.
+   To rebuild it yourself: `node scripts/upsell-offers.mjs merge <current.json> config/upsell-6inch-L.json > new.json`
+   Check: `node scripts/upsell-offers.mjs check new.json 68183895998646` -> 3 `[6inch-L]` steps;
+   `... check new.json 68105383870646` -> the XL steps, unchanged.
+3. Set Production `UPSELL_OFFERS` to that file's contents (Vercel > Settings > Environment Variables, or
+   `vc env rm UPSELL_OFFERS production` + `vc env add UPSELL_OFFERS production < new.json`) and redeploy production (env changes need a new deployment).
+   This branch's code change is not required for the flow to work; merging it only adds the helper, tests and config.
 
 ## Rollback
 `node scripts/upsell-offers.mjs remove /tmp/new.json 6inch-L > /tmp/back.json`, set `UPSELL_OFFERS` to it and redeploy.

@@ -11,11 +11,11 @@ process.env.WHOP_API_KEY = "test_key"; process.env.WHOP_COMPANY_ID = "biz_test";
 process.env.UPSELL_POLL_MS = "2000"; process.env.CHECKOUT_URL = `http://127.0.0.1:${PORT}`;
 process.env.UPSELL_OFFERS = fs.readFileSync(process.argv[3], "utf8");
 const XL = 68105383870646, NINE = 67665328799926;
-const SIX = Number(process.env.E2E_SIX_VARIANT || 70000000000001); // stand-in 6-inch L variant id (see config/upsell-6inch-L.template.json)
+const SIX = Number(process.env.E2E_SIX_VARIANT || 68183895998646); // 6-inch L Teal (config/6inch-L-variants.json)
 const DRUM = process.argv[4] === "6inch" ? "6inch" : "xl";
-// The 6-inch has no product photos yet: the test uses a Rainsong photo as a stand-in for the variant image Shopify will return.
+// Title, UK price and Teal variant image as Shopify returns them for the 6-inch L today (the photo is still a 10-inch one).
 const SHOP = { [XL]: { GBP: 13999, USD: 17999, title: "Margaret’s Hand-Tuned Steel Drum’s (10 Inches + 11 Tones)" }, [NINE]: { GBP: 2299, USD: 2999, title: "Add 1 More Rain Drum" },
-  [SIX]: { GBP: 7799, USD: 9999, title: "Hand-Tuned Rain Drum (6 Inch - L)", options: ["Color: Teal"], image: "https://madespecial.store/cdn/shop/files/rainsong-hero-xmas.jpg?v=1795555539&width=1000" } };
+  [SIX]: { GBP: 7732, USD: 9999, title: "*NEW* Hand Tuned Rain Drum (6 inch - L)", options: ["Color: Teal"], image: "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rainsong-hero-xmas.jpg?v=1795555539&width=800" } };
 mock.module("../lib/pricing.js", { exports: { priceCart: async (b) => {
   const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur];
   return { currency: cur, shopCurrency: "USD", total: u * it.quantity, shopTotal: SHOP[it.variant_id].USD * it.quantity, lines: [[it.variant_id, it.quantity, u, SHOP[it.variant_id].USD]],

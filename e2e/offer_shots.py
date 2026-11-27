@@ -14,7 +14,7 @@ with sync_playwright() as p:
     pg = ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(f"{BASE}/?return=1&status=succeeded&payment=pay_parent", wait_until="domcontentloaded")
     for step in range(3):
-        pg.wait_for_selector("#ups-yes", timeout=15000); pg.wait_for_timeout(1500)
+        pg.wait_for_selector("#ups-yes", timeout=15000); pg.wait_for_timeout(1500); pg.wait_for_function("Array.from(document.images).every(i => i.complete)", timeout=10000)
         pg.screenshot(path=f"{OUT}/{PRE}_step{step}_atf.png")
         pg.screenshot(path=f"{OUT}/{PRE}_step{step}_full.png", full_page=True)
         seen.append({"step": step, "button": pg.inner_text("#ups-yes"), "text": pg.inner_text(".ppu")[:400] if pg.query_selector(".ppu") else ""})
