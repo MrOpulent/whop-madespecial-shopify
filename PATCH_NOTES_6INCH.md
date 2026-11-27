@@ -34,7 +34,7 @@ If a cart has both an XL Pro and a 6-inch, only the XL flow shows (the flows nev
 Browser e2e (`e2e/offer_page.py`, fake Whop, run on the merged production value): XL 4/4 and 6-inch 4/4 (success after the final offer, success, pending -> paid, decline). One Whop charge per accept.
 
 ## Go live (after the owner approves)
-The 6-inch L product exists (DRAFT): product 15516011856054, handle `6-inch-l-pro-drum`, $99.99. UK: fixed £79.99 on all 5 variants in the
+The 6-inch L product exists (DRAFT): product 15516011856054, handle `steel-tongue-rain-drum`, $99.99. UK: fixed £79.99 on all 5 variants in the
 "UK Pricing" price list (PriceList/30934368438), same method as the XL (£139.99). It applies once the product is in the UK market catalog (see 1).
 Variant ids are in `config/6inch-L-variants.json`; `config/upsell-6inch-L.json` is the template filled with them.
 1. Owner approves; the product is set ACTIVE and published to the Online Store (a draft can't be bought, so the flow can't trigger before that).
