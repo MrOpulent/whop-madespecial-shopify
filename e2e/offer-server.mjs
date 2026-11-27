@@ -1,6 +1,6 @@
 // Local server for the offer-page browser test: serves public/ and runs the real api/upsell.js against a fake Whop
 // and mocked Shopify pricing. No real payment or Shopify call is made. Scenario: POST /__scenario {name}
-// Run: node --experimental-test-module-mocks e2e/offer-server.mjs <port> <offers.json>
+// Run: node --experimental-test-module-mocks e2e/offer-server.mjs <port> <offers.json> [xl|6inch]  (which drum the test order holds)
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,17 +11,23 @@ process.env.WHOP_API_KEY = "test_key"; process.env.WHOP_COMPANY_ID = "biz_test";
 process.env.UPSELL_POLL_MS = "2000"; process.env.CHECKOUT_URL = `http://127.0.0.1:${PORT}`;
 process.env.UPSELL_OFFERS = fs.readFileSync(process.argv[3], "utf8");
 const XL = 68105383870646, NINE = 67665328799926;
-const SHOP = { [XL]: { GBP: 13999, USD: 17999, title: "Margaret’s Hand-Tuned Steel Drum’s (10 Inches + 11 Tones)" }, [NINE]: { GBP: 2299, USD: 2999, title: "Add 1 More Rain Drum" } };
+const SIX = Number(process.env.E2E_SIX_VARIANT || 68183895998646); // 6-inch L Teal (config/6inch-L-variants.json)
+const DRUM = process.argv[4] === "6inch" ? "6inch" : "xl";
+// Title, UK fixed price (£79.99) and Teal variant image of the 6-inch L in Shopify (the photo is still a 10-inch one).
+const SHOP = { [XL]: { GBP: 13999, USD: 17999, title: "Margaret’s Hand-Tuned Steel Drum’s (10 Inches + 11 Tones)" }, [NINE]: { GBP: 2299, USD: 2999, title: "Add 1 More Rain Drum" },
+  [SIX]: { GBP: 7999, USD: 9999, title: "*NEW* Hand Tuned Rain Drum (6 inch - L)", options: ["Color: Teal"], image: "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rainsong-hero-xmas.jpg?v=1795555539&width=800" } };
 mock.module("../lib/pricing.js", { exports: { priceCart: async (b) => {
   const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur];
   return { currency: cur, shopCurrency: "USD", total: u * it.quantity, shopTotal: SHOP[it.variant_id].USD * it.quantity, lines: [[it.variant_id, it.quantity, u, SHOP[it.variant_id].USD]],
-    display: [{ title: SHOP[it.variant_id].title, options: [], image: "", qty: it.quantity }] };
+    display: [{ title: SHOP[it.variant_id].title, options: SHOP[it.variant_id].options || [], image: SHOP[it.variant_id].image || "", qty: it.quantity }] };
 } } });
 const { createSession } = await import("../lib/session.js");
 const { default: upsell } = await import("../api/upsell.js");
 
 let scenario = "success", payments = {}, keys = {}, creates = 0;
-const order = { l: [[XL, 1, 13999, 17999]], c: "GBP", t: 13999 };
+const MK = process.env.E2E_MARKET === "US" ? "US" : "GB", CUR = MK === "US" ? "USD" : "GBP";
+const D = DRUM === "6inch" ? SIX : XL;
+const order = { l: [[D, 1, SHOP[D][CUR], SHOP[D].USD]], c: CUR, t: SHOP[D][CUR] };
 const reset = () => { payments = { pay_parent: { id: "pay_parent", status: "paid", paid_at: new Date().toISOString(), member_id: "mber_1", payment_method_id: "payt_1", metadata: { order: JSON.stringify(order) } } }; keys = {}; creates = 0; };
 reset();
 const statusOf = (p) => {
@@ -50,7 +56,7 @@ const PUB = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../pu
 http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://127.0.0.1:${PORT}`);
   if (u.pathname === "/__scenario") { scenario = u.searchParams.get("name"); reset();
-    res.setHeader("Content-Type", "application/json"); return res.end(JSON.stringify({ scenario, token: createSession({ order, mk: "GB", j: "e2e" }) })); }
+    res.setHeader("Content-Type", "application/json"); return res.end(JSON.stringify({ scenario, token: createSession({ order, mk: MK, j: "e2e" }) })); }
   if (u.pathname === "/__creates") { res.setHeader("Content-Type", "application/json"); return res.end(JSON.stringify({ creates })); }
   if (u.pathname === "/api/upsell") {
     let body = ""; for await (const c of req) body += c;

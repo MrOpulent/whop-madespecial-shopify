@@ -15,7 +15,7 @@ with sync_playwright() as p:
         tok = scen(name)
         ctx = b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
         ctx.add_init_script(f"sessionStorage.setItem('ms-s', {json.dumps(tok)}); sessionStorage.setItem('ms-order', {json.dumps(json.dumps(ORDER))}); sessionStorage.removeItem('ms-ups');")
-        ctx.route("**/*", lambda r: r.continue_() if r.request.url.startswith(BASE) or "madespecial.store/cdn" in r.request.url else r.abort())
+        ctx.route("**/*", lambda r: r.continue_() if r.request.url.startswith(BASE) or "madespecial.store/cdn" in r.request.url or "cdn.shopify.com" in r.request.url else r.abort())
         pg = ctx.new_page(); pg.on("pageerror", lambda e: errs.append(f"{name}: {e}"))
         pg.goto(f"{BASE}/?return=1&status=succeeded&payment=pay_parent", wait_until="domcontentloaded")
         pg.wait_for_selector("#ups-yes", timeout=15000)
