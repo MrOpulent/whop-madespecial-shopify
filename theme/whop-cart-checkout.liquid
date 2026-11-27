@@ -280,9 +280,8 @@
       var dedupe = (id || 'cart') + ':addtocart:' + items[0].item_id + ':' + now;
       try { axon('track', 'add_to_cart', { currency: cur, value: value, items: items }, { dedupe_id: dedupe }); } catch (e) {}
       if (!id) return;
-      // The store script sends "addtocart". The Shopify guide says "AddToCart".
-      // RedTrack matches the name exactly, so report both spellings under separate event ids.
-      ['addtocart', 'AddToCart'].forEach(function (type) {
+      // RedTrack counts the ATC only (no sum), so add-to-carts never show as revenue.
+      ['AddToCart'].forEach(function (type) {
         try {
           var eventId = dedupe + ':' + type;
           var u = new URL(RT);
@@ -290,7 +289,6 @@
           u.searchParams.set('type', type);
           u.searchParams.set('eventid', eventId);
           u.searchParams.set('rdtk_event_id', eventId);
-          u.searchParams.set('sum', value.toFixed(2));
           u.searchParams.set('currency', cur);
           var img = new Image(); img.src = u.toString();
         } catch (e) {}
