@@ -1,0 +1,116 @@
+{%- comment -%}
+  MadeSpecial homepage (ms-home). Two parts around the Judge.me reviews app section:
+  part "top": hero, promise strip, the three drums, sound + how it works, customer videos, gift finder, reviews heading
+  part "bottom": guarantee, FAQ, final call to action, mobile sticky bar
+  Prices, compare-at, % off, images and review counts are read live from Shopify (no hardcoded prices).
+{%- endcomment -%}
+{%- liquid
+  assign p9 = all_products['steel-tongue-rain-drum-4-inch']
+  assign p6 = all_products['steel-tongue-rain-drum']
+  assign pxl = all_products['10-inch-xl-pro-drum']
+  assign shop_link = section.settings.shop_link | default: '/collections/all?view=ms'
+  comment
+    t183u: homepage video = the Plus Drum page unboxing video (was ff33bb7f, the Pro unboxing video). To undo: put the old URL back.
+  endcomment
+  assign v6 = 'https://cdn.shopify.com/videos/c/vp/de2d3ce4d7494ecab6c7ea2793427969/de2d3ce4d7494ecab6c7ea2793427969.HD-1080p-7.2Mbps-102704969.mp4'
+  assign xl_img = pxl.media[2].preview_image | default: pxl.featured_image
+-%}
+{%- if section.settings.part == 'top' -%}
+{% render 'ms-head' %}
+<div class="ms ms-page ms-home">
+  <section class="mhero" aria-labelledby="ms-h1">
+    <div class="bg">
+      {%- if section.settings.hero_image != blank -%}
+        {{ section.settings.hero_image | image_url: width: 2000 | image_tag: loading: 'eager', fetchpriority: 'high', widths: '750, 1100, 1500, 2000', sizes: '100vw', alt: '' }}
+      {%- else -%}
+        <img src="{{ 'rainsong-hero-xmas.jpg' | file_img_url: '1500x' }}" srcset="{{ 'rainsong-hero-xmas.jpg' | file_img_url: '750x' }} 750w, {{ 'rainsong-hero-xmas.jpg' | file_img_url: '1100x' }} 1100w, {{ 'rainsong-hero-xmas.jpg' | file_img_url: '1500x' }} 1500w, {{ 'rainsong-hero-xmas.jpg' | file_img_url: '2000x' }} 2000w" sizes="100vw" alt="A teal rain drum in an open green gift box with a red velvet ribbon by a lit Christmas tree" fetchpriority="high" width="1500" height="1000">
+      {%- endif -%}
+    </div>
+    <div class="in">
+      <p class="k">{{ section.settings.kicker | default: 'This Christmas' }}</p>
+      <h1 id="ms-h1">The gift that plays itself <em>when it rains.</em></h1>
+      <p class="lede">Hand-tuned steel rain drums for the porch and the garden. Set one outside and every raindrop lands on a note. Nothing to learn, nothing to tune.</p>
+      {% render 'ms-rating', p9: p9, p6: p6, pxl: pxl %}
+      <div class="ctas">
+        <a class="btn" href="#ms-shop" data-scroll="ms-shop">Shop the rain drums {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+        <a class="btn gh" href="#ms-videos" data-scroll="ms-videos">{% render 'ms-ic', i: 'play', s: 16 %} Hear it in the rain</a>
+      </div>
+    </div>
+  </section>
+  {% render 'ms-promise' %}
+
+  <section class="sec" id="ms-shop" style="padding-top:56px">
+    <div class="wrap">
+      <div class="sec-head" data-rv><p class="k">The collection</p><h2>Three drums. <em>One for everyone on your list.</em></h2></div>
+      <div class="grid3" data-sticky-after>
+        {% render 'ms-card', p: p9, ribbon: '', badge: 'Stocking filler', name: 'The Pocket Drum (M)', size: '4-inch · 9 notes', best: 'grandkids, friends and stockings', t1: 'Plays itself in the rain', t2: 'Nine notes in one scale: no wrong note', t3: 'Mallet included for dry days', extra: '', cta: 'See the Pocket Drum' %}
+        {% render 'ms-card', p: p6, ribbon: 'Our main gift', badge: 'New', name: 'The Pro Drum (L)', size: '6-inch · 11 notes', best: 'Mom, Grandma and the main gift', t1: 'Eleven numbered notes and a guide book', t2: 'Soft mallets: a light tap is enough', t3: '6 free extras in the box', extra: 'Sets of 2, 3 or 4 save more on the next page.', cta: 'See the Pro Drum', feat: true %}
+        {% render 'ms-card', p: pxl, img: xl_img, ribbon: '', badge: 'Biggest sound', name: 'The Plus Drum (XL)', size: '10-inch · 11 notes', best: 'garden lovers, or a gift to yourself', t1: 'Our deepest, longest ring', t2: 'Padded carrying bag included', t3: '7 free extras in the box', extra: '', cta: 'See the Plus Drum' %}
+      </div>
+      <p style="text-align:center;margin:28px 0 0"><a class="tlink" href="{{ shop_link }}">Not sure? Compare all three side by side</a></p>
+    </div>
+  </section>
+
+  <section class="sec band" id="ms-sound">
+    <div class="wrap split">
+      <div class="vid" data-rv>
+        <video data-auto data-src="{{ v6 }}" muted loop playsinline preload="none" disablepictureinpicture disableremoteplayback poster="{{ 'rainsong-kit-package.jpg' | file_img_url: '1000x' }}" width="1080" height="1080" aria-label="Unboxing the rain drum and its free extras"></video>
+      </div>
+      <div data-rv>
+        <p class="k">How it works</p>
+        <h2>Put the kettle on. <em>Let the weather play.</em></h2>
+        <p class="lede" style="margin-top:14px">Every note is tuned to one scale, so every drop sounds like it belongs.</p>
+        <ol class="steps">
+          <li><span class="n">1</span><div><h3>Set it outside</h3><p>On a table, a wall or the porch rail. Steady rain plays it.</p></div></li>
+          <li><span class="n">2</span><div><h3>Or play the numbers</h3><p>Each note is numbered. Tap them in order and a song comes out.</p></div></li>
+          <li><span class="n">3</span><div><h3>Send it straight to them</h3><p>Add their address at checkout. Free tracked shipping on every drum.</p></div></li>
+        </ol>
+        <a class="btn" href="{{ shop_link }}">Find your drum {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+      </div>
+    </div>
+  </section>
+
+  {% render 'ms-ugc' %}
+  <div style="height:64px"></div>
+  {% render 'ms-finder', p9: p9, p6: p6, pxl: pxl, uid: 'hf' %}
+
+  <section class="sec" id="ms-reviews" style="padding-bottom:20px">
+    <div class="wrap"><div class="sec-head" style="margin-bottom:0" data-rv><p class="k">Reviews</p><h2>From people <em>who’ve heard it.</em></h2>{% render 'ms-rating', p9: p9, p6: p6, pxl: pxl %}</div></div>
+  </section>
+</div>
+<style>.ms-home #ms-reviews .rate{justify-content:center;margin-top:14px}</style>
+{%- else -%}
+<div class="ms ms-page ms-home">
+  <div style="height:24px"></div>
+  {% render 'ms-guarantee' %}
+  {% render 'ms-faq' %}
+  <section class="final">
+    <div class="bg"><img src="{{ 'rainsong-porch-rain.jpg' | file_img_url: '1600x' }}" alt="" loading="lazy" decoding="async" width="1600" height="1200"></div>
+    <div class="in" data-rv>
+      <p class="k">This Christmas</p>
+      <h2>Give them <em>the sound of the rain.</em></h2>
+      <p class="lede">Three hand-tuned drums, free tracked shipping and 30 days to decide.</p>
+      <a class="btn" href="{{ shop_link }}">Shop all rain drums {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+      <div class="mini"><span>{% render 'ms-ic', i: 'truck', s: 16 %} Free shipping</span><span>{% render 'ms-ic', i: 'shield', s: 16 %} 30-day money-back</span><span>{% render 'ms-ic', i: 'gift', s: 16 %} Ship straight to them</span></div>
+    </div>
+  </section>
+  <div class="msticky" aria-hidden="true">
+    <div class="t"><b>Rain drums from {{ p9.selected_or_first_available_variant.price | money }}</b>Free shipping · 30-day guarantee</div>
+    <a class="btn" href="{{ shop_link }}">Shop now</a>
+  </div>
+</div>
+{%- endif -%}
+{% schema %}
+{
+  "name": "MS home",
+  "tag": "section",
+  "class": "ms-sec",
+  "settings": [
+    { "type": "select", "id": "part", "label": "Part", "options": [ { "value": "top", "label": "Top (hero to reviews heading)" }, { "value": "bottom", "label": "Bottom (guarantee, FAQ, final CTA)" } ], "default": "top" },
+    { "type": "text", "id": "kicker", "label": "Hero kicker", "default": "This Christmas" },
+    { "type": "image_picker", "id": "hero_image", "label": "Hero image (optional; defaults to the gift-box photo)" },
+    { "type": "text", "id": "shop_link", "label": "Collection page link", "default": "/collections/all?view=ms" }
+  ],
+  "presets": [ { "name": "MS home" } ]
+}
+{% endschema %}

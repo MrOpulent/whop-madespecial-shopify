@@ -1,0 +1,37 @@
+{%- comment -%}
+  ms product card. Params: p (product), img (image), ribbon, badge, name, size, best, t1, t2, t3, extra, cta, feat (bool)
+  Prices, compare-at, % off and review counts come live from Shopify / Judge.me metafields.
+{%- endcomment -%}
+{%- liquid
+  assign v = p.selected_or_first_available_variant
+  assign cmp = v.compare_at_price | default: 0
+  assign rc = p.metafields.reviews.rating_count.value | default: 0
+  assign rv = p.metafields.reviews.rating.value.rating | default: 0
+  if img == blank
+    assign img = p.featured_image
+  endif
+-%}
+<article class="mcard{% if feat %} feat{% endif %}" data-rv>
+  {%- if ribbon != blank -%}<div class="ribbon">{{ ribbon }}</div>{%- endif -%}
+  <a class="mimg" href="{{ p.url }}" aria-label="{{ name | escape }}">
+    {{ img | image_url: width: 900 | image_tag: loading: 'lazy', widths: '360, 540, 720, 900', sizes: '(min-width: 750px) 33vw, 100vw', alt: name, class: 'ph' }}
+    {%- if cmp > v.price -%}<span class="off num">{{ cmp | minus: v.price | times: 100.0 | divided_by: cmp | round }}%<small>OFF</small></span>{%- endif -%}
+    {%- if badge != blank -%}<span class="pill gold">{{ badge }}</span>{%- endif -%}
+  </a>
+  <div class="body">
+    <p class="size">{{ size }}</p>
+    <h3><a href="{{ p.url }}">{{ name }}</a></h3>
+    <div class="rate">{%- if rc > 0 -%}{% render 'ms-stars', s: 14 %}<span><b class="num">{{ rv | round: 1 }}</b> · <span class="num">{{ rc }}</span> review{% if rc > 1 %}s{% endif %}</span>{%- endif -%}</div>
+    <p class="best">Best for <b>{{ best }}</b></p>
+    <ul class="ticks">
+      {%- if t1 != blank -%}<li>{% render 'ms-ic', i: 'circlecheck' %}<span>{{ t1 }}</span></li>{%- endif -%}
+      {%- if t2 != blank -%}<li>{% render 'ms-ic', i: 'circlecheck' %}<span>{{ t2 }}</span></li>{%- endif -%}
+      {%- if t3 != blank -%}<li>{% render 'ms-ic', i: 'circlecheck' %}<span>{{ t3 }}</span></li>{%- endif -%}
+    </ul>
+    <div class="foot">
+      {% render 'ms-price', p: p, hide_off: true %}
+      <p class="extra">{{ extra }}</p>
+      <a class="btn blk" href="{{ p.url }}">{{ cta }} {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+    </div>
+  </div>
+</article>

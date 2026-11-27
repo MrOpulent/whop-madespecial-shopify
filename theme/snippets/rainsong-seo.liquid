@@ -1,0 +1,36 @@
+{%- comment -%}
+  Rainsong-only SEO (?view=rainsong / template.suffix == 'rainsong').
+  Does not change the product featured image or admin SEO fields.
+{%- endcomment -%}
+{%- liquid
+  assign rs_seo_desc = "The gift she'll play every time it rains. Margaret's 10-inch, 11-note rain drum arrives gift-ready with 7 free extras. 30-day money-back guarantee."
+  assign rs_og_title = page_title | default: shop.name
+  assign rs_og_url = request.origin | append: product.url | append: '?view=rainsong'
+  assign rs_img = 'rainsong-hero-xmas.jpg' | file_img_url: '1200x'
+  if rs_img contains 'https://'
+    assign rs_img_http = rs_img | replace: 'https://', 'http://'
+    assign rs_img_https = rs_img
+  elsif rs_img contains 'http://'
+    assign rs_img_http = rs_img
+    assign rs_img_https = rs_img | replace: 'http://', 'https://'
+  else
+    assign rs_img_http = rs_img | prepend: 'http:'
+    assign rs_img_https = rs_img | prepend: 'https:'
+  endif
+-%}
+<meta name="description" content="{{ rs_seo_desc | escape }}">
+<meta property="og:site_name" content="{{ shop.name }}">
+<meta property="og:url" content="{{ rs_og_url }}">
+<meta property="og:title" content="{{ rs_og_title | escape }}">
+<meta property="og:type" content="product">
+<meta property="og:description" content="{{ rs_seo_desc | escape }}">
+<meta property="og:image" content="{{ rs_img_http }}">
+<meta property="og:image:secure_url" content="{{ rs_img_https }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ rs_og_title | escape }}">
+<meta name="twitter:description" content="{{ rs_seo_desc | escape }}">
+<meta name="twitter:image" content="{{ rs_img_https }}">
+{%- if request.page_type == 'product' -%}
+  <meta property="og:price:amount" content="{{ product.price | money_without_currency | strip_html }}">
+  <meta property="og:price:currency" content="{{ cart.currency.iso_code }}">
+{%- endif -%}

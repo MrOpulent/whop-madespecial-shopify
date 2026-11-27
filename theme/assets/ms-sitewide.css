@@ -1,0 +1,83 @@
+/* MadeSpecial site-wide brand layer (loaded after base.css on every page).
+   Green #0E2A1B, cream #F7F3EC, gold #B8915A. Fraunces headings + Instrument Sans body.
+   Colors also live in Theme settings > Colors (settings_data.json); this file covers what settings can't. */
+html:root{
+  --ms-ink:#0E2A1B;--ms-ink-2:#1F4A33;--ms-paper:#F7F3EC;--ms-card:#FFFDF9;--ms-gold:#B8915A;--ms-gold-ink:#7E5F33;--ms-line:#E6DFD2;
+  --font-heading-family:'Fraunces',Georgia,'Times New Roman',serif;--font-heading-style:normal;--font-heading-weight:400;
+  --font-body-family:'Instrument Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--font-body-style:normal;--font-body-weight:400;--font-body-weight-bold:600;
+}
+h1,h2,h3,.h0,.h1,.h2,.h3{letter-spacing:-.01em;font-optical-sizing:auto}
+::selection{background:#0E2A1B;color:#F7F3EC}
+
+/* Buttons: one green, one hover tint, cream labels */
+.button:not(.button--secondary):not(.button--tertiary),.shopify-payment-button__button--unbranded,.cart__checkout-button{background-color:#0E2A1B;color:#F7F3EC}
+.button:not(.button--secondary):not(.button--tertiary):hover,.shopify-payment-button__button--unbranded:hover{background-color:#1F4A33!important}
+a:focus-visible,button:focus-visible,.button:focus-visible{outline:2px solid #B8915A;outline-offset:3px;box-shadow:none}
+.badge{letter-spacing:.04em}
+
+/* Scrolling announcement bar (Blocky app section): brand green, refined type */
+.blocky-announcement-bar{background:#0E2A1B!important;color:#F7F3EC!important;border-bottom:1px solid rgba(231,207,164,.18)}
+.blocky-announcement-bar *{color:inherit}
+
+/* Header: cream, hairline, consistent icon color */
+.section-header,.header-wrapper{background:#F7F3EC!important}
+.header-wrapper{border-bottom:1px solid #E6DFD2!important}
+.header__icon,.header__menu-item,.header__icon .icon{color:#0E2A1B}
+.header__menu-item:hover span{text-decoration-color:#B8915A}
+.menu-drawer{background:#F7F3EC}
+
+/* Footer: same green everywhere, cream text, pill selectors */
+footer.footer{--color-background:14,42,27;--gradient-background:#0E2A1B;--color-foreground:247,243,236;--color-link:247,243,236;background:#0E2A1B!important;color:rgba(247,243,236,.72);margin-top:0!important}
+.shopify-section-group-footer-group{margin-top:0!important}
+footer.footer .footer-block__heading{color:#F7F3EC;font-family:var(--font-heading-family);letter-spacing:0}
+footer.footer .list-menu__item--link,footer.footer .copyright__content,footer.footer .copyright__content a,footer.footer .footer-block__details-content,footer.footer .footer-block__details-content p{color:rgba(247,243,236,.78)}
+footer.footer a:hover{color:#F7F3EC}
+footer.footer .footer__content-bottom{border-top:1px solid rgba(247,243,236,.14)}
+footer.footer .localization-form__select,footer.footer .disclosure__button{background:transparent!important;color:#F7F3EC!important;border:1px solid rgba(247,243,236,.45)!important;border-radius:999px!important;box-shadow:none!important}
+footer.footer .localization-form__select:after,footer.footer .localization-form__select:before{box-shadow:none!important;border:0!important}
+footer.footer .localization-form__select .icon,footer.footer .disclosure__button .icon{color:#F7F3EC}
+footer.footer .localization-form h2{color:rgba(247,243,236,.78)}
+footer.footer .disclosure__list-wrapper{background:#0E2A1B;border:1px solid rgba(247,243,236,.2)}
+footer.footer .disclosure__link{color:rgba(247,243,236,.85)}
+
+/* Judge.me: brand the write-a-review button and stars where the app uses its default teal */
+.jdgm-write-rev-link,.jdgm-ask-question-btn,.jdgm-submit-rev,.jdgm-paginate__page.jdgm-curt{background-color:#0E2A1B!important;border-color:#0E2A1B!important;color:#F7F3EC!important}
+.jdgm-paginate__page.jdgm-curt{border-radius:999px}
+
+/* Collection / search grids from the base theme */
+.card-wrapper .card{border-color:#E6DFD2}
+.card__heading a{color:#0E2A1B}
+.price-item--sale,.price--on-sale .price-item--regular{color:inherit}
+.search__button .icon,.field__button .icon{color:#0E2A1B}
+.field:after,.select:after,.customer .field:after{box-shadow:0 0 0 var(--inputs-border-width) rgba(14,42,27,.35)}
+
+/* Policy pages: comfortable reading measure */
+.shopify-policy__container{max-width:72ch;padding-top:48px;padding-bottom:72px}
+.shopify-policy__title h1{font-family:var(--font-heading-family);font-weight:400}
+
+/* Mobile tap targets */
+@media (max-width:749px){
+  .header__icon{min-width:44px;min-height:44px}
+  footer.footer .list-menu__item--link{padding-top:.7rem;padding-bottom:.7rem}
+}
+
+/* Gap fix (owner t157u): the footer group's empty Custom Liquid section (custom_liquid_Y4UXN, script only, no visible content)
+   rendered a 69-92px cream/white band above the footer on every page. Collapse its padding so the page meets the footer. */
+.shopify-section[id$="__custom_liquid_Y4UXN"]{margin:0!important;padding:0!important;background:transparent!important}
+.shopify-section[id$="__custom_liquid_Y4UXN"] > *,.shopify-section[id$="__custom_liquid_Y4UXN"] [class*="__custom_liquid_Y4UXN-padding"]{padding-top:0!important;padding-bottom:0!important;margin-top:0!important;margin-bottom:0!important;min-height:0!important}
+
+/* t158u: never show reviews of the Shipping protection add-on (Essential Cart product "essential-cart-order-upsell-default") */
+.jdgm-carousel-item:has(a[href*="essential-cart-order-upsell-default"]),
+.jdgm-rev:has(a[href*="essential-cart-order-upsell-default"]),
+.jdgm-card:has(a[href*="essential-cart-order-upsell-default"]){display:none!important}
+
+/* Search: hide plain-text page results (e.g. "Thank you", "Contact") so results show only products */
+#product-grid .grid__item:has(.card--text):not(:has(img)){display:none}
+/* 404: give the empty state room and brand it */
+.template-404 .title,.page-404 .title{font-family:var(--font-heading-family)}
+/* Judge.me stars: brand gold instead of the app's default teal */
+.jdgm-star,.jdgm-prev-badge__stars .jdgm-star,.jdgm-rev__rating .jdgm-star{color:#B8915A!important}
+
+/* t171u: deliberate cream gap between the green Christmas card (rs pages) and the green footer. Not on ms pages: their final band is full-bleed (t176u) */
+.rs .final{margin-bottom:64px!important}
+@media (max-width:749px){.rs .final{margin-bottom:44px!important}}

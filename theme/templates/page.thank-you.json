@@ -1,0 +1,24 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "ms-thank-you",
+      "settings": {
+        "product": "1-extra-rain-drum-for-the-grandkids",
+        "whop_link": "",
+        "clear_cart": false,
+        "padding_top": 72,
+        "padding_bottom": 80
+      }
+    }
+  },
+  "order": ["main"]
+}

@@ -1,0 +1,152 @@
+{% comment %}
+  Page Loader
+  -----------
+  Covers the page while it loads, then fades away once the content is
+  actually ready (window load - images and fonts included).
+
+  INSTALL
+    1. Snippets -> Add a new snippet -> name it "page-loader"
+    2. Paste this whole file -> Save
+    3. In layout/theme.liquid, immediately AFTER the opening <body> tag:
+
+         {%- render 'page-loader' -%}
+
+       It has to be the first thing inside <body>, or the page paints
+       before the loader covers it and you get a flash of content.
+
+  SAFETY
+    Three independent ways out, so a visitor can never get stuck:
+      - hides on window load
+      - hides after FAILSAFE_MS even if load never fires
+      - a pure CSS animation hides it even with JavaScript disabled
+{% endcomment %}
+
+{%- comment -%} ---------------- CONFIG ---------------- {%- endcomment -%}
+
+{%- comment -%} Where it runs. Set to false to run on every page. {%- endcomment -%}
+{%- assign products_only = true -%}
+
+{%- assign bg_color     = '#ffffff' -%}
+{%- assign spinner_color = '#0E2A1B' -%}
+{%- assign track_color   = '#e6e6e6' -%}
+
+{%- comment -%} Optional logo above the spinner. Leave blank for none. {%- endcomment -%}
+{%- assign logo_image = '' -%}
+{%- assign logo_width = 150 -%}
+
+{%- comment -%} Minimum time on screen, so it never flashes. {%- endcomment -%}
+{%- assign min_ms = 350 -%}
+
+{%- comment -%} Hard stop. The loader always leaves by this point. {%- endcomment -%}
+{%- assign failsafe_ms = 1000 -%}
+
+{%- comment -%} ---------------------------------------- {%- endcomment -%}
+
+{%- assign run_loader = true -%}
+{%- if products_only and template.name != 'product' -%}
+  {%- assign run_loader = false -%}
+{%- endif -%}
+{%- if request.design_mode -%}
+  {%- comment -%} Never cover the theme editor preview. {%- endcomment -%}
+  {%- assign run_loader = false -%}
+{%- endif -%}
+
+{%- if run_loader -%}
+{%- assign failsafe_s = failsafe_ms | divided_by: 1000.0 -%}
+
+<style>
+  html.pl-on, html.pl-on body { overflow: hidden !important; }
+
+  #pl-overlay {
+    position: fixed; inset: 0; z-index: 2147483000;
+    background: {{ bg_color }};
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px;
+    opacity: 1; visibility: visible;
+    transition: opacity .35s ease, visibility 0s linear .35s;
+
+    /* Failsafe: fades out on its own even if no JavaScript runs. */
+    animation: pl-failsafe 0s linear {{ failsafe_s }}s forwards;
+  }
+  #pl-overlay.pl-done {
+    opacity: 0; visibility: hidden; pointer-events: none;
+  }
+  @keyframes pl-failsafe {
+    to { opacity: 0; visibility: hidden; pointer-events: none; }
+  }
+
+  #pl-overlay .pl-logo {
+    width: {{ logo_width }}px; max-width: 60vw; height: auto;
+    display: block;
+  }
+
+  #pl-overlay .pl-spin {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 4px solid {{ track_color }};
+    border-top-color: {{ spinner_color }};
+    animation: pl-rotate .8s linear infinite;
+  }
+  @keyframes pl-rotate { to { transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    #pl-overlay .pl-spin { animation-duration: 2s; }
+    #pl-overlay { transition-duration: .01s; }
+  }
+</style>
+
+<div id="pl-overlay" role="status" aria-live="polite" aria-label="Loading">
+  {%- if logo_image != blank -%}
+    <img class="pl-logo" src="{{ logo_image | image_url: width: 600 }}" alt="" width="{{ logo_width }}">
+  {%- endif -%}
+  <div class="pl-spin" aria-hidden="true"></div>
+</div>
+
+<noscript>
+  <style>#pl-overlay { display: none !important; }</style>
+</noscript>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var el = document.getElementById('pl-overlay');
+  if (!el) return;
+
+  root.classList.add('pl-on');
+
+  var start = Date.now();
+  var MIN  = {{ min_ms }};
+  var MAX  = {{ failsafe_ms }};
+  var gone = false;
+
+  function hide() {
+    if (gone) return;
+    gone = true;
+    el.classList.add('pl-done');
+    root.classList.remove('pl-on');
+    /* Remove it after the fade so it cannot swallow clicks. */
+    setTimeout(function () {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }, 400);
+  }
+
+  function done() {
+    var waited = Date.now() - start;
+    setTimeout(hide, waited < MIN ? MIN - waited : 0);
+  }
+
+  if (document.readyState !== 'loading') {
+    done();
+  } else {
+    window.addEventListener('DOMContentLoaded', done, { once: true });
+  }
+
+  /* If load never fires - a stalled image, a blocked script - leave anyway. */
+  setTimeout(hide, MAX);
+
+  /* Coming back via the back button should never show a stuck loader. */
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) hide();
+  });
+})();
+</script>
+{%- endif -%}

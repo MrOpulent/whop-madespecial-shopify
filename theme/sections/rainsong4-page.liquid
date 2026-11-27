@@ -1,0 +1,229 @@
+{%- comment -%}
+  The Pocket Drum (M) landing page body (product steel-tongue-rain-drum-4-inch, template product.rainsong-4inch).
+  Copied from rainsong6-page.liquid (6-inch Pro Drum). No bonuses; portability angle; 4-inch photos only.
+{%- endcomment -%}
+{%- liquid
+  assign rs_v = product.selected_or_first_available_variant
+  assign rs_unit = rs_v.price
+  assign rs_from = rs_unit | times: 0.7 | round
+-%}
+{%- case section.settings.part -%}
+{%- when 'one' -%}<style id="rs4-page-css">
+.rs .pk-carry{padding:var(--s7,56px) var(--s4,20px) var(--s5,32px);max-width:1080px;margin:0 auto}
+.rs .pk-scale{display:flex;justify-content:center;align-items:flex-end;gap:clamp(18px,5vw,48px);margin:8px auto 6px;color:#8F877A}
+.rs .pk-scale figure{margin:0;text-align:center}
+.rs .pk-scale svg{display:block;margin:0 auto}
+.rs .pk-scale figure:nth-child(1) svg{width:58px;height:58px}
+.rs .pk-scale figure:nth-child(2) svg{width:87px;height:87px}
+.rs .pk-scale figure:nth-child(3) svg{width:145px;height:145px}
+.rs .pk-scale figure.on{color:var(--ink,#0E2A1B)}
+.rs .pk-scale figcaption{font-size:12.5px;line-height:1.3;margin-top:8px;color:#6E675C}
+.rs .pk-scale figcaption b{display:block;font:500 16px/1.2 var(--serif,Georgia);color:var(--ink,#0E2A1B)}
+.rs .pk-scale figure:not(.on) figcaption b{color:#6E675C}
+.rs .pk-cap{text-align:center;font-size:13px;color:#6E675C;margin:6px 0 26px}
+.rs .pk-places{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rs .pk-places li{background:var(--card,#FFFDF9);border:1px solid var(--line,#E6DFD2);border-radius:14px;padding:14px 14px 13px;display:flex;flex-direction:column;gap:3px}
+.rs .pk-places b{font:500 17px/1.2 var(--serif,Georgia);color:var(--ink,#0E2A1B)}
+.rs .pk-places span{font-size:13.5px;line-height:1.35;color:#5C5A52}
+@media (min-width:750px){.rs .pk-places{grid-template-columns:repeat(4,1fr);gap:14px}.rs .pk-scale figure:nth-child(1) svg{width:72px;height:72px}.rs .pk-scale figure:nth-child(2) svg{width:108px;height:108px}.rs .pk-scale figure:nth-child(3) svg{width:180px;height:180px}}
+.rs .pk-box .main .kf{aspect-ratio:1/1}
+/* compare: circles share the table's column grid (26% label + 2 x 37%), true 4:6 scale */
+.rs #compare .pk-cmp-scale{display:grid;grid-template-columns:26% 37% 37%;align-items:end;justify-items:center;max-width:820px;margin:8px auto 18px;color:var(--ink,#0E2A1B)}
+.rs #compare .pk-cmp-scale .note{justify-self:start;padding:0 0 34px 14px;font:600 11px/1.35 var(--sans,inherit);letter-spacing:.12em;text-transform:uppercase;color:#7E5F33}
+.rs #compare .pk-cmp-scale figure{margin:0;width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
+.rs #compare .pk-cmp-scale figure:nth-of-type(1) svg{width:min(64px,42%)}
+.rs #compare .pk-cmp-scale figure:nth-of-type(2) svg{width:min(96px,63%)}
+.rs #compare .pk-cmp-scale svg{display:block;height:auto;aspect-ratio:1/1}
+.rs #compare .pk-cmp-scale figcaption{font-size:12.5px;color:#6E675C;margin-top:8px;white-space:nowrap}
+.rs #compare .pk-cmp-scale figcaption b{display:block;font:500 16px/1.2 var(--serif,Georgia);color:var(--ink,#0E2A1B)}
+.rs table.pk-cmp{table-layout:fixed}
+.rs table.pk-cmp tr > :nth-child(1){width:26%;text-align:left}
+.rs table.pk-cmp tr > :nth-child(2),.rs table.pk-cmp tr > :nth-child(3){width:37%;text-align:center}
+.rs table.pk-cmp .go{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--ink,#0E2A1B);color:#F7F3EC;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
+@media (max-width:749px){.rs #compare .pk-cmp-scale .note{padding-left:8px;font-size:10px}.rs #compare .pk-cmp-scale figcaption{font-size:11.5px}.rs table.pk-cmp .go{padding:0 12px;font-size:13px}}
+</style><div class="rs rs-body rs-one"><section class="pk-carry" id="carry"><div class="sec-head"><p class="eyebrow">Small enough to carry</p><h2>Fits in a tote. <em>Plays in the rain.</em></h2><p class="lede">Four inches across and easy to hold in one hand. Take it to the garden, the porch, the park or on a trip, and let the rain or the mallet do the rest.</p></div>
+<div class="pk-scale" aria-label="Drawn to scale: the Pocket Drum is 4 inches across, the Pro Drum 6 inches, the Plus Drum 10 inches">
+<figure class="on"><svg viewBox="0 0 58 58" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="29" cy="29" r="27.5"/><circle cx="29" cy="29" r="6" opacity=".6"/></svg><figcaption><b>4 in</b>Pocket (M)</figcaption></figure>
+<figure><svg viewBox="0 0 86 86" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="43" cy="43" r="41.5"/><circle cx="43" cy="43" r="9" opacity=".6"/></svg><figcaption><b>6 in</b>Pro (L)</figcaption></figure>
+<figure><svg viewBox="0 0 142 142" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><circle cx="71" cy="71" r="69.5"/><circle cx="71" cy="71" r="15" opacity=".6"/></svg><figcaption><b>10 in</b>Plus (XL)</figcaption></figure>
+</div><p class="pk-cap">Drawn to scale against our other drums.</p>
+<ul class="pk-places"><li><b>Garden</b><span>On the potting bench or a garden wall</span></li><li><b>Porch</b><span>On the rail, under the eaves</span></li><li><b>Park</b><span>In a tote with your picnic</span></li><li><b>Beach</b><span>Tucked in the beach bag</span></li><li><b>Camping</b><span>Light enough for the pack</span></li><li><b>Travel</b><span>Fits in a carry-on</span></li><li><b>Desk</b><span>A calm minute between calls</span></li><li><b>Their room</b><span>A grandchild’s bedroom shelf</span></li></ul></section>
+<section class="box pk-box" id="box"><div class="sec-head"><p class="eyebrow">What's in the box</p><h2>The drum, <em>and its mallet.</em></h2><p class="lede">Nothing to assemble and nothing extra to pack. Unwrap it and play.</p></div>
+<div class="main"><div class="kf"><img src="{{ 'rain-drum-on-linen.png' | file_img_url: '1000x' }}" alt="The Pocket Drum on soft linen" width="1000" height="1000" loading="lazy"></div><div><span class="k">In the box</span><b>The Pocket Drum (M)</b><span>A 4-inch steel drum with 9 tuned notes, plus one mallet for dry days. Free tracked shipping on every order.</span></div></div>
+<button type="button" class="atc" data-atc><span>Add to bag</span><span class="num" id="atcp2">{{ rs_unit | money }}</span></button></section><section class="guar" id="guarantee"><div class="gtop"><div class="seal" aria-hidden="true"><span class="s1">30-Day</span><b>Money-Back</b><span class="s2">Guarantee</span></div><div class="gcopy"><p class="eyebrow">Zero risk</p><h2>Love it, or <em>get your money back.</em></h2><p class="glead">If you’re not happy with your drum for any reason, return it within <b>30 days of delivery</b> for a <b>full refund of the item price</b>.</p></div></div><ol class="g3"><li><span class="n num">1</span><div><b>Email us</b><span>Send your order number to support@madespecial.store. We reply within 1–2 business days.</span></div></li><li><span class="n num">2</span><div><b>Send it back</b><span>Return it within 30 days of delivery using the instructions we email you.</span></div></li><li><span class="n num">3</span><div><b>Get your refund</b><span>Once it’s received, we refund your original payment method within 5–10 business days.</span></div></li></ol><p class="gdmg"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6L12 3z"/><path d="M8.6 12.2l2.4 2.4 4.6-4.8"/></svg><span><b>Arrived damaged or wrong?</b> Email a photo within 7 days and we’ll send a free replacement or a full refund. No need to send it back.</span></p><p class="gfine">Bundles can be returned in full or in part. <a href="/policies/refund-policy" target="_blank" rel="noopener">Read the full return policy</a></p></section><section class="sec" id="rs-videos" style="padding-top:var(--s6)"><div class="sec-head"><p class="eyebrow">Heard in real gardens</p><h2>Rain, <em>on their porches.</em></h2></div><div class="ugc2"><figure class="vc"><img src="//madespecial.store/cdn/shop/files/preview_images/4dab23a822464f6191afd5f1e53bf421.thumbnail.0000000000_800x.jpg" alt="Video from Linda" loading="lazy" width="450" height="800"><button type="button" class="pb" aria-label="Play Linda’s video" data-src="//madespecial.store/cdn/shop/videos/c/vp/4dab23a822464f6191afd5f1e53bf421/4dab23a822464f6191afd5f1e53bf421.HD-1080p-7.2Mbps-98161603.mp4?v=0"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" stroke="none"/></svg></button><figcaption><q>Really nice drum, and it’s so fun to play. It sounds great!</q><span class="vn">Linda</span></figcaption></figure><figure class="vc"><img src="//madespecial.store/cdn/shop/files/preview_images/bb0b71989e544af5963f66c6a133953b.thumbnail.0000000000_800x.jpg" alt="Video from Mahinder" loading="lazy" width="450" height="800"><button type="button" class="pb" aria-label="Play Mahinder’s video" data-src="//madespecial.store/cdn/shop/videos/c/vp/bb0b71989e544af5963f66c6a133953b/bb0b71989e544af5963f66c6a133953b.HD-1080p-7.2Mbps-98161601.mp4?v=0"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" stroke="none"/></svg></button><figcaption><q>The quality is great… I’d definitely gift this to someone!</q><span class="vn">Mahinder</span></figcaption></figure><figure class="vc"><img src="//madespecial.store/cdn/shop/files/preview_images/5c3af8485a5b423ea4b0734fb4760915.thumbnail.0000000000_800x.jpg" alt="Video from Carolyn" loading="lazy" width="450" height="800"><button type="button" class="pb" aria-label="Play Carolyn’s video" data-src="//madespecial.store/cdn/shop/videos/c/vp/5c3af8485a5b423ea4b0734fb4760915/5c3af8485a5b423ea4b0734fb4760915.HD-1080p-7.2Mbps-98161602.mp4?v=0"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" stroke="none"/></svg></button><figcaption><q>I bought this as a gift and loved it so much that I got a smaller one for myself!</q><span class="vn">Carolyn</span></figcaption></figure><figure class="vc"><img src="//madespecial.store/cdn/shop/files/preview_images/dceaf104de1b4e48a5bf19658883556e.thumbnail.0000000000_800x.jpg" alt="Video from Mahayar" loading="lazy" width="450" height="800"><button type="button" class="pb" aria-label="Play Mahayar’s video" data-src="//madespecial.store/cdn/shop/videos/c/vp/dceaf104de1b4e48a5bf19658883556e/dceaf104de1b4e48a5bf19658883556e.HD-1080p-7.2Mbps-98161599.mp4?v=0"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" stroke="none"/></svg></button><figcaption><q>He sent me a video from his porch, sipping hot tea in the rain and enjoying the sound.</q><span class="vn">Mahayar</span></figcaption></figure><figure class="vc"><img src="//madespecial.store/cdn/shop/files/preview_images/273278acdb604bde9f71105b3ae16375.thumbnail.0000000000_800x.jpg" alt="Video from Pete" loading="lazy" width="450" height="800"><button type="button" class="pb" aria-label="Play Pete’s video" data-src="//madespecial.store/cdn/shop/videos/c/vp/273278acdb604bde9f71105b3ae16375/273278acdb604bde9f71105b3ae16375.HD-1080p-7.2Mbps-98161606.mp4?v=0"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" stroke="none"/></svg></button><figcaption><q>It’s good quality and easy to use.</q><span class="vn">Pete</span></figcaption></figure></div><p class="ugcnote">Videos from Made Special customers · swipe for more · tap for sound</p></section><section class="gift2" id="gift"><p class="eyebrow">Make it a gift</p><h2>Who's it <em>for?</em></h2>
+<div class="chips" role="radiogroup" aria-label="Who's it for?"><button type="button" class="chip on" role="radio" aria-checked="true" data-who="0">Grandkids</button><button type="button" class="chip" role="radio" aria-checked="false" data-who="1">Mom</button><button type="button" class="chip" role="radio" aria-checked="false" data-who="2">Grandma</button><button type="button" class="chip" role="radio" aria-checked="false" data-who="3">A friend</button><button type="button" class="chip" role="radio" aria-checked="false" data-who="4">Me</button></div>
+<div class="whoimg" id="whoimg"><img class="on" src="{{ 'one-mallet-1.jpg' | file_img_url: '800x' }}" alt="A grandmother and a young child playing the Pocket Drum together with its mallet" width="800" height="600" loading="lazy" decoding="async"><img class="" src="{{ 'cdbba897dafe5ed4c67f1ba2b12819ae_8257f841-3cb6-4704-b232-301ddb90781c.png' | file_img_url: '800x' }}" alt="The Pocket Drum on a table on a covered porch" width="800" height="600" loading="lazy" decoding="async"><img class="" src="{{ 'f0b16637e777d627660977b2ad8a4c5a.png' | file_img_url: '800x' }}" alt="A grandmother in a garden chair listening to the Pocket Drum on a stone wall" width="800" height="600" loading="lazy" decoding="async"><img class="" src="{{ 'bca4b04c499ef3388bf9b8600ea01689.png' | file_img_url: '800x' }}" alt="The Pocket Drum on a garden table under a tree" width="800" height="600" loading="lazy" decoding="async"><img class="" src="{{ '1a4cabb5ea5b577d45b9c901063b70c4.png' | file_img_url: '800x' }}" alt="The Pocket Drum on a window ledge beside a teapot and mug" width="800" height="600" loading="lazy" decoding="async"></div>
+<div class="fl" id="fl" aria-live="polite"><p class="forline on">For the grandkids. Small enough for little hands, a bedroom shelf or a trip to Grandma’s.</p><p class="forline">For Mom’s porch. She can set it on the rail and let the rain play.</p><p class="forline">For Grandma’s garden. Nine notes in one scale: nothing to learn, nothing to tune.</p><p class="forline">For the friend who has everything. A stocking stuffer she won’t have seen before.</p><p class="forline">For you. A little rain concert by the window, or wherever you carry it.</p></div>
+<div class="opt on" style="cursor:default"><span class="cb"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="t">Ship it straight to them<small>Add their address at checkout</small></span><span class="v">Free</span></div></section><section class="sound"><div class="sound-pic"><img src="{{ 'rain-drum-on-porch-railing.png' | file_img_url: '1000x' }}" width="1000" height="750" alt="The Pocket Drum on a porch railing in the rain" loading="lazy"><button type="button" class="listen" data-scroll="rs-videos"><span class="pb"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" stroke="none"/></svg></span><span>Hear it in the rain<small>Customer videos</small></span></button></div><div class="in">
+<p class="eyebrow">Listen</p><h2>Put the kettle on. <em>Let the weather play.</em></h2><p class="lede" style="margin:16px 0 0">Nine tuned notes in one scale, so every drop sounds like it belongs. Small drum, clear bell-like ring.</p></div></section><section class="sec"><div class="sec-head"><p class="eyebrow">How it works</p><h2>Nothing to learn. <em>Nothing to tune.</em></h2></div>
+<div class="steps"><div class="step"><span class="k num">01</span><div><h3>Set it outside</h3><p>On a table, a wall or the porch rail. Steady rain plays it.</p></div></div>
+<div class="step"><span class="k num">02</span><div><h3>Or tap it with the mallet</h3><p>Every note is in one scale, so any order sounds good.</p></div></div>
+<div class="step"><span class="k num">03</span><div><h3>Take it with you</h3><p>Wipe it dry and pack it for the next place you want a little music.</p></div></div></div></section>{%- assign p6 = all_products['steel-tongue-rain-drum'] -%}
+<section class="sec" id="compare"><div class="sec-head"><p class="eyebrow">Which drum?</p><h2>The Pocket Drum, <em>or the Pro Drum?</em></h2></div>
+<div class="pk-cmp-scale" aria-hidden="true"><span class="note">Drawn<br>to scale</span><figure><svg viewBox="0 0 58 58" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="29" cy="29" r="27.5"/><circle cx="29" cy="29" r="6" opacity=".6"/></svg><figcaption><b>4 in</b>Pocket (M) · 9 notes</figcaption></figure><figure><svg viewBox="0 0 86 86" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="43" cy="43" r="41.5"/><circle cx="43" cy="43" r="9" opacity=".6"/></svg><figcaption><b>6 in</b>Pro (L) · 11 notes</figcaption></figure></div>
+<table class="cmp pk-cmp"><thead><tr><th><span class="vh">Feature</span></th><th class="xl">The Pocket Drum (M)</th><th>The Pro Drum (L)</th></tr></thead>
+<tbody><tr><td>Size</td><td class="xl num">4-inch</td><td class="num">6-inch</td></tr>
+<tr><td>Notes</td><td class="xl num">9</td><td class="num">11, numbered</td></tr>
+<tr><td>In the box</td><td class="xl">Mallet</td><td>6 free extras, incl. guide book</td></tr>
+<tr><td>Best for</td><td class="xl">Carrying anywhere, stockings</td><td>The main gift</td></tr>
+<tr><td>Price</td><td class="xl num">{{ product.selected_or_first_available_variant.price | money }}{%- if cart.currency.iso_code == "USD" -%} <s class="ms-was" style="margin-left:6px;font-weight:400;opacity:.55;white-space:nowrap">{{ 9900 | money }}</s>{%- endif -%}</td><td class="num">{% if p6 != blank %}{{ p6.price | money }}{% else %}–{% endif %}</td></tr>
+<tr><td></td><td class="xl"><a class="go" href="#buy" data-scroll="buy">Shop Now</a></td><td>{% if p6 != blank %}<a class="go" href="{{ p6.url }}">Shop Now</a>{% endif %}</td></tr></tbody></table></section></div>
+{%- when 'reviews' -%}<div class="rs rs-body rs-reviews"><section class="sec" id="rs-reviews"><div class="sec-head" style="margin-bottom:0"><p class="eyebrow">Reviews</p><h2>From people who've <em>heard it.</em></h2></div></section></div>
+{%- when 'two' -%}<div class="rs rs-body rs-two"><section class="sec"><div class="sec-head"><p class="eyebrow">Questions</p><h2>Before you <em>pack it.</em></h2></div><div class="acc" style="padding-top:0"><details open><summary>How big is it?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">About 4 inches across. It sits in the palm of your hand and slips into a handbag, tote or backpack.</div></details><details><summary>What comes in the box?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">The drum and one mallet. The Pocket Drum doesn’t come with extra accessories. If you’d like the guide book and extras, the Pro Drum (L) includes 6.</div></details><details><summary>Can I take it traveling?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">Yes. It’s small enough for a carry-on or beach bag. If it’s been out in the rain, wipe it dry before you pack it.</div></details><details><summary>How fast will it arrive?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">Each drum ships within 2–3 days with free tracking and insurance. Expect it at your door in 5–10 business days.</div></details><details><summary>Can I send it straight to them?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">Yes. Enter their address as the delivery address at checkout and we’ll ship it straight to them.</div></details><details><summary>I can’t read music. Will I manage?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">Yes. All nine notes are in one scale, so whatever you tap sounds good together.</div></details><details><summary>Can it live outside?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">It’s made to be played by the rain. Wipe it dry afterwards and bring it in for frost, snow and storms.</div></details><details><summary>Is it loud?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">No. It has a soft, bell-like tone you’ll hear on the patio without it carrying down the street.</div></details><details><summary>What if they don’t love it?<svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary><div class="body">Return it within 30 days of delivery for a full refund of the item price. Email support@madespecial.store with your order number to start.</div></details></div></section><section class="final"><img src="{{ 'rain-drum-on-wet-slate.png' | file_img_url: '1000x' }}" width="1000" height="750" alt="The Pocket Drum on wet slate after the rain" loading="lazy"><div class="in">
+<p class="eyebrow" style="color:#D7B98A">This Christmas</p><h2>Rain music, <em>wherever you go.</em></h2><p>Save up to <span data-f="maxoff">30%</span> when you buy more than one. Free tracked shipping and 30 days to decide.</p>
+<button type="button" class="atc" data-scroll="buy"><span>Pick Your Set</span><span class="num" data-f="from">From {{ rs_from | money }}</span></button></div></section>
+<div class="sticky" id="sticky" aria-hidden="true"><img src="{{ 'rain-drum-on-moss.png' | file_img_url: '120x' }}" alt="" width="48" height="48"><div class="s"><b><span class="num" id="stp">{{ rs_unit | money }}</span> · <span id="stn">1 drum</span></b><span id="stk">Mallet included · free shipping</span></div><button type="button" data-atc>Add to bag</button></div></div>
+{%- endcase -%}
+{% stylesheet %}
+/* t81u: upsell-preview radius system, rainsong page only */
+  body:has(.rs-top) .blocky-featured-product:has(.rs-top) .rs-top .gal,
+  body:has(.rs-top) .rs-top .gal,
+  body:has(.rs-top) .rs .gal{
+    border-radius:18px !important;
+    overflow:hidden;
+  }
+  body:has(.rs-top) .rs .thumbs button{
+    border-radius:11px;
+    overflow:hidden;
+  }
+  body:has(.rs-top) .rs .thumbs button img{border-radius:11px}
+  body:has(.rs-top) .rs .set,
+  body:has(.rs-top) .rs .set:first-of-type,
+  body:has(.rs-top) .rs .set:last-of-type,
+  body:has(.rs-top) .rs .set:nth-of-type(2){
+    border-radius:18px;
+    overflow:hidden;
+    margin-top:0;
+  }
+  body:has(.rs-top) .rs .set + .set{margin-top:10px}
+  body:has(.rs-top) .rs .set.on{border-radius:18px}
+  body:has(.rs-top) .rs .set .tag,
+  body:has(.rs-top) .rs .set .tag.v,
+  body:has(.rs-top) .rs .bfchip,
+  body:has(.rs-top) .rs .ph{border-radius:6px}
+  body:has(.rs-top) .rs .bon{
+    border-radius:14px;
+    overflow:hidden;
+  }
+  body:has(.rs-top) .rs .main .kf{border-radius:14px;overflow:hidden}
+  body:has(.rs-top) .rs .atc,
+  body:has(.rs-top) .rs .sticky button,
+  body:has(.rs-top) .rs .final .atc,
+  body:has(.rs-top) #buy,
+  body:has(.rs-top) #buy button,
+  body:has(.rs-top) [data-atc],
+  body:has(.rs-top) [data-blocky-add-button],
+  body:has(.rs-top) form.blocky-product-form [data-blocky-add-button],
+  body:has(.rs-top) .blocky-product-form button[type="submit"],
+  body:has(.rs-top) button[data-blocky-add-button]{
+    border-radius:14px !important;
+    overflow:hidden;
+  }
+  body:has(.rs-top) .rs .sticky{
+    border-radius:18px 18px 0 0;
+    overflow:hidden;
+  }
+  body:has(.rs-top) .rs .acc details{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--card);
+    padding:0 16px;
+    margin:0 0 10px;
+  }
+  body:has(.rs-top) .rs .gal .count,
+  body:has(.rs-top) .rs .slide figcaption{border-radius:6px}
+  body:has(.rs-top) .rs .eta2{border-radius:14px;overflow:hidden}
+  body:has(.rs-top) .rs .vc,
+  body:has(.rs-top) .rs .ugc2 .vc{border-radius:14px;overflow:hidden}
+  body:has(.rs-top) .rs .final{border-radius:18px;overflow:hidden}
+  body:has(.rs-top) .rs .guar{border-radius:18px}
+  body:has(.rs-top) .jdgm-card,
+  body:has(.rs-top) .jdgm-rev,
+  body:has(.rs-top) .jdgm-carousel-item,
+  body:has(.rs-top) .jdgm-widget .jdgm-all-reviews__header,
+  body:has(.rs-top) [class*="jdgm"][class*="card"]{
+    border-radius:14px;
+    overflow:hidden;
+  }
+  body:has(.rs-top) .rs-jdgm-wrap{border-radius:14px}
+
+  /* Main gift: replace still with looping muted video and enlarge the media */
+  body:has(.rs-top) .rs .main{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:14px;
+    align-items:start;
+    padding:12px;
+  }
+  body:has(.rs-top) .rs .main .kf{
+    position:relative;
+    width:100%;
+    height:auto;
+    aspect-ratio:1 / 1;
+    padding:0;
+    border-radius:14px;
+    overflow:hidden;
+    background:#EBE2D3;
+    display:block;
+  }
+  body:has(.rs-top) .rs .main img,
+  body:has(.rs-top) .rs .main .kf img,
+  body:has(.rs-top) .rs .box .main img{
+    width:100%;
+    height:100%;
+    max-width:none;
+    object-fit:cover;
+    object-position:50% 50%;
+    border-radius:0;
+    display:block;
+  }
+  body:has(.rs-top) .rs .main .rs-main-video{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    object-position:50% 50%;
+    display:block;
+    pointer-events:none;
+    background:#EBE2D3;
+  }
+  @media (max-width:359px){
+    body:has(.rs-top) .rs .main{
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    body:has(.rs-top) .rs .main .kf,
+    body:has(.rs-top) .rs .main img{
+      width:100%;
+      height:auto;
+    }
+  }
+  @media (min-width:750px){
+    body:has(.rs-top) .rs .main{
+      grid-template-columns:minmax(260px, 42%) minmax(0,1fr);
+      gap:20px;
+      align-items:center;
+      padding:16px 20px 16px 16px;
+    }
+    body:has(.rs-top) .rs .main b{font-size:24px;line-height:1.2}
+  }
+  @media (min-width:990px){
+    body:has(.rs-top) .rs .box .main{
+      max-width:1080px;
+      margin:0 auto;
+      grid-template-columns:minmax(440px, 1.05fr) minmax(280px, 0.85fr);
+      gap:28px;
+      align-items:center;
+      padding:20px 28px 20px 20px;
+    }
+    body:has(.rs-top) .rs .main b{font-size:32px;line-height:1.15;margin:6px 0}
+    body:has(.rs-top) .rs .main span{font-size:17px;line-height:1.4}
+    body:has(.rs-top) .rs .main .k{font-size:12px}
+  }
+{% endstylesheet %}
+{% schema %}
+{"name":"Pocket Drum page (4-inch)","tag":"section","class":"rs-section","settings":[
+{"type":"select","id":"part","label":"Part","default":"one","options":[{"value":"one","label":"Carry, box, guarantee, gift, compare"},{"value":"reviews","label":"Reviews heading"},{"value":"two","label":"FAQ, final call to action"}]}],
+"presets":[{"name":"Pocket Drum page (4-inch)"}]}
+{% endschema %}

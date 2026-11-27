@@ -1,0 +1,24 @@
+{%- comment -%}
+  Store-wide rating from Judge.me's shop metafields (all_reviews_rating / all_reviews_count).
+  Falls back to the sum of the three drums' review metafields. Renders nothing if there is no data (never invented).
+  Params: p9, p6, pxl, link (optional anchor id)
+{%- endcomment -%}
+{%- liquid
+  assign r_avg = shop.metafields.judgeme.all_reviews_rating | default: 0 | times: 1.0
+  assign r_cnt = shop.metafields.judgeme.all_reviews_count | default: 0 | times: 1
+  if r_cnt == 0
+    assign c9 = p9.metafields.reviews.rating_count.value | default: 0
+    assign c6 = p6.metafields.reviews.rating_count.value | default: 0
+    assign cx = pxl.metafields.reviews.rating_count.value | default: 0
+    assign r_cnt = c9 | plus: c6 | plus: cx
+    if r_cnt > 0
+      assign a9 = p9.metafields.reviews.rating.value.rating | default: 0 | times: c9
+      assign a6 = p6.metafields.reviews.rating.value.rating | default: 0 | times: c6
+      assign ax = pxl.metafields.reviews.rating.value.rating | default: 0 | times: cx
+      assign r_avg = a9 | plus: a6 | plus: ax | divided_by: r_cnt
+    endif
+  endif
+-%}
+{%- if r_cnt > 0 and r_avg > 0 -%}
+<div class="rate">{% render 'ms-stars', s: 16 %}<span><b class="num">{{ r_avg | round: 1 }}</b> out of 5 from <a class="num" href="#{{ link | default: 'ms-reviews' }}" style="text-decoration:underline;text-underline-offset:3px">{{ r_cnt }} verified reviews</a></span></div>
+{%- endif -%}

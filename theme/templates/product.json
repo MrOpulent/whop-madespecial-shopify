@@ -1,0 +1,1016 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "main": {
+      "type": "main-product",
+      "blocks": {
+        "before_after_block_4gMMpD": {
+          "type": "before_after_block",
+          "settings": {
+            "before_label": "See It In Action",
+            "before_slide_index": 2,
+            "after_label": "See Result",
+            "after_slide_index": 4,
+            "color_scheme": "scheme-6",
+            "icon_size": 16
+          }
+        },
+        "review_stars_kXbpid": {
+          "type": "review-stars",
+          "settings": {
+            "rating": 4.7,
+            "star_color": "#e8ccc7",
+            "review_text_color": "#000000",
+            "empty_stars_style": "hidden",
+            "review_text": "4.7/5 ● Loved by 50,000+ customers",
+            "review_font_size": 16,
+            "review_alignment": "flex-start"
+          },
+          "disabled": true
+        },
+        "title": {
+          "type": "title",
+          "settings": {
+            "use_custom_styling": true,
+            "font_size": 32
+          }
+        },
+        "price": {
+          "type": "price",
+          "settings": {
+            "use_custom_discount_box": true,
+            "custom_label": "BUY 1 GET 1 FREE",
+            "color_scheme": "scheme-6",
+            "border_radius": 4
+          }
+        },
+        "text_4UAXfW": {
+          "type": "text",
+          "settings": {
+            "text": "This 12-minute award-winning Skincare Wand uses 4 advanced technologies. With a rotating head and built-in timer, you're in control of where results appear.",
+            "text_style": "body",
+            "use_custom_styling": false,
+            "text_alignment": "left",
+            "font_size": 16,
+            "margin_top": 1.5,
+            "margin_bottom": 1.5
+          }
+        },
+        "description": {
+          "type": "description",
+          "settings": {}
+        },
+        "variant_picker": {
+          "type": "variant_picker",
+          "settings": {
+            "picker_type": "button",
+            "swatch_shape": "circle"
+          }
+        },
+        "text_hfcGJe": {
+          "type": "text",
+          "settings": {
+            "text": "Get Your Glow On Today",
+            "text_style": "body",
+            "use_custom_styling": true,
+            "text_alignment": "center",
+            "font_size": 12,
+            "margin_top": 1.5,
+            "margin_bottom": -0.3
+          }
+        },
+        "buy_buttons": {
+          "type": "buy_buttons",
+          "settings": {
+            "show_dynamic_checkout": false,
+            "show_gift_card_recipient": false,
+            "use_custom_styling": true,
+            "button_height": 68,
+            "font_size": 20,
+            "custom_text": "ADD TO CART | [PRICE]"
+          }
+        },
+        "text_cBgayA": {
+          "type": "text",
+          "settings": {
+            "text": "Unlock Dewy Skin with Collagen",
+            "text_style": "body",
+            "use_custom_styling": true,
+            "text_alignment": "center",
+            "font_size": 12,
+            "margin_top": 1.7,
+            "margin_bottom": 3
+          }
+        },
+        "urgency_progress_MJrkni": {
+          "type": "urgency_progress",
+          "settings": {
+            "headline": "READY TO SHIP",
+            "subtext": "Due to high demand, limited quantities available",
+            "feature_1": "1 Week Delivery",
+            "feature_2": "Free Shipping",
+            "feature_3": "Easy to Return",
+            "primary_color": "#e8ccc7",
+            "third_color": "#fcf7f7",
+            "section_radius": 12,
+            "bar_radius": 20,
+            "sold_percent": 93,
+            "heading_size": 18,
+            "subtext_size": 14,
+            "icon_text_size": 12,
+            "icon_size": 18
+          }
+        },
+        "guarantee_badge_AaBfap": {
+          "type": "guarantee_badge",
+          "settings": {
+            "heading": "60-day money-back guarantee",
+            "body": "<p>If you don’t love it, return it within 60 days for a full refund.</p>",
+            "ring_text": "MONEY-BACK GUARANTEE",
+            "days_number": "60",
+            "day_label": "Day",
+            "bg_color": "#f5f1e8",
+            "accent_color": "#a0522d",
+            "heading_color": "#5c3a21",
+            "text_color": "#5c3a21",
+            "radius": 12,
+            "badge_size": 80,
+            "heading_size": 16,
+            "body_size": 14
+          }
+        },
+        "review_carousel_fxV7nG": {
+          "type": "review_carousel",
+          "settings": {
+            "popup_featured_product": "",
+            "heading": "<strong>Real results from real customers</strong>",
+            "heading_font_size": 16,
+            "color_scheme": "scheme-1",
+            "collection_1": "",
+            "collection_2": "",
+            "collection_3": "",
+            "collection_4": "",
+            "collection_5": "",
+            "collection_6": ""
+          }
+        },
+        "collapsible_tab_pnakVM": {
+          "type": "collapsible_tab",
+          "settings": {
+            "heading": "Product Details",
+            "icon": "none",
+            "content": "<p>✔ <strong>High-Quality Materials</strong> – Designed for durability, comfort, and long-lasting use.<br/>✔ <strong>Versatile & Functional</strong> – Perfect for everyday use, making life easier and more convenient.<br/>✔ <strong>Thoughtfully Designed</strong> – Crafted with attention to detail to provide the best experience.<br/>✔ <strong>Great for Gifting</strong> – A perfect choice for friends, family, or yourself!</p>",
+            "page": ""
+          }
+        },
+        "collapsible_tab_VBrdmj": {
+          "type": "collapsible_tab",
+          "settings": {
+            "heading": "How To Use",
+            "icon": "none",
+            "content": "<p>Simply follow the included instructions to get started. Use as intended for best results, and refer back to this section for helpful tips, care guidance, or usage notes to ensure long-lasting performance.</p>",
+            "page": ""
+          }
+        },
+        "collapsible_tab_9jUktt": {
+          "type": "collapsible_tab",
+          "settings": {
+            "heading": "Shipping & Delivery",
+            "icon": "none",
+            "content": "<p>📦 <strong>Fast Processing</strong> – Orders are packed and shipped within 2 business days.<br/>🚚 <strong>Reliable Shipping</strong> – We partner with trusted carriers to ensure your order arrives safely.<br/>🌍 <strong>Worldwide Delivery</strong> – We ship to most locations around the world.<br/>📩 <strong>Tracking Included</strong> – Stay updated with tracking details sent to your email.</p><p>Delivery times may vary based on your location. If you have any questions, feel free to reach out!</p>",
+            "page": ""
+          }
+        },
+        "collapsible_tab_mXtiYD": {
+          "type": "collapsible_tab",
+          "settings": {
+            "heading": "Return & Refund Policy",
+            "icon": "none",
+            "content": "<p>🔄 <strong>Hassle-Free Returns</strong> – If you're not satisfied, you can return your item within 30 days.<br/>💰 <strong>Money-Back Guarantee</strong> – Get a full refund or exchange if your item arrives damaged or defective.<br/>📦 <strong>Easy Process</strong> – Simply contact our support team, and we’ll guide you through the steps.<br/>📩 <strong>Customer Support</strong> – Have questions? We’re here to help!</p><p>For full details, please check our Return Policy or contact us anytime.</p>",
+            "page": ""
+          }
+        },
+        "product_reviews_BtgBXw": {
+          "type": "product_reviews",
+          "settings": {
+            "show_placeholder_image": true,
+            "reviewer_1": "<em>Reviewer 1</em>",
+            "text_1": "<p>Show what your customers had to say about their experience.</p>",
+            "reviewer_2": "<em>Reviewer 2</em>",
+            "text_2": "<p>Show what your customers had to say about their experience.</p>",
+            "reviewer_3": "<em>Reviewer 3</em>",
+            "text_3": "<p>Show what your customers had to say about their experience.</p>",
+            "text_color": "#000000",
+            "text_alignment": "center",
+            "text_size": 15,
+            "display_stars": true,
+            "star_color": "#e8ccc7",
+            "star_size": 14,
+            "star_placement": "below",
+            "image_shape": "circle",
+            "image_size": 58,
+            "show_card": true,
+            "background_color": "#ffffff",
+            "auto_scroll": true,
+            "side": "left"
+          },
+          "disabled": true
+        }
+      },
+      "block_order": [
+        "before_after_block_4gMMpD",
+        "review_stars_kXbpid",
+        "title",
+        "price",
+        "text_4UAXfW",
+        "description",
+        "variant_picker",
+        "text_hfcGJe",
+        "buy_buttons",
+        "text_cBgayA",
+        "urgency_progress_MJrkni",
+        "guarantee_badge_AaBfap",
+        "review_carousel_fxV7nG",
+        "collapsible_tab_pnakVM",
+        "collapsible_tab_VBrdmj",
+        "collapsible_tab_9jUktt",
+        "collapsible_tab_mXtiYD",
+        "product_reviews_BtgBXw"
+      ],
+      "custom_css": [
+        ".alert-text + .product__text {margin: 1rem 0;}",
+        ".alert-text:has(+ .product__text) {margin-bottom: 0.75rem;}",
+        ".product__tax.caption.rte {display: none;}",
+        ".product-review-stars + .product__title {margin-bottom: 1.5rem !important; margin-top: 1rem !important;}",
+        "@media (min-width: 1200px) {product-info .product {padding: 0 3rem; margin-right: auto; margin-left: auto; } product-info .product .product__media-wrapper {padding-right: 3.25rem; }}"
+      ],
+      "settings": {
+        "enable_sticky_info": true,
+        "color_scheme": "scheme-1",
+        "media_size": "medium",
+        "gallery_layout": "thumbnail_slider",
+        "media_position": "left",
+        "image_zoom": "none",
+        "mobile_thumbnails": "show",
+        "hide_variants": true,
+        "enable_video_looping": false,
+        "product_info_padding": 4,
+        "padding_top": 0,
+        "padding_bottom": 60
+      }
+    },
+    "related-products": {
+      "type": "related-products",
+      "disabled": true,
+      "settings": {
+        "heading": "You may also like",
+        "heading_size": "h2",
+        "products_to_show": 2,
+        "columns_desktop": 4,
+        "color_scheme": "scheme-1",
+        "image_ratio": "portrait",
+        "image_shape": "default",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false,
+        "columns_mobile": "2",
+        "padding_top": 0,
+        "padding_bottom": 60
+      }
+    },
+    "blocky_announcement_bar_H6FtGh": {
+      "type": "blocky-announcement-bar",
+      "blocks": {
+        "slide_cCXrJe": {
+          "type": "slide",
+          "settings": {
+            "message": "Black Friday Deals Ending This Week",
+            "link": ""
+          }
+        },
+        "slide_7GYCt3": {
+          "type": "slide",
+          "settings": {
+            "message": "Free shipping on all orders!",
+            "link": ""
+          }
+        }
+      },
+      "block_order": [
+        "slide_cCXrJe",
+        "slide_7GYCt3"
+      ],
+      "name": "Blocky Announcement Bar",
+      "settings": {
+        "background_color": "#e8ccc7",
+        "text_color": "#ffffff",
+        "font_size": 18,
+        "font_size_mobile": 14,
+        "padding_y": 12,
+        "autoplay_enabled": false,
+        "autoplay_interval": 4,
+        "show_arrows": false,
+        "anim_duration": 300,
+        "anim_easing": "ease-out"
+      }
+    },
+    "blocky_product_icons_2_czp9Jy": {
+      "type": "blocky-product-icons-2",
+      "blocks": {
+        "product_icons_xR9abF": {
+          "type": "product-icons",
+          "settings": {
+            "icon_code": "timer",
+            "icon_color": "#e8ccc7",
+            "fill_icons": false,
+            "icon_heading": "<p><strong>Fast-Acting Formula</strong></p>",
+            "icon_heading_color": "#000000",
+            "icon_description": "<p>Refines jawline, cheekbones, and brows for a more contoured look.</p>",
+            "icon_text_color": "#000000",
+            "icon_subtitle": "<p>Quick Results</p>",
+            "icon_subtitle_color": "#000000"
+          }
+        },
+        "product_icons_frTziW": {
+          "type": "product-icons",
+          "settings": {
+            "icon_code": "health_and_safety",
+            "icon_color": "#e8ccc7",
+            "fill_icons": false,
+            "icon_heading": "<p><strong>Clinically Tested</strong></p>",
+            "icon_heading_color": "#000000",
+            "icon_description": "<p>Supported by independent studies to ensure both safety and reliable performance.</p>",
+            "icon_text_color": "#000000",
+            "icon_subtitle": "<p>Science-Backed</p>",
+            "icon_subtitle_color": "#000000"
+          }
+        },
+        "product_icons_77pwxR": {
+          "type": "product-icons",
+          "settings": {
+            "icon_code": "stars",
+            "icon_color": "#e8ccc7",
+            "fill_icons": false,
+            "icon_heading": "<p><strong>Effortless Application</strong></p>",
+            "icon_heading_color": "#000000",
+            "icon_description": "<p>Designed for simple, single-step application—no extra tools or complicated steps required.</p>",
+            "icon_text_color": "#000000",
+            "icon_subtitle": "<p>One-Step Use</p>",
+            "icon_subtitle_color": "#000000"
+          }
+        },
+        "product_icons_qt9XXf": {
+          "type": "product-icons",
+          "settings": {
+            "icon_code": "hourglass_full",
+            "icon_color": "#e8ccc7",
+            "fill_icons": false,
+            "icon_heading": "<p><strong>Long-Lasting Results</strong></p>",
+            "icon_heading_color": "#000000",
+            "icon_description": "<p>Maintains its benefits for hours, letting you go about your day uninterrupted.</p>",
+            "icon_text_color": "#000000",
+            "icon_subtitle": "<p>All-Day Effect</p>",
+            "icon_subtitle_color": "#000000"
+          }
+        }
+      },
+      "block_order": [
+        "product_icons_xR9abF",
+        "product_icons_frTziW",
+        "product_icons_77pwxR",
+        "product_icons_qt9XXf"
+      ],
+      "settings": {
+        "height": "adapt",
+        "border_radius": 15,
+        "show_border": true,
+        "border_color": "#000000",
+        "shadow": false,
+        "title": "The Targeted-Toning Ritual",
+        "title_size": 40,
+        "title_color": "#000000",
+        "icon_heading_size": 18,
+        "icon_body_size": 14,
+        "icon_subtitle_size": 16,
+        "icon_size": 24,
+        "icon_text_alignment": "left",
+        "mobile_icon_text_alignment": "center",
+        "show_icons_card": false,
+        "icon_card_background": "#ffffff",
+        "layout": "row",
+        "desktop_icons_width": "medium",
+        "mobile_layout": "col",
+        "background_color": "#fcf7f7",
+        "container_style": true,
+        "container_background_color": "#fcf7f7",
+        "container_padding": 2.2,
+        "container_padding_mobile": 3.8,
+        "page_width": 1200,
+        "padding_top": 44,
+        "padding_bottom": 44
+      }
+    },
+    "how_it_works_tNVawz": {
+      "type": "how-it-works",
+      "blocks": {
+        "media_UNMwbh": {
+          "type": "media",
+          "settings": {
+            "alt_text": "",
+            "media_height": "medium",
+            "desktop_media_width": "medium",
+            "desktop_media_position": "center",
+            "media_fit": "zoomed",
+            "shadow": false,
+            "show_border": true,
+            "border_color": "#000000",
+            "autoplay": true,
+            "play_button_color": "#ffffff",
+            "play_button_background_color": "#dcdcdc"
+          }
+        },
+        "timeline_TCR7qq": {
+          "type": "timeline",
+          "settings": {
+            "timeline_background_color": "#e8ccc7",
+            "block_heading_color": "#e8ccc7",
+            "block_heading_font_size": 17,
+            "block_description_color": "#555555",
+            "block_description_font_size": 14,
+            "number_block_background_color": "#e8ccc7",
+            "number_block_text_color": "#ffffff",
+            "number_block_font_size": 18,
+            "block_heading1": "Cleanse",
+            "block_text1": "Impurities are gently lifted away",
+            "block_heading2": "Activate",
+            "block_text2": "Key ingredients begin targeting the skin’s surface",
+            "block_heading3": "Penetrate",
+            "block_text3": "The formula reaches deeper layers for maximum impact",
+            "block_heading4": "Repair",
+            "block_text4": "Skin is soothed, renewed, and supported",
+            "block_heading5": "Protect",
+            "block_text5": "A barrier locks in hydration and shields against stressors",
+            "block_heading6": "Glow",
+            "block_text6": "Radiance and confidence shine through with consistent use",
+            "block_heading7": "",
+            "block_text7": ""
+          }
+        }
+      },
+      "block_order": [
+        "media_UNMwbh",
+        "timeline_TCR7qq"
+      ],
+      "name": "Blocky How It Works",
+      "settings": {
+        "main_heading": "How It Works",
+        "main_heading_font_size": 32,
+        "main_heading_color": "#0d2628",
+        "subheading": "Each step is designed to bring out your skin’s natural glow and keep it protected.",
+        "subheading_font_size": 16,
+        "subheading_color": "#505257",
+        "sub_subheading": "HERE’S WHAT HAPPENS:",
+        "sub_subheading_font_size": 16,
+        "sub_subheading_color": "#505257",
+        "background_color": "#ffffff",
+        "layout": "row",
+        "mobile_layout": "col",
+        "text_container_gap": "1.5rem",
+        "page_width": 1200,
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "blocky_result_with_media_MG8kFB": {
+      "type": "blocky-result-with-media",
+      "blocks": {
+        "body_fRCaLW": {
+          "type": "body",
+          "settings": {
+            "body_text": "<p>THE SCIENCE OF VISIBLE RESULTS</p>",
+            "body_size": 15,
+            "body_color": "#000000"
+          }
+        },
+        "title_6Qkb3X": {
+          "type": "title",
+          "settings": {
+            "title": "Results After 30 Days",
+            "title_size": 40,
+            "title_color": "#000000"
+          }
+        },
+        "results_PViaeK": {
+          "type": "results",
+          "settings": {
+            "percentage_1": 94,
+            "row_text_1": "<p>said their looks more radiant and glowing</p>",
+            "percentage_2": 90,
+            "row_text_2": "<p>saw a noticeable boost in efficiency</p>",
+            "percentage_3": 86,
+            "row_text_3": "<p>said they saw a visible reduction of fine lines and wrinkles</p>",
+            "percentage_4": 90,
+            "row_text_4": "",
+            "percentage_5": 90,
+            "row_text_5": "",
+            "result_text_color": "#000000",
+            "result_text_size": 18,
+            "show_results_borders": false,
+            "results_padding": 1.4,
+            "percentage_size": 8,
+            "percentage_bold": false,
+            "show_percentage_bar": true,
+            "percentage_color": "#000000",
+            "non_percentage_color": "#ffffff",
+            "results_border_width": 0.4
+          }
+        },
+        "body_Hp8iCi": {
+          "type": "body",
+          "settings": {
+            "body_text": "<p>Claims are based on an independent consumer perception study as well as an expert assessment by a dermatologist in an independent clinical study of 33 people after using the 4-in-1 Skincare Wand and LightBoost Wand Activating Serum 5x per week within an 8-week time period.<br/><br/></p>",
+            "body_size": 12,
+            "body_color": "#000000"
+          }
+        }
+      },
+      "block_order": [
+        "body_fRCaLW",
+        "title_6Qkb3X",
+        "results_PViaeK",
+        "body_Hp8iCi"
+      ],
+      "settings": {
+        "height": "medium",
+        "media_border_radius": 15,
+        "shadow": false,
+        "show_media_border": true,
+        "media_border_color": "#000000",
+        "layout": "row",
+        "desktop_results_width": "medium",
+        "mobile_layout": "col-reverse",
+        "background_color": "#fefcfc",
+        "page_width": 1200,
+        "padding_top": 44,
+        "padding_bottom": 44
+      }
+    },
+    "blocky_testimonials_kkHaFT": {
+      "type": "blocky-testimonials",
+      "blocks": {
+        "title_ziWiQG": {
+          "type": "title",
+          "settings": {
+            "title": "Real Skin. Real Change.",
+            "title_size": 39,
+            "title_color": "#000000"
+          }
+        },
+        "testimonial_BcAhQE": {
+          "type": "testimonial",
+          "settings": {
+            "heading_1": "Truly Exceptional",
+            "desc_1": "<p>\"This product exceeded my expectations! The quality and service are outstanding\"</p>",
+            "author_1": "Jane D.",
+            "location_1": "New York, NY",
+            "heading_2": "Game Changer",
+            "desc_2": "<p>\"A game-changer in every sense. I couldn't be happier with my purchase.\"</p>",
+            "author_2": "John S.",
+            "location_2": "Los Angeles, CA",
+            "heading_3": "Great Value!",
+            "desc_3": "<p>\"Exceptional value for the price. I highly recommend it to everyone\"</p>",
+            "author_3": "Alex P.",
+            "location_3": "Chicago, IL",
+            "heading_color": "#000000",
+            "desc_color": "#000000",
+            "heading_font_size": 20,
+            "desc_font_size": 16,
+            "author_font_size": 16,
+            "location_font_size": 16,
+            "media_shape": "square",
+            "media_width": 76,
+            "star_color": "#ffcc00",
+            "show_stars": false,
+            "content_container_gap": "1rem",
+            "card_content_alignment": "left",
+            "card_background_color": "#fcf7f7",
+            "show_card_shadow": false,
+            "show_border_above_author": false,
+            "play_button_color": "#ffffff",
+            "play_button_background_color": "#000000"
+          }
+        }
+      },
+      "block_order": [
+        "title_ziWiQG",
+        "testimonial_BcAhQE"
+      ],
+      "custom_css": [],
+      "name": "Blocky Testimonials",
+      "settings": {
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "center",
+        "text_container_gap": "2.5rem",
+        "border_radius": 15,
+        "background_color": "#fffcfc",
+        "page_width": 1200,
+        "padding_top": 36,
+        "padding_bottom": 36
+      }
+    },
+    "blocky_product_feature_3_3LE4A8": {
+      "type": "blocky-product-feature-3",
+      "blocks": {
+        "feature_JpkBCA": {
+          "type": "feature",
+          "settings": {
+            "side": "left",
+            "y_offset": 32,
+            "title_position": "above",
+            "title": "FEATURE",
+            "text": "<p>Position the feature to highlight the right spot on the image.</p>"
+          }
+        },
+        "feature_44Kfqk": {
+          "type": "feature",
+          "settings": {
+            "side": "left",
+            "y_offset": -20,
+            "title_position": "above",
+            "title": "FEATURE",
+            "text": "<p>Position the feature to highlight the right spot on the image.</p>"
+          }
+        },
+        "feature_d7iDcb": {
+          "type": "feature",
+          "settings": {
+            "side": "right",
+            "y_offset": 32,
+            "title_position": "above",
+            "title": "FEATURE",
+            "text": "<p>Position the feature to highlight the right spot on the image.</p>"
+          }
+        },
+        "feature_b6fVTa": {
+          "type": "feature",
+          "settings": {
+            "side": "right",
+            "y_offset": -20,
+            "title_position": "above",
+            "title": "FEATURE",
+            "text": "<p>Position the feature to highlight the right spot on the image.</p>"
+          }
+        }
+      },
+      "block_order": [
+        "feature_JpkBCA",
+        "feature_44Kfqk",
+        "feature_d7iDcb",
+        "feature_b6fVTa"
+      ],
+      "name": "Blocky Product Feature 2",
+      "settings": {
+        "body_text": "PRODUCT FEATURES",
+        "title": "New Best Selling Product",
+        "title_size": 40,
+        "title_color": "#000000",
+        "body_size": 13,
+        "body_color": "#000000",
+        "device_image_alt": "",
+        "device_link": "",
+        "device_height": 500,
+        "device_radius": 15,
+        "feature_title_size": 20,
+        "feature_title_color": "#000000",
+        "feature_body_size": 14,
+        "feature_body_color": "#e8ccc7",
+        "accent_color": "#e8ccc7",
+        "desktop_content_alignment": "center",
+        "mobile_content_alignment": "center",
+        "spacing_eyebrow_title": 12,
+        "spacing_title_media": 24,
+        "page_width": 1000,
+        "padding_top": 48,
+        "padding_bottom": 48,
+        "background_color": "#ffffff"
+      }
+    },
+    "blocky_video_embedded_MEah8c": {
+      "type": "blocky-video-embedded",
+      "name": "Blocky Video Embed",
+      "settings": {
+        "autoplay": true,
+        "play_button_color": "#ffffff",
+        "play_button_background_color": "#dcdcdc",
+        "section_height": "550px",
+        "mobile_height": "500px",
+        "video_fit": "zoomed",
+        "border_radius": 30,
+        "overlay_opacity": 0,
+        "text_align": "vertical-center horizontal-center",
+        "full_screen": false,
+        "background_color": "#fefcfc",
+        "shadow": false,
+        "show_border": true,
+        "border_color": "#000000",
+        "page_width": 1200,
+        "padding_top": 50,
+        "padding_bottom": 50
+      }
+    },
+    "blocky_scrolling_text_bar_VErzPV": {
+      "type": "blocky-scrolling-text-bar",
+      "blocks": {
+        "text_4TxKAn": {
+          "type": "text",
+          "settings": {
+            "text": "SCROLLING TEXT BAR"
+          }
+        }
+      },
+      "block_order": [
+        "text_4TxKAn"
+      ],
+      "name": "Blocky Scrolling Text Bar",
+      "settings": {
+        "text_size": "2",
+        "background_color": "#e8ccc7",
+        "text_color": "#ffffff",
+        "speed": 1,
+        "text_spacing": 3,
+        "padding_top": 32,
+        "padding_bottom": 32
+      }
+    },
+    "blocky_image_with_text_XQr7Xm": {
+      "type": "blocky-image-with-text",
+      "blocks": {
+        "title_8xqzDd": {
+          "type": "title",
+          "settings": {
+            "title": "Made with Powerful Ingredients",
+            "title_size": 42,
+            "title_color": "#000000"
+          }
+        },
+        "body_LTVmeb": {
+          "type": "body",
+          "settings": {
+            "body_text": "<h4><strong>Bioactive Peptide Complex </strong></h4><p>Supports cellular renewal for smoother, healthier tissue.</p><p></p><h4><strong>HydroLock Technology </strong></h4><p>Creates a moisture-retaining barrier to maximize comfort.<br/></p><p></p><h4><strong>Ionic Mineral Complex</strong></h4><p>Helps reduce the appearance of fine lines and wrinkles</p><p></p><h4><strong>Adaptive Antioxidants</strong></h4><p>Neutralize free radicals to protect and maintain response quality.</p>",
+            "body_size": 16,
+            "body_color": "#000000"
+          }
+        }
+      },
+      "block_order": [
+        "title_8xqzDd",
+        "body_LTVmeb"
+      ],
+      "settings": {
+        "height": "adapt",
+        "desktop_image_width": "medium",
+        "image_fit": "cover",
+        "border_radius": 15,
+        "shadow": false,
+        "show_border": true,
+        "border_color": "#000000",
+        "layout_style": "1",
+        "background_color": "#ffffff",
+        "layout_2_background_color": "#fcfcfc",
+        "layout": "row",
+        "desktop_content_position": "center",
+        "desktop_content_alignment": "left",
+        "mobile_layout": "col",
+        "mobile_content_alignment": "left",
+        "text_container_gap": "2rem",
+        "page_width": 1200,
+        "padding_top": 52,
+        "padding_bottom": 52
+      }
+    },
+    "blocky_comparison_table_2_4cp7jq": {
+      "type": "blocky-comparison-table-2",
+      "blocks": {
+        "row_Uyhxt7": {
+          "type": "row",
+          "settings": {
+            "left_text": "Why we are better",
+            "right_text": "Why not to choose them"
+          }
+        },
+        "row_WRDF4m": {
+          "type": "row",
+          "settings": {
+            "left_text": "Why we are better",
+            "right_text": "Why not to choose them"
+          }
+        },
+        "row_qBR98d": {
+          "type": "row",
+          "settings": {
+            "left_text": "Why we are better",
+            "right_text": "Why not to choose them"
+          }
+        },
+        "row_4FqgUp": {
+          "type": "row",
+          "settings": {
+            "left_text": "Why we are better",
+            "right_text": "Why not to choose them"
+          }
+        },
+        "row_cy8ktr": {
+          "type": "row",
+          "settings": {
+            "left_text": "Why we are better",
+            "right_text": "Why not to choose them"
+          }
+        }
+      },
+      "block_order": [
+        "row_Uyhxt7",
+        "row_WRDF4m",
+        "row_qBR98d",
+        "row_4FqgUp",
+        "row_cy8ktr"
+      ],
+      "name": "Blocky Comparison Table 2",
+      "settings": {
+        "image_alt": "",
+        "height": "medium",
+        "media_shadow": false,
+        "image_radius": 30,
+        "show_border": true,
+        "border_color": "#000000",
+        "title": "Comparison Table",
+        "title_size": 40,
+        "title_color": "#000000",
+        "body_text": "<p>Show why your product is the smarter choice for your customers</p>",
+        "body_size": 16,
+        "body_color": "#000000",
+        "text_container_gap": "1.5rem",
+        "left_label": "WE",
+        "left_label_color": "#000000",
+        "right_label": "THEM",
+        "right_label_color": "#000000",
+        "vs_label": "VS",
+        "vs_border_color": "#e8ccc7",
+        "label_size": 18,
+        "row_text_size": 16,
+        "list_gap": 12,
+        "item_gap": 12,
+        "card_shadow": false,
+        "card_radius": 28,
+        "card_padding": 24,
+        "top_bg": "#fcf7f7",
+        "bottom_bg": "#ffffff",
+        "icon_size": 20,
+        "show_icons": true,
+        "check_icon_bg_color": "#e8ccc7",
+        "check_icon_border_color": "#e8ccc7",
+        "check_icon_color": "#ffffff",
+        "x_icon_border_color": "#000000",
+        "x_icon_bg_color": "#ffffff",
+        "x_icon_color": "#000000",
+        "desktop_layout": "image_right",
+        "desktop_content_alignment": "center",
+        "mobile_content_alignment": "center",
+        "page_width": 1200,
+        "padding_top": 60,
+        "padding_bottom": 60,
+        "background_color": "#fefcfc"
+      }
+    },
+    "blocky_faq_cFeeU6": {
+      "type": "blocky-faq",
+      "blocks": {
+        "question_CF8zA8": {
+          "type": "question",
+          "settings": {
+            "question": "Question",
+            "content": "<p>Answer</p>",
+            "default_open": false,
+            "icon_code": "",
+            "icon_color": "#000000"
+          }
+        },
+        "question_cLHAnz": {
+          "type": "question",
+          "settings": {
+            "question": "Question",
+            "content": "<p>Answer</p>",
+            "default_open": false,
+            "icon_code": "",
+            "icon_color": "#000000"
+          }
+        },
+        "question_LF7aE4": {
+          "type": "question",
+          "settings": {
+            "question": "Question",
+            "content": "<p>Answer</p>",
+            "default_open": false,
+            "icon_code": "",
+            "icon_color": "#000000"
+          }
+        },
+        "question_KtVzDN": {
+          "type": "question",
+          "settings": {
+            "question": "Question",
+            "content": "<p>Answer</p>",
+            "default_open": false,
+            "icon_code": "",
+            "icon_color": "#000000"
+          }
+        },
+        "question_GaDjcx": {
+          "type": "question",
+          "settings": {
+            "question": "Question",
+            "content": "<p>Answer</p>",
+            "default_open": false,
+            "icon_code": "",
+            "icon_color": "#000000"
+          }
+        },
+        "question_yn9AWL": {
+          "type": "question",
+          "settings": {
+            "question": "Question",
+            "content": "<p>Answer</p>",
+            "default_open": false,
+            "icon_code": "",
+            "icon_color": "#000000"
+          }
+        }
+      },
+      "block_order": [
+        "question_CF8zA8",
+        "question_cLHAnz",
+        "question_LF7aE4",
+        "question_KtVzDN",
+        "question_GaDjcx",
+        "question_yn9AWL"
+      ],
+      "name": "Blocky FAQ",
+      "settings": {
+        "title": "Frequently Asked Questions",
+        "title_size": 40,
+        "title_color": "#000000",
+        "body_text": "",
+        "body_size": 16,
+        "body_color": "#000000",
+        "button_label": "<p>Contact Us</p>",
+        "button_link": "",
+        "button_border_radius": "extra-round",
+        "button_background_color": "#000000",
+        "button_text_color": "#ffffff",
+        "faq_layout": "border",
+        "question_padding": 15,
+        "faq_border_radius": 15,
+        "faq_container_background": "#ffffff",
+        "question_font_size": 18,
+        "answer_font_size": 16,
+        "question_text_color": "#000000",
+        "answer_text_color": "#606367",
+        "layout": "row-reverse",
+        "columns": 1,
+        "desktop_faq_width": "large",
+        "desktop_content_alignment": "left",
+        "mobile_content_alignment": "left",
+        "text_vertical_alignment": "top",
+        "chevron_style": "chevron",
+        "chevron_position": "end",
+        "text_container_gap": "1.5rem",
+        "background_color": "#ffffff",
+        "page_width": 1200,
+        "padding_top": 52,
+        "padding_bottom": 52
+      }
+    }
+  },
+  "order": [
+    "main",
+    "related-products",
+    "blocky_announcement_bar_H6FtGh",
+    "blocky_product_icons_2_czp9Jy",
+    "how_it_works_tNVawz",
+    "blocky_result_with_media_MG8kFB",
+    "blocky_testimonials_kkHaFT",
+    "blocky_product_feature_3_3LE4A8",
+    "blocky_video_embedded_MEah8c",
+    "blocky_scrolling_text_bar_VErzPV",
+    "blocky_image_with_text_XQr7Xm",
+    "blocky_comparison_table_2_4cp7jq",
+    "blocky_faq_cFeeU6"
+  ]
+}

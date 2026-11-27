@@ -1,0 +1,692 @@
+{% comment %}
+  VSL Page Section
+  ----------------
+  A video sales letter page: headline, video, expert credibility,
+  clinical studies and legal footer.
+
+  HOW TO USE
+    1. Sections -> Add a new section -> name it "vsl-page"
+    2. Templates -> Add a new template (page / product / index) with the
+       suffix "v2", and add this section to it
+    3. Fill everything from the theme editor - no code changes needed
+
+  Studies are blocks - add as many as you need from the theme editor.
+
+  VIDEO
+    Three sources: an embed code (VSL player, Wistia, etc.), a video file
+    uploaded to Shopify, or a YouTube / Vimeo link.
+
+    If a poster image is set, the video is NOT loaded on page load. It is
+    held in a <template> and injected only when the visitor clicks play,
+    which keeps the page fast and lets the player autoplay with sound
+    (the click counts as a user gesture).
+{% endcomment %}
+
+{%- assign s = section.settings -%}
+{%- assign id = section.id -%}
+
+<style>
+  #vsl-{{ id }} {
+    --vsl-red: {{ s.accent_color }};
+    --vsl-ink: {{ s.text_color }};
+    --vsl-band: {{ s.band_color }};
+    background: {{ s.bg_color }};
+    color: var(--vsl-ink);
+    font-family: {{ s.font_stack }};
+    -webkit-font-smoothing: antialiased;
+  }
+  #vsl-{{ id }} * { box-sizing: border-box;    font-family: 'Nunito Sans'; }
+
+  #vsl-{{ id }} .vsl-top { padding: 28px 20px 40px; }
+  #vsl-{{ id }} .vsl-wrap { max-width: {{ s.content_width }}px; margin: 0 auto; }
+
+  #vsl-{{ id }} .vsl-eyebrow {
+    text-align: center; font-weight: 700; font-size: 20px;
+    margin: 0 0 10px; line-height: 1.3;
+  }
+  #vsl-{{ id }} .vsl-headline {
+    text-align: center; color: var(--vsl-red); font-weight: 800;
+    font-size: 44px; line-height: 1.18; margin: 0 auto 28px;
+    letter-spacing: -0.01em;
+    max-width: 800px; 
+  }
+
+  /* ---- Video ---- */
+  #vsl-{{ id }} .vsl-video-shell {
+    max-width: {{ s.video_width }}px; margin: 0 auto;
+    transition: max-width .35s ease;
+  }
+  #vsl-{{ id }} .vsl-video-shell.is-playing {
+    max-width: {{ s.video_width_playing }}px;
+  }
+  #vsl-{{ id }} .vsl-video {
+    position: relative; aspect-ratio: 16 / 9; overflow: hidden;
+    background: {{ s.video_placeholder_color }};
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; text-align: center; padding: 20px;
+  }
+  #vsl-{{ id }} .vsl-video > * { max-width: 100%; }
+  #vsl-{{ id }} .vsl-video iframe,
+  #vsl-{{ id }} .vsl-video video,
+  #vsl-{{ id }} .vsl-video > div:only-child {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  }
+  #vsl-{{ id }} .vsl-video-empty { font-size: 18px; font-weight: 600; opacity: .9; }
+
+  /* ---- Poster + click to play ---- */
+  #vsl-{{ id }} .vsl-poster {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 1;
+  }
+  #vsl-{{ id }} .vsl-overlay {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: 0; padding: 0; cursor: pointer;
+    font: inherit; color: #fff; -webkit-tap-highlight-color: transparent;
+  }
+  #vsl-{{ id }} .vsl-overlay-circle {
+    position: relative;
+    width: 34%; min-width: 150px; max-width: 360px; aspect-ratio: 1;
+    border-radius: 50%; background: rgba(0,0,0,.72);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4%;
+    transition: transform .2s ease, background .2s ease;
+  }
+  #vsl-{{ id }} .vsl-overlay:hover .vsl-overlay-circle {
+    transform: scale(1.04); background: rgba(0,0,0,.8);
+  }
+  #vsl-{{ id }} .vsl-overlay-text {
+    font-weight: 800; text-transform: uppercase; line-height: 1.12;
+    font-size: clamp(14px, 2.6vw, 30px); letter-spacing: .01em;
+  }
+  #vsl-{{ id }} .vsl-play {
+    width: 30%; aspect-ratio: 1; border-radius: 50%; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #vsl-{{ id }} .vsl-play svg { width: 42%; height: auto; fill: #111; margin-left: 8%; }
+  #vsl-{{ id }} .vsl-arrow {
+    position: absolute; right: -4%; bottom: 20%; width: 26%; height: auto;
+    pointer-events: none;
+  }
+  #vsl-{{ id }} .vsl-arrow path {
+    fill: none; stroke: var(--vsl-red); stroke-width: 5; stroke-linecap: round;
+  }
+  #vsl-{{ id }} .vsl-arrow polygon { fill: var(--vsl-red); stroke: none; }
+
+  #vsl-{{ id }} .vsl-note {
+    text-align: center; font-weight: 700; font-size: 18px;
+    margin: 22px auto 0; max-width: 760px; line-height: 1.45;
+  }
+  #vsl-{{ id }} .vsl-note svg {
+    width: 20px; height: 20px; vertical-align: -3px;
+    margin-right: 6px; fill: var(--vsl-red);
+  }
+
+  /* ---- Expert ---- */
+  #vsl-{{ id }} .vsl-expert {
+    display: flex; gap: 22px; align-items: flex-start;
+    max-width: 840px; margin: 48px auto 0;
+  }
+  #vsl-{{ id }} .vsl-expert-photo {
+    width: 104px; height: 104px; border-radius: 50%;
+    object-fit: cover; flex: 0 0 104px; background: #e8e8e8;
+  }
+  #vsl-{{ id }} .vsl-badge {
+    display: inline-block; background: var(--vsl-red); color: #fff;
+    font-size: 13px; font-weight: 700; padding: 3px 8px; margin-bottom: 6px;
+  }
+  #vsl-{{ id }} .vsl-expert-name {
+    font-size: 26px; font-weight: 700; margin: 0 0 8px;
+    text-decoration: underline; line-height: 1.2;
+  }
+  #vsl-{{ id }} .vsl-expert-bio { font-size: 15px; line-height: 1.5; margin: 0; }
+  #vsl-{{ id }} .vsl-signature {
+    display: block; margin: 26px auto 0; max-width: 260px; height: auto;
+  }
+
+  /* ---- Studies band ---- */
+  #vsl-{{ id }} .vsl-band { background: var(--vsl-band); padding: 44px 20px 10px; margin-top: 44px; }
+  #vsl-{{ id }} .vsl-band-title {
+    text-align: center; font-weight: 700; font-size: 17px;
+    color: #6b6b6b; margin: 0 0 30px;
+  }
+  #vsl-{{ id }} .vsl-studies {
+    max-width: 1100px; margin: 0 auto; padding: 0 0 0 4px;
+    columns: 2; column-gap: 56px; list-style: none; counter-reset: vslc;
+  }
+  #vsl-{{ id }} .vsl-studies li {
+    break-inside: avoid; margin: 0 0 16px; padding-left: 30px;
+    position: relative; font-size: 13px; line-height: 1.5; font-style: italic;
+    counter-increment: vslc;
+  }
+  #vsl-{{ id }} .vsl-studies li::before {
+    content: counter(vslc, decimal-leading-zero) ".";
+    position: absolute; left: 0; font-style: italic;
+  }
+  #vsl-{{ id }} .vsl-studies a { color: inherit; text-decoration: none; word-break: break-all; }
+  #vsl-{{ id }} .vsl-studies a:hover { text-decoration: underline; }
+
+  #vsl-{{ id }} .vsl-rule {
+    max-width: 1100px; margin: 26px auto 0; border: 0;
+    border-top: 1px solid #bdbdbd;
+  }
+
+  /* ---- Legal ---- */
+  #vsl-{{ id }} .vsl-legal {
+    max-width: 1100px; margin: 0 auto; padding: 26px 0 0;
+    font-size: 12px; line-height: 1.6; color: #4a4a4a;
+  }
+  #vsl-{{ id }} .vsl-legal p { margin: 0 0 16px; }
+  #vsl-{{ id }} .vsl-legal.is-centered p { text-align: center; }
+  #vsl-{{ id }} .vsl-legal a { color: #1a4fd6; }
+
+  #vsl-{{ id }} .vsl-footer {
+    text-align: center; font-size: 13px; padding: 18px 0 40px; color: #333;
+  }
+  #vsl-{{ id }} .vsl-footer a { color: inherit; text-decoration: none; }
+  #vsl-{{ id }} .vsl-footer a:hover { text-decoration: underline; }
+  #vsl-{{ id }} .vsl-footer span { margin: 0 8px; color: #999; }
+
+  @media (max-width: 900px) {
+    #vsl-{{ id }} .vsl-headline { font-size: 30px; }
+    #vsl-{{ id }} .vsl-eyebrow { font-size: 17px; }
+    #vsl-{{ id }} .vsl-note { font-size: 16px; }
+    #vsl-{{ id }} .vsl-studies { columns: 1; }
+    #vsl-{{ id }} .vsl-expert { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+  }
+  @media (max-width: 520px) {
+    #vsl-{{ id }} .vsl-headline { font-size: 25px; }
+    #vsl-{{ id }} .vsl-top { padding: 20px 16px 30px; }
+    #vsl-{{ id }} .vsl-overlay-circle { width: 56%; }
+  }
+</style>
+
+<section id="vsl-{{ id }}" class="vsl-section">
+
+  <div class="vsl-top">
+    <div class="vsl-wrap">
+
+      {%- if s.eyebrow != blank -%}
+        <p class="vsl-eyebrow">{{ s.eyebrow }}</p>
+      {%- endif -%}
+
+      {%- if s.headline != blank -%}
+        <h1 class="vsl-headline">{{ s.headline }}</h1>
+      {%- endif -%}
+
+      {%- comment -%}
+        Autoplay mode: the video starts muted behind the button, because
+        browsers only allow unmuted autoplay after a user gesture. The
+        click on the button is that gesture, so sound starts there.
+      {%- endcomment -%}
+      {%- assign vsl_auto = false -%}
+      {%- if s.overlay_mode == 'autoplay' -%}{%- assign vsl_auto = true -%}{%- endif -%}
+
+      {%- capture vsl_media -%}
+        {%- case s.video_source -%}
+
+          {%- when 'upload' -%}
+            {%- if s.video_file != blank -%}
+              {%- if vsl_auto -%}
+                {{ s.video_file | video_tag:
+                     autoplay: true, muted: true, loop: true,
+                     playsinline: true, controls: false,
+                     image_size: '1200x' }}
+              {%- else -%}
+                {{ s.video_file | video_tag:
+                     controls: true, playsinline: true,
+                     preload: 'metadata', image_size: '1200x' }}
+              {%- endif -%}
+            {%- else -%}
+              <span class="vsl-video-empty">Select a video file</span>
+            {%- endif -%}
+
+          {%- when 'url' -%}
+            {%- if s.video_link.type == 'youtube' -%}
+              {%- assign vsl_src = 'https://www.youtube.com/embed/' | append: s.video_link.id | append: '?rel=0&playsinline=1' -%}
+              {%- if vsl_auto -%}
+                {%- assign vsl_src = vsl_src | append: '&autoplay=1&mute=1&loop=1&controls=0&playlist=' | append: s.video_link.id -%}
+              {%- endif -%}
+              <iframe src="{{ vsl_src }}"
+                      title="{{ s.headline | strip_newlines | escape }}"
+                      allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
+                      allowfullscreen></iframe>
+            {%- elsif s.video_link.type == 'vimeo' -%}
+              {%- assign vsl_src = 'https://player.vimeo.com/video/' | append: s.video_link.id -%}
+              {%- if vsl_auto -%}
+                {%- assign vsl_src = vsl_src | append: '?autoplay=1&muted=1&loop=1&background=1' -%}
+              {%- endif -%}
+              <iframe src="{{ vsl_src }}"
+                      title="{{ s.headline | strip_newlines | escape }}"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowfullscreen></iframe>
+            {%- else -%}
+              <span class="vsl-video-empty">Add a YouTube or Vimeo link</span>
+            {%- endif -%}
+
+          {%- else -%}
+            {%- if s.video_embed != blank -%}
+              {{ s.video_embed }}
+            {%- else -%}
+              <span class="vsl-video-empty">Paste your video embed code</span>
+            {%- endif -%}
+
+        {%- endcase -%}
+      {%- endcapture -%}
+
+      {%- capture vsl_button -%}
+        <button type="button" class="vsl-overlay" data-vsl-play
+                aria-label="{{ s.overlay_line1 | default: 'Play video' }}">
+          <span class="vsl-overlay-circle">
+            {%- if s.overlay_line1 != blank or s.overlay_line2 != blank -%}
+              <span class="vsl-overlay-text">
+                {{- s.overlay_line1 -}}
+                {%- if s.overlay_line2 != blank -%}<br>{{ s.overlay_line2 }}{%- endif -%}
+              </span>
+            {%- endif -%}
+            <span class="vsl-play">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            </span>
+            {%- if s.show_arrow -%}
+              <svg class="vsl-arrow" viewBox="0 0 64 48" aria-hidden="true">
+                <path d="M60 7C46 3 24 9 15 27"/>
+                <polygon points="8,40 16,25 27,32"/>
+              </svg>
+            {%- endif -%}
+          </span>
+        </button>
+      {%- endcapture -%}
+
+      <div class="vsl-video-shell" data-vsl-shell>
+        <div class="vsl-video" data-vsl-box>
+
+          {%- if s.overlay_mode == 'poster' and s.poster != blank -%}
+
+            {%- comment -%}
+              Poster mode. The media sits in a <template>, which browsers
+              never execute, and is injected on click - so the player
+              downloads nothing until the visitor asks for it.
+            {%- endcomment -%}
+            <template data-vsl-media>{{ vsl_media }}</template>
+
+            <img class="vsl-poster"
+                 src="{{ s.poster | image_url: width: 1600 }}"
+                 alt="" width="1600" height="900">
+
+            {{ vsl_button }}
+
+          {%- elsif vsl_auto -%}
+
+            {%- comment -%}
+              Autoplay mode. The video is already playing, muted, behind
+              the button. No poster image is used.
+            {%- endcomment -%}
+            {{ vsl_media }}
+            {{ vsl_button }}
+
+          {%- else -%}
+            {{ vsl_media }}
+          {%- endif -%}
+
+        </div>
+      </div>
+
+      {%- if s.note != blank -%}
+        <p class="vsl-note">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3 6.5 6.5H3v7h3.5L11 17V3zm3.1 2.3 1.1-1.1A8 8 0 0 1 15.2 16l-1.1-1.1a6.5 6.5 0 0 0 0-9.6zm-2.2 2.2 1.1-1.1a4.9 4.9 0 0 1 0 7.2l-1.1-1.1a3.4 3.4 0 0 0 0-5z"/></svg>
+          {{ s.note }}
+        </p>
+      {%- endif -%}
+
+      {%- if s.expert_name != blank or s.expert_photo != blank -%}
+        <div class="vsl-expert">
+          {%- if s.expert_photo != blank -%}
+            <img class="vsl-expert-photo"
+                 src="{{ s.expert_photo | image_url: width: 300 }}"
+                 alt="{{ s.expert_name | escape }}"
+                 width="104" height="104" loading="lazy">
+          {%- endif -%}
+          <div>
+            {%- if s.expert_badge != blank -%}
+              <span class="vsl-badge">{{ s.expert_badge }}</span>
+            {%- endif -%}
+            {%- if s.expert_name != blank -%}
+              <p class="vsl-expert-name">{{ s.expert_name }}</p>
+            {%- endif -%}
+            {%- if s.expert_bio != blank -%}
+              <p class="vsl-expert-bio">{{ s.expert_bio }}</p>
+            {%- endif -%}
+          </div>
+        </div>
+      {%- endif -%}
+
+      {%- if s.signature != blank -%}
+        <img class="vsl-signature"
+             src="{{ s.signature | image_url: width: 600 }}"
+             alt="" loading="lazy">
+      {%- endif -%}
+
+    </div>
+  </div>
+
+  <div class="vsl-band">
+
+    {%- if section.blocks.size > 0 -%}
+      {%- if s.studies_title != blank -%}
+        <p class="vsl-band-title">{{ s.studies_title }}</p>
+      {%- endif -%}
+
+      <ol class="vsl-studies">
+        {%- for block in section.blocks -%}
+          {%- if block.type == 'study' -%}
+            <li {{ block.shopify_attributes }}>
+              {%- if block.settings.url != blank -%}
+                <a href="{{ block.settings.url }}" target="_blank" rel="noopener nofollow">
+                  {{ block.settings.label | default: block.settings.url }}
+                </a>
+              {%- else -%}
+                {{ block.settings.label }}
+              {%- endif -%}
+            </li>
+          {%- endif -%}
+        {%- endfor -%}
+      </ol>
+
+      <hr class="vsl-rule">
+    {%- endif -%}
+
+    {%- if s.legal != blank -%}
+      <div class="vsl-legal is-centered">{{ s.legal }}</div>
+    {%- endif -%}
+
+    {%- if s.legal_left != blank -%}
+      <div class="vsl-legal">{{ s.legal_left }}</div>
+    {%- endif -%}
+
+    {%- if s.footer_links != blank -%}
+      <div class="vsl-footer">{{ s.footer_links }}</div>
+    {%- endif -%}
+
+  </div>
+
+  <script>
+  (function () {
+    var root = document.getElementById('vsl-{{ id }}');
+    if (!root) return;
+
+    var btn = root.querySelector('[data-vsl-play]');
+    if (!btn) return;   /* no poster set - the video is already visible */
+
+    var box   = root.querySelector('[data-vsl-box]');
+    var shell = root.querySelector('[data-vsl-shell]');
+    var tpl   = root.querySelector('template[data-vsl-media]');
+
+    function play() {
+      var poster = root.querySelector('.vsl-poster');
+      if (poster) poster.remove();
+      btn.remove();
+      if (shell) shell.classList.add('is-playing');
+      if (!box) return;
+
+      /* Autoplay mode: the media is already on the page and muted.
+         Turn the sound on, show controls and restart from the top. */
+      if (!tpl) {
+        var v = box.querySelector('video');
+        if (v) {
+          v.muted = false;
+          v.loop = false;
+          v.controls = true;
+          try { v.currentTime = 0; v.play(); } catch (e) {}
+        }
+        var f = box.querySelector('iframe');
+        if (f && f.src) {
+          var next = f.src
+            .replace('mute=1', 'mute=0')
+            .replace('muted=1', 'muted=0')
+            .replace('controls=0', 'controls=1')
+            .replace('background=1', 'background=0');
+          if (next.indexOf('autoplay=1') === -1) {
+            next += (next.indexOf('?') > -1 ? '&' : '?') + 'autoplay=1';
+          }
+          f.src = next;
+        }
+        return;
+      }
+
+      var holder = document.createElement('div');
+      holder.innerHTML = tpl.innerHTML;
+
+      /* Scripts inserted via innerHTML never run, so they are pulled out
+         and re-created as real script elements. */
+      var scripts = [];
+      Array.prototype.forEach.call(holder.querySelectorAll('script'), function (sc) {
+        scripts.push(sc);
+        sc.parentNode.removeChild(sc);
+      });
+
+      while (holder.firstChild) box.appendChild(holder.firstChild);
+
+      scripts.forEach(function (old) {
+        var s = document.createElement('script');
+        for (var i = 0; i < old.attributes.length; i++) {
+          s.setAttribute(old.attributes[i].name, old.attributes[i].value);
+        }
+        s.text = old.textContent;
+        box.appendChild(s);
+      });
+
+      /* The click is a user gesture, so autoplay with sound is allowed. */
+      var ifr = box.querySelector('iframe');
+      if (ifr && ifr.src && ifr.src.indexOf('autoplay') === -1) {
+        ifr.src += (ifr.src.indexOf('?') > -1 ? '&' : '?') + 'autoplay=1';
+      }
+      var vid = box.querySelector('video');
+      if (vid) { try { vid.play(); } catch (e) {} }
+
+      if (tpl.remove) tpl.remove();
+    }
+
+    btn.addEventListener('click', play, { once: true });
+  })();
+  </script>
+
+</section>
+
+{% schema %}
+{
+  "name": "VSL Page",
+  "tag": "section",
+  "settings": [
+    { "type": "header", "content": "Headline" },
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow line",
+      "default": "Your credential line here"
+    },
+    {
+      "type": "textarea",
+      "id": "headline",
+      "label": "Headline",
+      "info": "Press Enter for a line break.",
+      "default": "Your main headline goes here\nSecond line of the headline"
+    },
+
+    { "type": "header", "content": "Video" },
+    {
+      "type": "select",
+      "id": "video_source",
+      "label": "Video source",
+      "options": [
+        { "value": "embed",  "label": "Embed code (VSL player, Wistia, etc.)" },
+        { "value": "upload", "label": "File uploaded to Shopify" },
+        { "value": "url",    "label": "YouTube / Vimeo link" }
+      ],
+      "default": "embed"
+    },
+    {
+      "type": "html",
+      "id": "video_embed",
+      "label": "Video embed code",
+      "info": "For the Embed code option. Paste the full script and div from your player."
+    },
+    {
+      "type": "video",
+      "id": "video_file",
+      "label": "Video file",
+      "info": "For the uploaded file option. Upload to Shopify Files first."
+    },
+    {
+      "type": "video_url",
+      "id": "video_link",
+      "label": "YouTube / Vimeo link",
+      "accept": ["youtube", "vimeo"],
+      "info": "For the YouTube / Vimeo option."
+    },
+    {
+      "type": "range",
+      "id": "video_width",
+      "label": "Video width",
+      "min": 600, "max": 1400, "step": 20, "unit": "px",
+      "default": 1000
+    },
+    {
+      "type": "range",
+      "id": "video_width_playing",
+      "label": "Width after play",
+      "info": "The video grows to this width once play is clicked. Set both values the same to keep it fixed.",
+      "min": 600, "max": 1600, "step": 20, "unit": "px",
+      "default": 1200
+    },
+    {
+      "type": "color",
+      "id": "video_placeholder_color",
+      "label": "Video area background",
+      "default": "#4b0e9e"
+    },
+    {
+      "type": "text",
+      "id": "note",
+      "label": "Line below the video",
+      "default": "IMPORTANT: Your video may take a few seconds to load. Make sure your sound is on."
+    },
+
+    { "type": "header", "content": "Play button" },
+    {
+      "type": "select",
+      "id": "overlay_mode",
+      "label": "How the video starts",
+      "options": [
+        { "value": "autoplay", "label": "Autoplay muted, button on top (click for sound)" },
+        { "value": "poster",   "label": "Poster image, video loads on click" },
+        { "value": "none",     "label": "No button - show the player as is" }
+      ],
+      "default": "autoplay",
+      "info": "Autoplay is muted until the visitor clicks, because browsers block unmuted autoplay. Embed-code players handle their own autoplay and cannot be unmuted from here."
+    },
+    {
+      "type": "image_picker",
+      "id": "poster",
+      "label": "Poster image",
+      "info": "Only used by the poster mode."
+    },
+    {
+      "type": "text",
+      "id": "overlay_line1",
+      "label": "Play button - first line",
+      "default": "CLICK HERE"
+    },
+    {
+      "type": "text",
+      "id": "overlay_line2",
+      "label": "Play button - second line",
+      "default": "PLAY VIDEO"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_arrow",
+      "label": "Show curved arrow",
+      "default": true
+    },
+
+    { "type": "header", "content": "Expert / Author" },
+    { "type": "image_picker", "id": "expert_photo", "label": "Photo (square)" },
+    { "type": "text", "id": "expert_badge", "label": "Badge", "default": "Credential" },
+    { "type": "text", "id": "expert_name", "label": "Name", "default": "Name Surname" },
+    {
+      "type": "textarea",
+      "id": "expert_bio",
+      "label": "Short bio",
+      "default": "One line about who they are and why they are qualified to speak on this."
+    },
+    { "type": "image_picker", "id": "signature", "label": "Signature image (optional)" },
+
+    { "type": "header", "content": "Studies band" },
+    {
+      "type": "text",
+      "id": "studies_title",
+      "label": "Studies heading",
+      "default": "Supporting Clinical Studies:"
+    },
+
+    { "type": "header", "content": "Legal" },
+    {
+      "type": "richtext",
+      "id": "legal",
+      "label": "Disclaimers (centered)",
+      "info": "Add your own disclaimers here."
+    },
+    {
+      "type": "richtext",
+      "id": "legal_left",
+      "label": "Extra legal text (left aligned)"
+    },
+    {
+      "type": "richtext",
+      "id": "footer_links",
+      "label": "Footer links",
+      "info": "Privacy Policy, Terms, Contact and so on, with links."
+    },
+
+    { "type": "header", "content": "Style" },
+    { "type": "color", "id": "bg_color", "label": "Page background", "default": "#ffffff" },
+    { "type": "color", "id": "band_color", "label": "Studies band background", "default": "#e4e4e4" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#111111" },
+    { "type": "color", "id": "accent_color", "label": "Accent (headline, badge, arrow)", "default": "#e01b1b" },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Content width",
+      "min": 800, "max": 1600, "step": 20, "unit": "px",
+      "default": 1200
+    },
+    {
+      "type": "text",
+      "id": "font_stack",
+      "label": "Font stack",
+      "default": "Georgia, 'Times New Roman', serif"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "study",
+      "name": "Study link",
+      "settings": [
+        { "type": "text", "id": "url", "label": "URL" },
+        { "type": "text", "id": "label", "label": "Display text (leave empty to show the URL)" }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "VSL Page",
+      "blocks": [
+        { "type": "study" },
+        { "type": "study" },
+        { "type": "study" },
+        { "type": "study" }
+      ]
+    }
+  ]
+}
+{% endschema %}

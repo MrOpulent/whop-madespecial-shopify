@@ -1,0 +1,17 @@
+{%- comment -%} Real customer videos (same files and captions as the live PDPs). {%- endcomment -%}
+<section class="sec" id="ms-videos" style="padding-bottom:0">
+  <div class="wrap">
+    <div class="sec-head" data-rv><p class="k">Heard in real gardens</p><h2>Rain, <em>on their porches.</em></h2><p class="lede">Short videos sent in by Made Special customers. Tap one to hear it.</p></div>
+    <div class="ugc">
+      {%- assign vids = '4dab23a822464f6191afd5f1e53bf421:98161603:Linda:Really nice drum, and it’s so fun to play. It sounds great!|5c3af8485a5b423ea4b0734fb4760915:98161602:Carolyn:I bought this as a gift and loved it so much that I got a smaller one for myself!|bb0b71989e544af5963f66c6a133953b:98161601:Mahinder:The quality is great… I’d definitely gift this to someone!|dceaf104de1b4e48a5bf19658883556e:98161599:Mahayar:He sent me a video from his porch, sipping hot tea in the rain and enjoying the sound.|273278acdb604bde9f71105b3ae16375:98161606:Pete:It’s good quality and easy to use.' | split: '|' -%}
+      {%- for v in vids -%}{%- assign f = v | split: ':' -%}
+      <figure class="vc">
+        <img src="//madespecial.store/cdn/shop/files/preview_images/{{ f[0] }}.thumbnail.0000000000_800x.jpg" alt="Video from {{ f[2] }}" loading="lazy" decoding="async" width="450" height="800">
+        <button type="button" class="pb" aria-label="Play {{ f[2] }}’s video" data-src="//madespecial.store/cdn/shop/videos/c/vp/{{ f[0] }}/{{ f[0] }}.HD-1080p-7.2Mbps-{{ f[1] }}.mp4?v=0">{% render 'ms-ic', i: 'play', s: 20 %}</button>
+        <figcaption><q>{{ f[3] }}</q><span>{{ f[2] }}</span></figcaption>
+      </figure>
+      {%- endfor -%}
+    </div>
+    <p class="ugc-note">Real customers · tap any video for sound</p>
+  </div>
+</section>

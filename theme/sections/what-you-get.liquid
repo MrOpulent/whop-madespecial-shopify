@@ -1,0 +1,803 @@
+{%- comment -%}
+  Section: What You Get (center video layout)
+  Install: Online Store > Edit code > Sections > Add a new section > name it "what-you-get"
+  Layout: first half of the item blocks sit on the LEFT, second half on the RIGHT,
+  with a video (or image) in the CENTER. 8 items = 4 left + 4 right.
+  Mobile/tablet: video on top, cards below.
+{%- endcomment -%}
+
+{%- liquid
+  assign sid = section.id
+  assign heading_font = section.settings.heading_font
+
+  assign has_video = false
+  if section.settings.video != blank or section.settings.video_url != blank
+    assign has_video = true
+  endif
+
+  assign has_media = false
+  if has_video or section.settings.cover_image != blank
+    assign has_media = true
+  endif
+
+  assign total = section.blocks.size
+  assign half = total | divided_by: 2.0 | ceil
+
+-%}
+
+{%- comment -%} Cards are built once into left/right buckets {%- endcomment -%}
+{%- assign left_html = '' -%}
+{%- assign right_html = '' -%}
+
+{%- for block in section.blocks -%}
+  {%- capture card -%}
+    <li class="wyg__card" {{ block.shopify_attributes }}>
+      {%- if block.settings.show_badge -%}
+        {%- assign badge_text = block.settings.badge_text | default: section.settings.badge_text -%}
+        {%- if badge_text != blank -%}
+          <span class="wyg__badge">{{ badge_text | escape }}</span>
+        {%- endif -%}
+      {%- endif -%}
+      {%- if block.settings.title != blank -%}
+        <h3 class="wyg__title">{{ block.settings.title | escape }}</h3>
+      {%- endif -%}
+      {%- if block.settings.description != blank -%}
+        <p class="wyg__desc">{{ block.settings.description | escape }}</p>
+      {%- endif -%}
+      <div class="wyg__thumb">
+        {%- if block.settings.show_blob and block.settings.blob_color != blank -%}
+          <span class="wyg__blob" style="background: {{ block.settings.blob_color }};" aria-hidden="true"></span>
+        {%- endif -%}
+        {%- if block.settings.image != blank -%}
+          {{
+            block.settings.image
+            | image_url: width: 600
+            | image_tag:
+              class: 'wyg__img',
+              loading: 'lazy',
+              widths: '150, 200, 300, 400, 600',
+              sizes: '(min-width: 990px) 12vw, 40vw',
+              alt: block.settings.image.alt | default: block.settings.title
+          }}
+        {%- else -%}
+          {{ 'product-1' | placeholder_svg_tag: 'wyg__placeholder' }}
+        {%- endif -%}
+      </div>
+    </li>
+  {%- endcapture -%}
+
+  {%- if forloop.index <= half -%}
+    {%- assign left_html = left_html | append: card -%}
+  {%- else -%}
+    {%- assign right_html = right_html | append: card -%}
+  {%- endif -%}
+{%- endfor -%}
+
+<style>
+  #wyg-{{ sid }} {
+    --wyg-bg: {{ section.settings.section_bg }};
+    --wyg-card-bg: {{ section.settings.card_bg }};
+    --wyg-heading: {{ section.settings.heading_color }};
+    --wyg-text: {{ section.settings.text_color }};
+    --wyg-sub: {{ section.settings.subtext_color }};
+    --wyg-radius: {{ section.settings.card_radius }}px;
+    --wyg-gap: {{ section.settings.gap }}px;
+    --wyg-cols-side: {{ section.settings.cards_per_row_side }};
+    --wyg-cols-mobile: {{ section.settings.columns_mobile }};
+    background: var(--wyg-bg);
+    padding-top: {{ section.settings.padding_top }}px;
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+  }
+
+  #wyg-{{ sid }} .wyg__inner {
+    max-width: {{ section.settings.max_width }}px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  #wyg-{{ sid }} .wyg__head {
+    text-align: center;
+    margin-bottom: {{ section.settings.heading_gap }}px;
+  }
+
+  #wyg-{{ sid }} .wyg__heading {
+    margin: 0;
+    color: var(--wyg-heading);
+    font-size: {{ section.settings.heading_size_mobile }}px;
+    line-height: 1.15;
+    font-weight: 400;
+    {% if heading_font == 'serif' %}
+      font-family: 'Lora', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    {% elsif heading_font == 'theme' %}
+      font-family: var(--font-heading-family, inherit);
+    {% else %}
+      font-family: inherit;
+    {% endif %}
+  }
+
+  #wyg-{{ sid }} .wyg__subheading {
+    margin: 10px 0 0;
+    color: var(--wyg-sub);
+    font-size: 16px;
+    font-style: italic;
+  }
+
+  /* ---------- Layout ---------- */
+  #wyg-{{ sid }} .wyg__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--wyg-gap);
+    align-items: center;
+  }
+
+  #wyg-{{ sid }} .wyg__side {
+    display: grid;
+    grid-template-columns: repeat(var(--wyg-cols-mobile), minmax(0, 1fr));
+    gap: 32px var(--wyg-gap);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ---------- Center media ---------- */
+  #wyg-{{ sid }} .wyg__media-col {
+    order: -1;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  #wyg-{{ sid }} .wyg__frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: {{ section.settings.media_ratio }};
+    border-radius: {{ section.settings.media_radius }}px;
+    overflow: hidden;
+    background: var(--wyg-card-bg);
+  }
+
+  #wyg-{{ sid }} .wyg__frame video,
+  #wyg-{{ sid }} .wyg__frame iframe,
+  #wyg-{{ sid }} .wyg__frame img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* ---------- Cards ---------- */
+  #wyg-{{ sid }} .wyg__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--wyg-card-bg);
+    border-radius: var(--wyg-radius);
+    padding: 18px 12px 20px;
+    text-align: center;
+  }
+
+  /* ---------- Ribbon badge (sits on the card's top border) ---------- */
+  #wyg-{{ sid }} .wyg__badge {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    max-width: 94%;
+    padding: 7px 14px;
+    background: {{ section.settings.badge_bg }};
+    color: {{ section.settings.badge_color }};
+    font-size: {{ section.settings.badge_size | minus: 2 }}px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-align: center;
+    white-space: nowrap;
+    border-radius: 0 0 7px 7px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  #wyg-{{ sid }} .wyg__badge::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: -12px;
+    border-style: solid;
+    border-width: 12px 12px 12px 0;
+    transform: rotate(180deg);
+    border-color: {{ section.settings.badge_fold }} transparent transparent transparent;
+  }
+
+   #wyg-{{ sid }} .wyg__badge::after {
+    content: "";
+    position: absolute;
+    right: -12px;
+    top: -12px;
+    border-style: solid;
+    border-width: 12px 0px 12px 12px;
+    border-color: {{ section.settings.badge_fold }} transparent transparent transparent;
+    transform: rotate(180deg);
+}
+
+  /* leave room above first row so badges aren't clipped */
+  #wyg-{{ sid }} .wyg__side {
+    padding-top: 14px;
+  }
+
+  #wyg-{{ sid }} .wyg__title {
+    margin: 0 0 {{ section.settings.title_gap }}px;
+    color: var(--wyg-text);
+    font-size: {{ section.settings.title_size_mobile }}px;
+    line-height: 1.3;
+    font-weight: {{ section.settings.title_weight }};
+    letter-spacing: 0.01em;
+  }
+
+  #wyg-{{ sid }} .wyg__desc {
+    margin: -{{ section.settings.title_gap | minus: 6 | at_least: 0 }}px 0 {{ section.settings.title_gap }}px;
+    color: var(--wyg-sub);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  #wyg-{{ sid }} .wyg__thumb {
+    position: relative;
+    width: 100%;
+    max-width: {{ section.settings.image_max_width }}px;
+    aspect-ratio: 1 / 1;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #wyg-{{ sid }} .wyg__blob {
+    position: absolute;
+    inset: 12% 10% 10% 10%;
+    border-radius: 58% 42% 55% 45% / 50% 58% 42% 50%;
+    z-index: 0;
+  }
+
+  #wyg-{{ sid }} .wyg__img,
+  #wyg-{{ sid }} .wyg__placeholder {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  #wyg-{{ sid }} .wyg__placeholder { opacity: 0.35; }
+
+  /* ---------- Heading size ---------- */
+  @media (min-width: 750px) {
+    #wyg-{{ sid }} .wyg__heading { font-size: {{ section.settings.heading_size_tablet }}px; }
+    #wyg-{{ sid }} .wyg__title { font-size: {{ section.settings.title_size_desktop }}px; }
+    #wyg-{{ sid }} .wyg__badge { font-size: {{ section.settings.badge_size }}px; padding: 8px 18px; }
+  }
+
+  /* ---------- Desktop: left cards | video | right cards ---------- */
+  @media (min-width: 990px) {
+    #wyg-{{ sid }} .wyg__heading { font-size: {{ section.settings.heading_size_desktop }}px; }
+
+    #wyg-{{ sid }} .wyg__layout {
+      grid-template-columns:
+        minmax(0, 1fr)
+        minmax(260px, {{ section.settings.media_width }}px)
+        minmax(0, 1fr);
+    }
+
+    #wyg-{{ sid }} .wyg__layout--no-media {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    #wyg-{{ sid }} .wyg__side {
+      grid-template-columns: repeat(var(--wyg-cols-side), minmax(0, 1fr));
+    }
+
+    #wyg-{{ sid }} .wyg__media-col {
+      order: 0;
+      max-width: none;
+    }
+
+    #wyg-{{ sid }} .wyg__card { padding: 24px 16px 26px; }
+  }
+</style>
+
+<section id="wyg-{{ sid }}" class="wyg" data-section-id="{{ sid }}">
+  <div class="wyg__inner">
+    {%- if section.settings.heading != blank or section.settings.subheading != blank -%}
+      <div class="wyg__head">
+        {%- if section.settings.heading != blank -%}
+          <h2 class="wyg__heading">{{ section.settings.heading | escape }}</h2>
+        {%- endif -%}
+        {%- if section.settings.subheading != blank -%}
+          <p class="wyg__subheading">{{ section.settings.subheading | escape }}</p>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+
+    <div class="wyg__layout{% unless has_media %} wyg__layout--no-media{% endunless %}">
+      <ul class="wyg__side wyg__side--left" role="list">
+        {{ left_html }}
+      </ul>
+
+      {%- if has_media -%}
+        <div class="wyg__media-col">
+          <div class="wyg__frame">
+            {%- if section.settings.video != blank -%}
+              {{
+                section.settings.video
+                | video_tag:
+                  image_size: '1100x',
+                  autoplay: section.settings.video_autoplay,
+                  loop: section.settings.video_loop,
+                  muted: section.settings.video_autoplay,
+                  controls: section.settings.video_controls,
+                  playsinline: true,
+                  preload: 'metadata'
+              }}
+            {%- elsif section.settings.video_url != blank -%}
+              {%- assign vid = section.settings.video_url.id -%}
+              {%- assign ap = 0 -%}
+              {%- assign lp = 0 -%}
+              {%- assign ct = 0 -%}
+              {%- if section.settings.video_autoplay %}{% assign ap = 1 %}{% endif -%}
+              {%- if section.settings.video_loop %}{% assign lp = 1 %}{% endif -%}
+              {%- if section.settings.video_controls %}{% assign ct = 1 %}{% endif -%}
+              {%- if section.settings.video_url.type == 'youtube' -%}
+                <iframe
+                  src="https://www.youtube-nocookie.com/embed/{{ vid }}?autoplay={{ ap }}&mute={{ ap }}&loop={{ lp }}&playlist={{ vid }}&controls={{ ct }}&playsinline=1&rel=0&modestbranding=1"
+                  title="{{ section.settings.heading | escape }}"
+                  loading="lazy"
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowfullscreen
+                ></iframe>
+              {%- elsif section.settings.video_url.type == 'vimeo' -%}
+                <iframe
+                  src="https://player.vimeo.com/video/{{ vid }}?autoplay={{ ap }}&muted={{ ap }}&loop={{ lp }}&controls={{ ct }}&playsinline=1&title=0&byline=0&portrait=0"
+                  title="{{ section.settings.heading | escape }}"
+                  loading="lazy"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowfullscreen
+                ></iframe>
+              {%- endif -%}
+            {%- elsif section.settings.cover_image != blank -%}
+              {{
+                section.settings.cover_image
+                | image_url: width: 1100
+                | image_tag: loading: 'lazy', widths: '400, 600, 800, 1100', alt: section.settings.cover_image.alt | default: section.settings.heading
+              }}
+            {%- endif -%}
+          </div>
+        </div>
+      {%- endif -%}
+
+      <ul class="wyg__side wyg__side--right" role="list">
+        {{ right_html }}
+      </ul>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "What You Get",
+  "tag": "div",
+  "class": "section-what-you-get",
+  "max_blocks": 12,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Center video / image"
+    },
+    {
+      "type": "video",
+      "id": "video",
+      "label": "Video (uploaded to Shopify)",
+      "info": "Plays in the center. Takes priority over the video link and image below."
+    },
+    {
+      "type": "video_url",
+      "id": "video_url",
+      "label": "Or YouTube / Vimeo link",
+      "accept": ["youtube", "vimeo"]
+    },
+    {
+      "type": "image_picker",
+      "id": "cover_image",
+      "label": "Or center image",
+      "info": "Used only if no video is added."
+    },
+    {
+      "type": "checkbox",
+      "id": "video_autoplay",
+      "label": "Autoplay (muted)",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "video_loop",
+      "label": "Loop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "video_controls",
+      "label": "Show player controls",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "media_ratio",
+      "label": "Center media shape",
+      "options": [
+        { "value": "1 / 1", "label": "Square" },
+        { "value": "4 / 5", "label": "Portrait (4:5)" },
+        { "value": "9 / 16", "label": "Tall (9:16)" },
+        { "value": "16 / 9", "label": "Landscape (16:9)" }
+      ],
+      "default": "4 / 5"
+    },
+    {
+      "type": "range",
+      "id": "media_width",
+      "label": "Center media width (desktop)",
+      "min": 260,
+      "max": 600,
+      "step": 20,
+      "unit": "px",
+      "default": 380
+    },
+    {
+      "type": "range",
+      "id": "media_radius",
+      "label": "Center media corner radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "What You Get"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading (optional)"
+    },
+    {
+      "type": "select",
+      "id": "heading_font",
+      "label": "Heading font",
+      "options": [
+        { "value": "serif", "label": "Serif (Lora / Georgia)" },
+        { "value": "theme", "label": "Theme heading font" },
+        { "value": "body", "label": "Theme body font" }
+      ],
+      "default": "serif"
+    },
+    {
+      "type": "range",
+      "id": "heading_size_desktop",
+      "label": "Heading size (desktop)",
+      "min": 24,
+      "max": 72,
+      "step": 2,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "heading_size_tablet",
+      "label": "Heading size (tablet)",
+      "min": 22,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 44
+    },
+    {
+      "type": "range",
+      "id": "heading_size_mobile",
+      "label": "Heading size (mobile)",
+      "min": 20,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "heading_gap",
+      "label": "Space below heading",
+      "min": 12,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 48
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "cards_per_row_side",
+      "label": "Cards per row on each side (desktop)",
+      "info": "2 = a 2x2 grid on each side of the video. 1 = a single stacked column.",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "2"
+    },
+    {
+      "type": "select",
+      "id": "columns_mobile",
+      "label": "Cards per row (mobile / tablet)",
+      "options": [
+        { "value": "1", "label": "1" },
+        { "value": "2", "label": "2" }
+      ],
+      "default": "2"
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "Gap between cards",
+      "min": 8,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Max content width",
+      "min": 800,
+      "max": 1800,
+      "step": 20,
+      "unit": "px",
+      "default": 1400
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Padding top",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Padding bottom",
+      "min": 0,
+      "max": 160,
+      "step": 4,
+      "unit": "px",
+      "default": 56
+    },
+    {
+      "type": "header",
+      "content": "Cards"
+    },
+    {
+      "type": "range",
+      "id": "card_radius",
+      "label": "Card corner radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "image_max_width",
+      "label": "Card image max width",
+      "min": 100,
+      "max": 360,
+      "step": 10,
+      "unit": "px",
+      "default": 180
+    },
+    {
+      "type": "range",
+      "id": "title_size_desktop",
+      "label": "Card title size (desktop/tablet)",
+      "min": 12,
+      "max": 28,
+      "step": 1,
+      "unit": "px",
+      "default": 17
+    },
+    {
+      "type": "range",
+      "id": "title_size_mobile",
+      "label": "Card title size (mobile)",
+      "min": 11,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "select",
+      "id": "title_weight",
+      "label": "Card title weight",
+      "options": [
+        { "value": "400", "label": "Regular" },
+        { "value": "500", "label": "Medium" },
+        { "value": "600", "label": "Semibold" }
+      ],
+      "default": "500"
+    },
+    {
+      "type": "range",
+      "id": "title_gap",
+      "label": "Space below card title",
+      "min": 8,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Badge (ribbon on card border)"
+    },
+    {
+      "type": "text",
+      "id": "badge_text",
+      "label": "Default badge text",
+      "info": "Used by every card that has its badge turned on. You can override it per card.",
+      "default": "FREE WITH YOUR DRUM"
+    },
+    {
+      "type": "color",
+      "id": "badge_bg",
+      "label": "Badge background",
+      "default": "#e8301f"
+    },
+    {
+      "type": "color",
+      "id": "badge_color",
+      "label": "Badge text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "badge_fold",
+      "label": "Badge fold color",
+      "default": "#9e1a0e"
+    },
+    {
+      "type": "range",
+      "id": "badge_size",
+      "label": "Badge text size",
+      "min": 10,
+      "max": 22,
+      "step": 1,
+      "unit": "px",
+      "default": 13
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "section_bg",
+      "label": "Section background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "card_bg",
+      "label": "Card background",
+      "default": "#f6f8fb"
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Card title color",
+      "default": "#1f1f1f"
+    },
+    {
+      "type": "color",
+      "id": "subtext_color",
+      "label": "Subheading / description color",
+      "default": "#666666"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "item",
+      "name": "Item",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "New item"
+        },
+        {
+          "type": "text",
+          "id": "description",
+          "label": "Short description (optional)"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_badge",
+          "label": "Show badge on this card",
+          "default": false
+        },
+        {
+          "type": "text",
+          "id": "badge_text",
+          "label": "Badge text (optional override)",
+          "info": "Leave empty to use the default badge text from the section settings."
+        },
+        {
+          "type": "checkbox",
+          "id": "show_blob",
+          "label": "Show soft shape behind image",
+          "info": "Turn off if your image already has a background shape baked in.",
+          "default": false
+        },
+        {
+          "type": "color",
+          "id": "blob_color",
+          "label": "Shape color",
+          "default": "#e6f2ec"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "What You Get",
+      "blocks": [
+        { "type": "item", "settings": { "title": "Rain Drum (XL / XXL)", "blob_color": "#e6f2ec", "show_badge": false } },
+        { "type": "item", "settings": { "title": "Carrying Bag (padded)", "blob_color": "#fbeee8", "show_badge": true } },
+        { "type": "item", "settings": { "title": "Numbered Guide Book", "blob_color": "#fbeee8", "show_badge": true } },
+        { "type": "item", "settings": { "title": "2-In-1 Mallets", "blob_color": "#e6f2ec", "show_badge": true } },
+        { "type": "item", "settings": { "title": "Finger Picks", "blob_color": "#e6f2ec", "show_badge": true } },
+        { "type": "item", "settings": { "title": "Number Stickers", "blob_color": "#fbeee8", "show_badge": true } },
+        { "type": "item", "settings": { "title": "Accessory Pouch", "blob_color": "#fbeee8", "show_badge": true } },
+        { "type": "item", "settings": { "title": "Cleaning Cloth", "blob_color": "#e6f2ec", "show_badge": true } }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,5 @@
+{%- comment -%} Fonts, CSS and JS for the ms-* pages. Render once per page (top part). {%- endcomment -%}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+{{ 'ms-home.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'ms-home.js' | asset_url }}" defer></script>

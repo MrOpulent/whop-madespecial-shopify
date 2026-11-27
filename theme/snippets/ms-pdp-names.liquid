@@ -1,0 +1,48 @@
+{%- comment -%}
+  t172u: on-page product names for the Pocket Drum (4-inch) and Plus Drum (10-inch) product pages.
+  Display only: the Shopify product titles (cart, checkout, emails, feeds, <title>) are unchanged.
+  The 10-inch files (rainsong-info.liquid, product.xxl-premium.json) are not touched; this override runs instead.
+  Covers: H1, "In the box" name, gallery alt text, the app sticky add-to-cart bar, Kaching deal titles,
+  Judge.me product-name lines. The cart drawer is skipped on purpose (it shows the real product title).
+  To undo: delete the render line in layout/theme.liquid (or this file).
+{%- endcomment -%}
+{%- if template.name == 'product' -%}
+{%- assign msn = '' -%}
+{%- if product.handle == '10-inch-xl-pro-drum' -%}{%- assign msn = 'plus' -%}{%- elsif product.handle == 'steel-tongue-rain-drum-4-inch' -%}{%- assign msn = 'pocket' -%}{%- endif -%}
+{%- if msn != '' -%}
+<script>
+(function(){
+  var KIND={{ msn | json }};
+  var NAME=KIND==='plus'?'The Plus Drum (XL)':'The Pocket Drum (M)';
+  var SHORT=KIND==='plus'?'Plus Drum':'Pocket Drum';
+  var TITLE={{ product.title | json }};
+  var norm=function(s){return String(s||'').replace(/\s+/g,' ').trim()};
+  var T=norm(TITLE);
+  var rules=[
+    [/\*NEW\*\s*Hand Tuned Rain Drum\s*\(10 inch\s*-\s*XL\)/gi,NAME],
+    [/Margaret[’']s Rain Drum/g,NAME],
+    [/Steel Tongue Rain Drum\s*[–-]\s*9-Note/g,'The Pocket Drum (M)']
+  ];
+  var SKIP='script,style,noscript,textarea,input,select,option,essential-cart-drawer,[class*="essential-cart"]:not(html):not(body),[id*="scrolling_text"],.ms-noname';
+  function fixStr(s){var o=s;if(T&&norm(s)===T)return NAME;rules.forEach(function(r){s=s.replace(r[0],r[1])});return s===o?null:s}
+  function run(){
+    var h=document.querySelector('main h1, h1');
+    if(h&&norm(h.textContent)!==NAME&&(norm(h.textContent)===T||/Hand Tuned|Rain Drum/i.test(h.textContent)))h.textContent=NAME;
+    var b=document.querySelector('#box .main b');if(b&&/^A Hand Tuned Rain Drum$/.test(norm(b.textContent)))b.textContent=NAME;
+    var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),n,ch=[];
+    while((n=w.nextNode())){var t=n.nodeValue;if(!t||t.length>240||!/Rain Drum|Hand Tuned/.test(t))continue;var p=n.parentElement;if(!p||p.closest(SKIP))continue;
+      var km=p.classList&&p.classList.contains('kaching-bundles__bar-title')&&norm(t).match(/^(\d+)x Rain Drums?$/);
+      if(km){ch.push([n,km[1]+'x '+SHORT+(+km[1]>1?'s':'')]);continue}
+      var f=fixStr(t);if(f!==null)ch.push([n,f])}
+    ch.forEach(function(c){c[0].nodeValue=c[1]});
+    document.querySelectorAll('img[alt]').forEach(function(i){if(i.closest(SKIP))return;var f=fixStr(i.alt);if(f!==null)i.alt=f});
+  }
+  var busy=false,tm;
+  function go(){if(busy)return;busy=true;try{run()}finally{busy=false}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
+  var mo=new MutationObserver(function(){if(busy)return;clearTimeout(tm);tm=setTimeout(go,80)});
+  mo.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+})();
+</script>
+{%- endif -%}
+{%- endif -%}

@@ -1,0 +1,55 @@
+{%- comment -%}
+  404 COUNTRY RESCUE
+  When a visitor's country can't see a product (e.g. UK visitor on the US-only
+  product), Shopify shows the 404 page and the product template never loads.
+  This runs on the 404 page, switches the country, and reloads the same URL
+  (keeping ?v=usa-maria etc.), which then opens the real product page.
+
+  Map: exact product handle -> country. Add more pairs separated by commas.
+{%- endcomment -%}
+{%- liquid
+  assign bky_map = 'steel-tongue-rain-drum:US'
+
+  assign bky_cc = ''
+  if request.path contains '/products/'
+    assign bky_handle = request.path | split: '/products/' | last | split: '/' | first
+    assign bky_pairs = bky_map | split: ','
+    for bky_pair in bky_pairs
+      assign bky_bits = bky_pair | strip | split: ':'
+      assign bky_key = bky_bits[0] | strip
+      if bky_key == bky_handle
+        assign bky_cc = bky_bits[1] | strip | upcase
+        break
+      endif
+    endfor
+  endif
+-%}
+
+{%- if bky_cc != blank and localization.country.iso_code != bky_cc -%}
+  <style id="bky-404-hide">html { visibility: hidden !important; }</style>
+  {%- form 'localization', id: 'bky-404-form' -%}
+    <input type="hidden" name="country_code" value="{{ bky_cc }}">
+    <input type="hidden" name="return_to" value="{{ request.path }}">
+  {%- endform -%}
+  <script>
+    (function () {
+      var KEY = 'bkyLock:' + {{ bky_cc | json }};
+      var unhide = function () {
+        var s = document.getElementById('bky-404-hide');
+        if (s) s.parentNode.removeChild(s);
+      };
+      var f = document.getElementById('bky-404-form');
+      if (!f) { unhide(); return; }
+      try {
+        var last = Number(sessionStorage.getItem(KEY) || 0);
+        if (Date.now() - last < 30000) { unhide(); return; }
+        sessionStorage.setItem(KEY, String(Date.now()));
+      } catch (e) { unhide(); return; }
+      f.querySelectorAll('[name="return_to"]').forEach(function (i) {
+        i.value = location.pathname + location.search;
+      });
+      f.submit();
+      setTimeout(unhide, 4000);
+    })();
+  </script>
+{%- endif -%}

@@ -1,0 +1,93 @@
+{%- comment -%}
+  The Pocket Drum (M) landing page, product steel-tongue-rain-drum-4-inch (template product.rainsong-4inch).
+  Built from the 6-inch page (rainsong6-*). No bonuses: the Pocket Drum ships with the drum and one mallet.
+  On-page title only; the Shopify product title stays "Steel Tongue Rain Drum – 9-Note" for cart, checkout and feeds.
+  Pack totals are first-paint fallbacks that match the Kaching 4-inch deal (1x full price, 2x 20% off, 3x 26% off,
+  4x 30% off, Kaching rounds each pack to .99); rainsong4.js repaints every price from the live Kaching bars.
+{%- endcomment -%}
+{%- liquid
+  assign rs_v = product.selected_or_first_available_variant
+  assign rs_unit = rs_v.price
+  assign rs_cmp = rs_v.compare_at_price | default: rs_v.price
+  comment
+    t182u: Pocket Drum reference price $99 per drum (owner), display only, USD. Every "was" price and % off on this page is $99 x quantity. The product has no compare-at price. To remove: delete to the endif.
+  endcomment
+  if cart.currency.iso_code == "USD" and rs_cmp < 9900
+    assign rs_cmp = 9900
+  endif
+  assign rs_t1 = rs_unit
+  assign rs_t2 = rs_unit | times: 1.6 | divided_by: 100 | floor | times: 100 | plus: 99
+  assign rs_t3 = rs_unit | times: 2.22 | divided_by: 100 | floor | times: 100 | plus: 99
+  assign rs_t4 = rs_unit | times: 2.8 | divided_by: 100 | floor | times: 100 | plus: 99
+  assign p2 = rs_t2 | plus: 1 | divided_by: 2
+  assign p1s = rs_cmp | minus: rs_unit
+  assign p1c = 0
+  if rs_cmp > rs_unit
+    assign p1c = p1s | times: 100.0 | divided_by: rs_cmp | round
+  endif
+  assign p6 = all_products['steel-tongue-rain-drum']
+-%}
+<style id="rs4-css">/* t135u mobile overflow: Judge.me review carousel slides its card strip with transform and nothing clipped it */body:has(.rs-top) .shopify-section:has(.jdgm-widget){overflow-x:hidden}@supports (overflow:clip){body:has(.rs-top) .shopify-section:has(.jdgm-widget){overflow-x:clip}html:has(.rs-top),body:has(.rs-top){overflow-x:clip}}.rs .priceline s:empty,.rs .priceline .off:empty{display:none}.rs .bgrid .bon.sum{grid-column:span 2}body:has(.rs-top) [id$="__custom_liquid_Y4UXN"],body:has(.rs-top) [id$="__custom_liquid_Y4UXN"] .color-scheme-1,body:has(.rs-top) [id$="__custom_liquid_Y4UXN"] .gradient{background:#f7f3ec!important}/* t147u: hide the empty Judge.me review widget (Customer Reviews / Be the first to write a review); the review carousel above stays. Shows again automatically once this product has its own reviews. */#judgeme_product_reviews:has(.jm-no-reviews-state),#judgeme_product_reviews:has(.jdgm-rev-widg__header .jdgm-write-rev-link):not(:has(.jdgm-rev)):has(.jdgm-empty-state){display:none!important}/* t150u: footer in the page green #0E2A1B (6-inch page only) */body:has(.rs-top) footer.footer{--color-background:14,42,27;--gradient-background:#0E2A1B;--color-foreground:247,243,236;--color-link:247,243,236;background:#0E2A1B!important;color:rgba(247,243,236,.72)}body:has(.rs-top) footer.footer .footer-block__heading{color:#F7F3EC}body:has(.rs-top) footer.footer a,body:has(.rs-top) footer.footer .list-menu__item--link,body:has(.rs-top) footer.footer .copyright__content,body:has(.rs-top) footer.footer .footer-block__details-content{color:rgba(247,243,236,.78)}body:has(.rs-top) footer.footer a:hover{color:#F7F3EC}body:has(.rs-top) footer.footer .footer__content-bottom{border-top:1px solid rgba(247,243,236,.14)}body:has(.rs-top) footer.footer .localization-form__select,body:has(.rs-top) footer.footer .disclosure__button{background:transparent!important;color:#F7F3EC!important;border:1px solid rgba(247,243,236,.45)!important;border-radius:999px!important;box-shadow:none!important}body:has(.rs-top) footer.footer .localization-form__select:after,body:has(.rs-top) footer.footer .localization-form__select:before{box-shadow:none!important;border:0!important}body:has(.rs-top) footer.footer .localization-form__select .icon,body:has(.rs-top) footer.footer .disclosure__button .icon{color:#F7F3EC}body:has(.rs-top) footer.footer .localization-form h2,body:has(.rs-top) footer.footer .localization-selector+.disclosure__list-wrapper{color:rgba(247,243,236,.78)}body:has(.rs-top) footer.footer .disclosure__list-wrapper{background:#0E2A1B;border:1px solid rgba(247,243,236,.2)}</style>
+<style id="rs4-info-css">
+.rs .pinfo .eyebrow .kick{font:600 11.5px/1 var(--sans,inherit);letter-spacing:.14em;text-transform:uppercase;color:#7E5F33}
+.rs .carry{display:flex;align-items:center;gap:12px;width:100%;margin:14px 0 0;padding:10px 14px 10px 10px;border:1px solid var(--line);border-radius:14px;background:var(--card);text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+.rs .carry .sz{flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:10px;background:#EFE6D6}
+.rs .carry .sz svg{display:block}
+.rs .carry .t{flex:1;min-width:0;font-size:14px;line-height:1.35;color:var(--ink-2,#3A4A40)}
+.rs .carry .t b{display:block;font-size:15px;color:var(--ink)}
+.rs .carry > .ic{flex:none;color:var(--ink)}
+.rs .set .incl .kitline{margin:0}
+.rs .upnudge{display:flex;gap:12px;align-items:center;margin:12px 0 0;padding:12px 14px;border:1px dashed #C9BBA2;border-radius:14px;background:transparent;color:var(--ink);text-decoration:none;font-size:14px;line-height:1.4}
+.rs .upnudge b{color:var(--ink)}
+.rs .upnudge .ic{flex:none;margin-left:auto}
+</style>
+<div class="rs rs-info">
+<div class="pinfo"><p class="eyebrow"><span class="kick">Portable rain drum · 9 notes</span></p>
+<h1>The Pocket Drum (M)</h1><p class="sub">Small enough to take anywhere. Plays itself when it rains.</p>
+<div class="priceline"><span class="p num" id="pp">{{ rs_unit | money }}</span>{%- if p1c > 0 -%}<s class="num" id="ps">{{ rs_cmp | money }}</s><span class="off num" id="po">{{ p1c }}% off</span>{%- else -%}<s class="num" id="ps"></s><span class="off num" id="po"></span>{%- endif -%}</div>
+<p class="pq num" id="pq"><b>{{ rs_unit | money }} for one drum.</b> 2 drums: {{ p2 | money }} each.</p>
+<button type="button" class="carry" data-scroll="carry"><span class="sz" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="#0E2A1B" stroke-width="1.3"><circle cx="17" cy="17" r="15.5"/><circle cx="17" cy="17" r="3.5" opacity=".6"/></svg></span><span class="t"><b>Palm-sized: 4 inches across</b>Slips into a tote, handbag or backpack</span><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div>
+<fieldset class="sets" id="buy"><legend class="vh">Choose your set</legend><div class="sethead" aria-hidden="true"><p class="eyebrow" style="margin:0">Choose your set</p><span>Prices in {{ cart.currency.iso_code }}</span></div>
+{%- liquid
+  assign tot = rs_t1
+  assign per = tot | plus: 0 | divided_by: 1
+  assign was = rs_cmp | times: 1
+  assign save = was | minus: tot
+  assign pc = 0
+  if was > 0
+    assign pc = save | times: 100.0 | divided_by: was | round
+  endif
+-%}<div class="set on" data-q="1" data-name="Just for me"><label class="sl"><input class="vh" type="radio" name="set" value="1" checked><span class="r" aria-hidden="true"></span><span class="sb"><span class="n">Just for me</span><span class="m">1 drum{%- if save > 0 -%}<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span>{%- endif -%}</span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b>{%- if save > 0 -%}<s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span>{%- else -%}<s data-f="was"></s><span class="pc" data-f="pc"></span>{%- endif -%}</span></label><div class="incl"><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>1 Pocket Drum · 1 mallet</span></p></div></div>
+{%- liquid
+  assign tot = rs_t2
+  assign per = tot | plus: 1 | divided_by: 2
+  assign was = rs_cmp | times: 2
+  assign save = was | minus: tot
+  assign pc = 0
+  if was > 0
+    assign pc = save | times: 100.0 | divided_by: was | round
+  endif
+-%}<div class="set" data-q="2" data-name="One for you, one to give"><label class="sl"><input class="vh" type="radio" name="set" value="2"><span class="r" aria-hidden="true"></span><span class="sb"><span class="tag">Best for gifting</span><span class="n">One for you, one to give</span><span class="m"><span class="num" data-f="per">{{ per | money }}</span> each{%- if save > 0 -%}<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span>{%- endif -%}</span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b>{%- if save > 0 -%}<s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span>{%- else -%}<s data-f="was"></s><span class="pc" data-f="pc"></span>{%- endif -%}</span></label><div class="incl"><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>2 Pocket Drums · 2 mallets</span></p></div></div>
+{%- liquid
+  assign tot = rs_t3
+  assign per = tot | plus: 2 | divided_by: 3
+  assign was = rs_cmp | times: 3
+  assign save = was | minus: tot
+  assign pc = 0
+  if was > 0
+    assign pc = save | times: 100.0 | divided_by: was | round
+  endif
+-%}<div class="set" data-q="3" data-name="Stocking stuffer trio"><label class="sl"><input class="vh" type="radio" name="set" value="3"><span class="r" aria-hidden="true"></span><span class="sb"><span class="n">Stocking stuffer trio</span><span class="m"><span class="num" data-f="per">{{ per | money }}</span> each{%- if save > 0 -%}<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span>{%- endif -%}</span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b>{%- if save > 0 -%}<s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span>{%- else -%}<s data-f="was"></s><span class="pc" data-f="pc"></span>{%- endif -%}</span></label><div class="incl"><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>3 Pocket Drums · 3 mallets</span></p></div></div>
+{%- liquid
+  assign tot = rs_t4
+  assign per = tot | plus: 3 | divided_by: 4
+  assign was = rs_cmp | times: 4
+  assign save = was | minus: tot
+  assign pc = 0
+  if was > 0
+    assign pc = save | times: 100.0 | divided_by: was | round
+  endif
+-%}<div class="set" data-q="4" data-name="Four to share"><label class="sl"><input class="vh" type="radio" name="set" value="4"><span class="r" aria-hidden="true"></span><span class="sb"><span class="tag v">Lowest per drum</span><span class="n">Four to share</span><span class="m"><span class="num" data-f="per">{{ per | money }}</span> each{%- if save > 0 -%}<span class="nb"> · <b class="sv" data-f="save">Save {{ save | divided_by: 100 | times: 100 | money_without_trailing_zeros }}</b></span>{%- endif -%}</span></span><span class="pr num"><b data-f="tot">{{ tot | money }}</b>{%- if save > 0 -%}<s data-f="was">{{ was | money }}</s><span class="pc" data-f="pc">{{ pc }}% off</span>{%- else -%}<s data-f="was"></s><span class="pc" data-f="pc"></span>{%- endif -%}</span></label><div class="incl"><p class="kitline"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>4 Pocket Drums · 4 mallets</span></p></div></div>
+</fieldset>
+{%- if p6 != blank -%}<a class="upnudge" href="{{ p6.url }}"><span>Want more notes? <b>The Pro Drum (L)</b> has 11 numbered notes and comes with 6 free extras.</span><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>{%- endif -%}
+</div>
