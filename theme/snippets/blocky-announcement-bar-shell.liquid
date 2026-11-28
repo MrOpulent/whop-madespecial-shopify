@@ -1,0 +1,19 @@
+{%- comment -%}
+  © BlockyApps. You are permitted to use this content within your store. Redistribution or use in any other application is strictly prohibited.
+  Unauthorized copying, distribution, or reproduction in any form will result in legal action.
+{% endcomment %}
+
+<div
+  class="blocky blocky-announcement-bar{% if sticky %} blocky-announcement-bar-sticky{% endif %}"
+  style="--background-color: {{ background_color }}; --padding-top: {{ padding_top }}; --padding-bottom: {{ padding_bottom }}; --section-page-width: {% if full_width %}none{% else %}{{ page_width }}px{% endif %};"
+>
+  {%- if link != blank -%}
+    <a href="{{ link }}" class="blocky-announcement-bar-inner blocky-announcement-bar-link">
+      {{ content }}
+    </a>
+  {%- else -%}
+    <div class="blocky-announcement-bar-inner">
+      {{ content }}
+    </div>
+  {%- endif -%}
+</div>

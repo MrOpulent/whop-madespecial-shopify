@@ -1,0 +1,35 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "context": {
+    "market": "us"
+  },
+  "parent": "footer-group.json",
+  "sections": {
+    "custom_liquid_Y4UXN": {
+      "type": "custom-liquid",
+      "disabled": false,
+      "settings": {
+        "custom_liquid": "<script>\n(function () {\n  var GOLD = \"linear-gradient(to right, rgb(232,172,33), rgb(252,220,109))\";\n  var RE = /(\\d+%\\s*OFF)/i;\n\n  function goldFrom(el) {\n    // Copy the exact gradient from the \"EARLY BLACK FRIDAY SALE\" heading if present\n    var box = el.parentElement && el.parentElement.parentElement;\n    var p = box && [].find.call(box.querySelectorAll(\"p, span, div\"), function (x) {\n      return x !== el && getComputedStyle(x).backgroundImage.indexOf(\"gradient\") !== -1;\n    });\n    return p ? getComputedStyle(p).backgroundImage : GOLD;\n  }\n\n  function fix(root) {\n    (root.querySelectorAll ? root : document).querySelectorAll(\"p, span, div\").forEach(function (el) {\n      if (el.childElementCount || el.querySelector(\".ms-30off\")) return;\n      var t = el.textContent;\n      if (!RE.test(t)) return;\n      // Only inside the countdown bar (its block mentions BLACK FRIDAY)\n      var box = el.parentElement && el.parentElement.parentElement;\n      if (!box || !/BLACK FRIDAY/i.test(box.textContent)) return;\n      el.innerHTML = t.replace(RE, '<span class=\"ms-30off\">$1</span>');\n      var s = el.querySelector(\".ms-30off\");\n      s.style.backgroundImage = goldFrom(el);\n      s.style.webkitBackgroundClip = \"text\";\n      s.style.backgroundClip = \"text\";\n      s.style.webkitTextFillColor = \"transparent\";\n      s.style.color = \"transparent\";\n    });\n  }\n\n  function run() {\n    fix(document);\n    new MutationObserver(function (m) {\n      m.forEach(function (x) {\n        x.addedNodes.forEach(function (n) { if (n.nodeType === 1) fix(n.parentElement || n); });\n      });\n    }).observe(document.body, { childList: true, subtree: true });\n  }\n\n  if (document.readyState === \"loading\") document.addEventListener(\"DOMContentLoaded\", run);\n  else run();\n})();\n</script>",
+        "color_scheme": "",
+        "header-5f14f536610361bac959000e6b1e009b": null,
+        "padding_top": 40,
+        "padding_bottom": 52
+      },
+      "blocks": {},
+      "block_order": [],
+      "name": "t:sections.custom-liquid.presets.name"
+    }
+  },
+  "order": [
+    "custom_liquid_Y4UXN",
+    "footer"
+  ]
+}

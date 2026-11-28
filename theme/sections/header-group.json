@@ -1,0 +1,116 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "name": "t:sections.header.name",
+  "type": "header",
+  "sections": {
+    "blocky_lys_scrolling_text_bar_GLkKNr": {
+      "type": "blocky-scrolling-text-bar",
+      "disabled": true,
+      "blocks": {
+        "text_fdiNxe": {
+          "type": "text",
+          "settings": {
+            "text": "Steel Tongue Rain Drum",
+            "show_on": "special",
+            "icon_choice": "none",
+            "icon_code": "star"
+          }
+        },
+        "text_DiPtyi": {
+          "type": "text",
+          "settings": {
+            "text": "Free Shipping On All Orders",
+            "show_on": "all",
+            "icon_choice": "none",
+            "icon_code": "star"
+          }
+        },
+        "text_KwnK4Y": {
+          "type": "text",
+          "settings": {
+            "text": "Steel Tongue Rain Drum",
+            "show_on": "others",
+            "icon_choice": "none",
+            "icon_code": "star"
+          }
+        },
+        "text_b4Lxzd": {
+          "type": "text",
+          "settings": {
+            "text": "30-Day Hassle-Free Returns",
+            "show_on": "all",
+            "icon_choice": "none",
+            "icon_code": "star"
+          }
+        }
+      },
+      "block_order": [
+        "text_fdiNxe",
+        "text_DiPtyi",
+        "text_KwnK4Y",
+        "text_b4Lxzd"
+      ],
+      "settings": {
+        "sticky": false,
+        "sticky_offset": 0,
+        "text_size": "1.75",
+        "background_color": "#0E2A1B",
+        "text_color": "#F7F3EC",
+        "speed": 0.5,
+        "text_spacing": 3,
+        "icon_position": "before",
+        "icon_color": "#E7CFA4",
+        "icon_size": 20,
+        "padding_top": 16,
+        "padding_bottom": 16,
+        "cta_link": "",
+        "special_handles": "steel-tongue-rain-drum-uk,steel-tongue-rain-drum-usa"
+      }
+    },
+    "header": {
+      "type": "header",
+      "custom_css": [
+        ".header {max-width: 1300px;}"
+      ],
+      "settings": {
+        "logo_position": "middle-center",
+        "menu": "main-menu-ms",
+        "menu_type_desktop": "dropdown",
+        "sticky_header_type": "on-scroll-up",
+        "show_line_separator": false,
+        "color_scheme": "scheme-1",
+        "menu_color_scheme": "scheme-3",
+        "enable_country_selector": true,
+        "enable_language_selector": true,
+        "enable_customer_avatar": true,
+        "mobile_logo_position": "center",
+        "margin_bottom": 0,
+        "padding_top": 20,
+        "padding_bottom": 20
+      }
+    },
+    "custom_liquid_jBg9tb": {
+      "type": "custom-liquid",
+      "name": "t:sections.custom-liquid.presets.name",
+      "settings": {
+        "custom_liquid": "{%- comment -%}\n  AU / NZ: country-correct shipping copy + currency code next to every price.\n{%- endcomment -%}\n{%- assign ms_cc = localization.country.iso_code -%}\n{%- if ms_cc == 'AU' or ms_cc == 'NZ' -%}\n{%- if ms_cc == 'AU' -%}{%- assign ms_name = 'Australia' -%}{%- else -%}{%- assign ms_name = 'New Zealand' -%}{%- endif -%}\n<script>\n(function () {\n  var N = {{ ms_name | json }};\n  var CUR = {{ localization.country.currency.iso_code | json }};\n  var RULES = [\n    [/anywhere in the United States/g, 'anywhere in ' + N],\n    [/Free shipping in the US\\./g, 'Free shipping to ' + N + '.'],\n    [/US delivery usually takes about 6[–-]10 business days after shipping/g, 'Delivery to ' + N + ' usually takes about 6–10 business days after shipping'],\n    [/ships within 2[–-]3 days/g, 'ships within 1–3 working days'],\n    [/in 5[–-]10 business days anywhere\\./g, 'in 6–10 business days anywhere in ' + N + '.'],\n    [/Ships Within 2-4 Working Days/g, 'Ships Within 1-3 Working Days']\n  ];\n  var PRICE = /(\\$\\s?\\d[\\d,]*(?:\\.\\d{2})?)(?![\\d.,]*\\s?(?:[A-Z]{3}\\b))/g;\n\n  function fixNode(n) {\n    var v = n.nodeValue, o = v;\n    for (var i = 0; i < RULES.length; i++) v = v.replace(RULES[i][0], RULES[i][1]);\n    v = v.replace(PRICE, '$1 ' + CUR);\n    if (v !== o) n.nodeValue = v;\n  }\n  function fix(root) {\n    if (!root) return;\n    if (root.nodeType === 3) { fixNode(root); return; }\n    if (root.nodeType !== 1 || /^(SCRIPT|STYLE|TEXTAREA|INPUT|NOSCRIPT)$/.test(root.tagName)) return;\n    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n;\n    while ((n = w.nextNode())) {\n      var p = n.parentNode && n.parentNode.tagName;\n      if (p && /^(SCRIPT|STYLE|TEXTAREA|NOSCRIPT)$/.test(p)) continue;\n      fixNode(n);\n    }\n  }\n  function start() {\n    fix(document.body);\n    new MutationObserver(function (list) {\n      list.forEach(function (m) {\n        if (m.type === 'characterData') fixNode(m.target);\n        else m.addedNodes.forEach(fix);\n      });\n    }).observe(document.body, { childList: true, subtree: true, characterData: true });\n  }\n  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);\n  else start();\n})();\n</script>\n{%- endif -%}",
+        "color_scheme": "",
+        "padding_top": 0,
+        "padding_bottom": 0
+      }
+    }
+  },
+  "order": [
+    "blocky_lys_scrolling_text_bar_GLkKNr",
+    "header",
+    "custom_liquid_jBg9tb"
+  ]
+}

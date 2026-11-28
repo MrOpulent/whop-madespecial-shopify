@@ -1,0 +1,41 @@
+{%- comment -%} "Who's it for?" gift finder. Params: p9, p6, pxl, uid {%- endcomment -%}
+{%- liquid
+  assign uid = uid | default: 'f'
+  assign rows = 'mom|grandma|grandkids|friend|me' | split: '|'
+-%}
+<section class="sec finder" id="ms-finder">
+  <div class="wrap">
+    <div class="sec-head" data-rv><p class="k">Gift finder</p><h2>Who are you <em>shopping for?</em></h2><p class="lede">Tap a name and we’ll point you to the right drum.</p></div>
+    <div data-finder>
+      <div class="chips" role="tablist" aria-label="Who is the gift for?">
+        {%- for r in rows -%}
+          {%- case r -%}{%- when 'mom' -%}{%- assign lb = 'Mom' -%}{%- when 'grandma' -%}{%- assign lb = 'Grandma' -%}{%- when 'grandkids' -%}{%- assign lb = 'The grandkids' -%}{%- when 'friend' -%}{%- assign lb = 'A friend' -%}{%- when 'me' -%}{%- assign lb = 'Me' -%}{%- endcase -%}
+          <button type="button" class="chip" role="tab" id="{{ uid }}-t-{{ r }}" aria-controls="{{ uid }}-p-{{ r }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" tabindex="{% if forloop.first %}0{% else %}-1{% endif %}">{{ lb }}</button>
+        {%- endfor -%}
+      </div>
+      {%- for r in rows -%}
+        {%- case r -%}
+          {%- when 'mom' -%}{%- assign pp = p6 -%}{%- assign im = 'rainsong-who-mum.jpg' -%}{%- assign alt = 'A daughter hands her delighted mother a gift box with a red ribbon by the Christmas tree' -%}{%- assign h = 'For the garden <em>she loves.</em>' -%}{%- assign why = 'Eleven numbered notes, a guide book and soft mallets. Send it straight to her door and she’ll hear it the next time it rains.' -%}{%- assign nm = 'The Pro Drum (L) · 6-inch' -%}{%- assign cta = 'See the Pro Drum' -%}
+          {%- when 'grandma' -%}{%- assign pp = p6 -%}{%- assign im = 'rainsong-who-grandma.jpg' -%}{%- assign alt = 'A grandmother laughs with joy as her grandson hugs her, a gift box on her lap' -%}{%- assign h = 'Easy on older hands. <em>Lovely to hear.</em>' -%}{%- assign why = 'Wide, numbered notes and a light tap is all it takes. With the number guide book she can play her first carol in minutes.' -%}{%- assign nm = 'The Pro Drum (L) · 6-inch' -%}{%- assign cta = 'See the Pro Drum' -%}
+          {%- when 'grandkids' -%}{%- assign pp = p9 -%}{%- assign im = 'rainsong-who-grandkids.jpg' -%}{%- assign alt = 'A grandmother and her granddaughter laugh as they open a gift box with the teal rain drum inside by the Christmas tree' -%}{%- assign h = 'A gift from you they’ll play <em>every time it rains.</em>' -%}{%- assign why = 'Small, bright and simple: nine notes in one scale, so there’s no wrong note. An easy stocking filler.' -%}{%- assign nm = 'The Pocket Drum (M) · 4-inch' -%}{%- assign cta = 'See the Pocket Drum' -%}
+          {%- when 'friend' -%}{%- assign pp = p9 -%}{%- assign im = 'rainsong-who-friend.jpg' -%}{%- assign alt = 'Two friends in their sixties laugh as one hands the other a gift box by the tree' -%}{%- assign h = 'For the friend who <em>has everything.</em>' -%}{%- assign why = 'She won’t have one of these. A thoughtful little gift for the porch or the garden table.' -%}{%- assign nm = 'The Pocket Drum (M) · 4-inch' -%}{%- assign cta = 'See the Pocket Drum' -%}
+          {%- when 'me' -%}{%- assign pp = pxl -%}{%- assign im = 'rainsong-who-me.jpg' -%}{%- assign alt = 'A woman unties the ribbon on a gift to herself by a rainy window' -%}{%- assign h = 'Go on. <em>This one’s for you.</em>' -%}{%- assign why = 'Our biggest drum, with the deepest, longest ring. A little concert on the porch every time it rains.' -%}{%- assign nm = 'The Plus Drum (XL) · 10-inch' -%}{%- assign cta = 'See the Plus Drum' -%}
+        {%- endcase -%}
+        <div class="fpanel{% if forloop.first %} on{% endif %}" role="tabpanel" id="{{ uid }}-p-{{ r }}" aria-labelledby="{{ uid }}-t-{{ r }}"{% unless forloop.first %} hidden{% endunless %}>
+          <div class="ph"><img src="{{ im | file_img_url: '900x' }}" alt="{{ alt }}" width="900" height="675" loading="lazy" decoding="async"></div>
+          <div class="tx">
+            <p class="for">Our pick</p>
+            <h3>{{ h }}</h3>
+            <p class="why">{{ why }}</p>
+            <a class="pick" href="{{ pp.url }}">
+              {{ pp.featured_image | image_url: width: 160 | image_tag: loading: 'lazy', alt: '' }}
+              <span><span class="nm">{{ nm }}</span>{% render 'ms-price', p: pp %}</span>
+            </a>
+            <a class="btn blk" href="{{ pp.url }}">{{ cta }} {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+            <p class="ship">{% render 'ms-ic', i: 'gift', s: 18 %}Ship it straight to them: add their address at checkout.</p>
+          </div>
+        </div>
+      {%- endfor -%}
+    </div>
+  </div>
+</section>

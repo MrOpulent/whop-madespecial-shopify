@@ -1,0 +1,21 @@
+{%- comment -%}
+  t181u: Black Friday countdown bar (Essential Countdown Timer app) shows "up to 65% OFF" instead of "up to 30% OFF".
+  Display only: the app's own settings still say 30%. Two layers: patch the app config before the app reads it,
+  then fix any already-drawn text. To undo: delete the render line in layout/theme.liquid (or this file),
+  or change the subheading in the Essential Countdown Timer app and delete this.
+{%- endcomment -%}
+<script>
+(function(){
+  var RE=/\b30%(\s*OFF)/gi, TO='65%$1';
+  function fixCfg(a){try{(a||[]).forEach(function(c){if(c&&typeof c.subheading==='string')c.subheading=c.subheading.replace(RE,TO);if(c&&typeof c.title==='string')c.title=c.title.replace(RE,TO)})}catch(e){}return a}
+  try{
+    var cur=window.essentialCountdownTimerConfigs;
+    if(cur)fixCfg(cur);
+    else Object.defineProperty(window,'essentialCountdownTimerConfigs',{configurable:true,enumerable:true,get:function(){return cur},set:function(v){cur=fixCfg(v)}});
+  }catch(e){}
+  function inBar(n){var p=n.parentElement;return !!(p&&p.closest('[class*="essential_countdown"],[class*="essential-countdown"],[class*="countdown_annoucement"]'))}/* only the Essential countdown bar; Kaching deal labels are never touched */
+  function scan(root){var w=document.createTreeWalker(root||document.body,NodeFilter.SHOW_TEXT),n;while((n=w.nextNode())){var v=n.nodeValue;if(v&&v.length<200&&/\b30%\s*OFF/i.test(v)&&inBar(n))n.nodeValue=v.replace(RE,TO)}}
+  function start(){scan();var tm;new MutationObserver(function(){clearTimeout(tm);tm=setTimeout(scan,60)}).observe(document.body,{childList:true,subtree:true,characterData:true})}
+  if(document.body)start();else document.addEventListener('DOMContentLoaded',start);
+})();
+</script>

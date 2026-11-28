@@ -1,0 +1,978 @@
+<!doctype html>
+<html class="js" lang="{{ request.locale.iso_code }}">
+  <head>
+    {% render 'snap-click-id' %}
+        <script>
+    (function () {
+      'use strict';
+
+      var DAYS          = 30;
+      var FIRST_TOUCH   = false;   /* false = newest non-blank value wins */
+      var COOKIE_DOMAIN = '';     /* '.madespecial.store' to share with the checkout subdomain */
+
+      var PREFIX = [/^utm_/i, /^tw_/i];
+
+      var EXACT = {
+        'ref_id': 'ref_id',
+        '_ref_id': 'ref_id',
+        'cmpid': 'cmpid',
+        'ttclid': 'ttclid',
+        'sccid': 'ScCid',
+        'sc_click_id': 'ScCid',
+        'epik': 'epik'
+      };
+
+      var META    = '__ms_tp_meta';
+      var MAX_AGE = DAYS * 864e5;
+      var has     = Object.prototype.hasOwnProperty;
+
+      function valid(v) {
+        if (v === null || v === undefined) return false;
+        v = String(v).trim();
+        if (!v || v.length > 300) return false;
+        if (/^(?:null|undefined|none|n\/a|0)$/i.test(v)) return false;
+        if (/^data:|^[\[{]/.test(v)) return false;
+        if (/^__[A-Z0-9_]+__$/i.test(v)) return false;
+        if (/[\u0000-\u001f\u007f]/.test(v)) return false;
+        return true;
+      }
+
+      function nameFor(key) {
+        var k = String(key || '').trim();
+        if (!k) return null;
+        var low = k.toLowerCase();
+        if (has.call(EXACT, low)) return EXACT[low];
+        for (var i = 0; i < PREFIX.length; i++) if (PREFIX[i].test(k)) return low;
+        return null;
+      }
+
+      function readCookie(name) {
+        try {
+          var all = document.cookie.split(';');
+          for (var i = 0; i < all.length; i++) {
+            var c = all[i], eq = c.indexOf('=');
+            if (eq < 1) continue;
+            if (decodeURIComponent(c.slice(0, eq).trim()) === name) {
+              var v = decodeURIComponent(c.slice(eq + 1).trim());
+              return v === 'undefined' ? '' : v;
+            }
+          }
+        } catch (e) {}
+        return '';
+      }
+
+      function writeCookie(name, value, maxAgeSeconds) {
+        try {
+          document.cookie = encodeURIComponent(name) + '=' + encodeURIComponent(value) +
+            '; Max-Age=' + maxAgeSeconds + '; Path=/' +
+            (COOKIE_DOMAIN ? '; Domain=' + COOKIE_DOMAIN : '') +
+            '; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+        } catch (e) {}
+      }
+
+      function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+      function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+      function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+      var m = null;
+      try {
+        var raw = lsGet(META);
+        if (raw) {
+          m = JSON.parse(raw);
+          if (!m || typeof m !== 'object') m = null;
+          else if (!Array.isArray(m.keys)) m.keys = [];
+        }
+      } catch (e) { m = null; }
+
+      if (m && m.exp && Date.now() > m.exp) {
+        m.keys.forEach(function (k) { lsDel(k); writeCookie(k, '', 0); });
+        lsDel(META);
+        m = null;
+      }
+      if (!m) m = { exp: Date.now() + MAX_AGE, keys: [] };
+
+      var stored = 0;
+
+      try {
+        new URLSearchParams(location.search).forEach(function (rawValue, rawKey) {
+          var name = nameFor(rawKey);
+          if (!name) return;
+
+          var value = String(rawValue).trim();
+          if (!valid(value)) return;
+
+          if (m.keys.indexOf(name) === -1) m.keys.push(name);
+
+          var existing = lsGet(name) || readCookie(name);
+          if (existing === value) return;
+          if (existing && FIRST_TOUCH) return;
+
+          lsSet(name, value);
+          writeCookie(name, value, Math.floor((m.exp - Date.now()) / 1000));
+          stored++;
+        });
+      } catch (e) {}
+
+      try {
+        var left = Math.floor((m.exp - Date.now()) / 1000);
+        if (left > 0) m.keys.forEach(function (k) {
+          var ls = lsGet(k), ck = readCookie(k);
+          if (ls && !ck) writeCookie(k, ls, left);
+          else if (ck && !ls) lsSet(k, ck);
+        });
+      } catch (e) {}
+
+      if (m.keys.length) lsSet(META, JSON.stringify(m));
+
+      window.MSTrackParams = function () {
+        var out = { expires: new Date(m.exp).toISOString(), storedThisLoad: stored, values: {} };
+        m.keys.forEach(function (k) { out.values[k] = { ls: lsGet(k), cookie: readCookie(k) }; });
+        return out;
+      };
+    })();
+    </script>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="">
+    <link rel="canonical" href="{{ canonical_url }}">
+
+    {%- if settings.favicon != blank -%}
+      <link rel="icon" type="image/png" href="{{ settings.favicon | image_url: width: 32, height: 32 }}">
+    {%- endif -%}
+
+    {%- unless settings.type_header_font.system? and settings.type_body_font.system? -%}
+      <link rel="preconnect" href="https://fonts.shopifycdn.com" crossorigin>
+    {%- endunless -%}
+
+    <title>
+      {{ page_title }}
+      {%- if current_tags %} &ndash; tagged "{{ current_tags | join: ', ' }}"{% endif -%}
+      {%- if current_page != 1 %} &ndash; Page {{ current_page }}{% endif -%}
+      {%- unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless -%}
+    </title>
+
+    {% if template.suffix == 'rainsong' %}
+      {% render 'rainsong-seo' %}
+    {% else %}
+    {% if page_description %}
+      <meta name="description" content="{{ page_description | escape }}">
+    {% endif %}
+
+    {% render 'meta-tags' %}
+    {% endif %}
+    {% comment %} {%- if template.name == 'product' -%} {% endcomment %}
+    {%- render 'page-loader' -%}
+  {% comment %} {%- endif -%} {% endcomment %}
+
+{%- comment -%} 6-inch page (product 15516011856054) only: never swap it via ?v= (a ?v=<anything> link rendered the old default product page). All other products keep the ?v= behavior. {%- endcomment -%}
+{%- unless product.id == 15516011856054 or product.id == 15423518245046 -%}
+ <script>
+(function () {
+  try {
+    /* Products only - pages, collections, home are left alone. */
+    if (location.pathname.indexOf('/products/') === -1) return;
+
+    var p = new URLSearchParams(location.search);
+    var v = p.get('v');
+    if (!v) return;
+
+    /* Old links keep working: ?v=y still loads product.v2.json */
+    var ALIAS = { 'y': 'v2' };
+    var suffix = ALIAS[v] || v;
+
+    /* Already rendered - clean the address bar back to ?v=... */
+    if (p.get('view') === suffix) {
+      p.delete('view');
+      var q = p.toString();
+      history.replaceState(null, '',
+        location.pathname + (q ? '?' + q : '') + location.hash);
+      return;
+    }
+    if (p.has('view')) return;
+
+    /* Only safe characters, so a junk value cannot build a strange URL. */
+    if (!/^[a-z0-9-]{1,60}$/i.test(suffix)) return;
+
+    p.set('view', suffix);
+    location.replace(location.pathname + '?' + p.toString() + location.hash);
+  } catch (e) {}
+})();
+</script>
+{%- endunless -%}
+{%- comment -%} 6-inch page only: if opened with ?view=<other> it goes back to its own template, keeping ?v= and every other parameter. {%- endcomment -%}
+{%- assign ms_own_tpl = false -%}{%- if product.id == 15516011856054 or product.id == 15423518245046 -%}{%- assign ms_own_tpl = true -%}{%- endif -%}
+{%- if request.page_type == 'product' and ms_own_tpl and template.suffix != product.template_suffix -%}
+<script>
+(function () {
+  try {
+    var p = new URLSearchParams(location.search);
+    if (!p.has('view')) return;
+    p.delete('view');
+    var q = p.toString();
+    location.replace(location.pathname + (q ? '?' + q : '') + location.hash);
+  } catch (e) {}
+})();
+</script>
+{%- endif -%}
+
+    <script src="{{ 'constants.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'pubsub.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'global.js' | asset_url }}" defer="defer"></script>
+    <script src="{{ 'blocky-lys-global.js' | asset_url }}" defer="defer"></script>
+    {%- if settings.animations_reveal_on_scroll -%}
+      <script src="{{ 'animations.js' | asset_url }}" defer="defer"></script>
+    {%- endif -%}
+
+    {{ content_for_header }}
+
+    {%- liquid
+      assign body_font_bold = settings.type_body_font | font_modify: 'weight', 'bold'
+      assign body_font_italic = settings.type_body_font | font_modify: 'style', 'italic'
+      assign body_font_bold_italic = body_font_bold | font_modify: 'style', 'italic'
+    %}
+
+    {% style %}
+      {{ settings.type_body_font | font_face: font_display: 'swap' }}
+      {{ body_font_bold | font_face: font_display: 'swap' }}
+      {{ body_font_italic | font_face: font_display: 'swap' }}
+      {{ body_font_bold_italic | font_face: font_display: 'swap' }}
+      {{ settings.type_header_font | font_face: font_display: 'swap' }}
+
+      {% for scheme in settings.color_schemes -%}
+        {% assign scheme_classes = scheme_classes | append: ', .color-' | append: scheme.id %}
+        {% if forloop.index == 1 -%}
+          :root,
+        {%- endif %}
+        .color-{{ scheme.id }} {
+          --color-background: {{ scheme.settings.background.red }},{{ scheme.settings.background.green }},{{ scheme.settings.background.blue }};
+        {% if scheme.settings.background_gradient != empty %}
+          --gradient-background: {{ scheme.settings.background_gradient }};
+        {% else %}
+          --gradient-background: {{ scheme.settings.background }};
+        {% endif %}
+
+        {% liquid
+          assign background_color = scheme.settings.background
+          assign background_color_brightness = background_color | color_brightness
+          if background_color_brightness <= 26
+            assign background_color_contrast = background_color | color_lighten: 50
+          elsif background_color_brightness <= 65
+            assign background_color_contrast = background_color | color_lighten: 5
+          else
+            assign background_color_contrast = background_color | color_darken: 25
+          endif
+        %}
+
+        --color-foreground: {{ scheme.settings.text.red }},{{ scheme.settings.text.green }},{{ scheme.settings.text.blue }};
+        --color-background-contrast: {{ background_color_contrast.red }},{{ background_color_contrast.green }},{{ background_color_contrast.blue }};
+        --color-shadow: {{ scheme.settings.shadow.red }},{{ scheme.settings.shadow.green }},{{ scheme.settings.shadow.blue }};
+        --color-button: {{ scheme.settings.button.red }},{{ scheme.settings.button.green }},{{ scheme.settings.button.blue }};
+        --color-button-text: {{ scheme.settings.button_label.red }},{{ scheme.settings.button_label.green }},{{ scheme.settings.button_label.blue }};
+        --color-secondary-button: {{ scheme.settings.background.red }},{{ scheme.settings.background.green }},{{ scheme.settings.background.blue }};
+        --color-secondary-button-text: {{ scheme.settings.secondary_button_label.red }},{{ scheme.settings.secondary_button_label.green }},{{ scheme.settings.secondary_button_label.blue }};
+        --color-link: {{ scheme.settings.secondary_button_label.red }},{{ scheme.settings.secondary_button_label.green }},{{ scheme.settings.secondary_button_label.blue }};
+        --color-badge-foreground: {{ scheme.settings.text.red }},{{ scheme.settings.text.green }},{{ scheme.settings.text.blue }};
+        --color-badge-background: {{ scheme.settings.background.red }},{{ scheme.settings.background.green }},{{ scheme.settings.background.blue }};
+        --color-badge-border: {{ scheme.settings.text.red }},{{ scheme.settings.text.green }},{{ scheme.settings.text.blue }};
+        --payment-terms-background-color: rgb({{ scheme.settings.background.rgb }});
+      }
+      {% endfor %}
+
+      {{ scheme_classes | prepend: 'body' }} {
+        color: rgba(var(--color-foreground), 0.75);
+        background-color: rgb(var(--color-background));
+      }
+
+      :root {
+        --font-body-family: {{ settings.type_body_font.family }}, {{ settings.type_body_font.fallback_families }};
+        --font-body-style: {{ settings.type_body_font.style }};
+        --font-body-weight: {{ settings.type_body_font.weight }};
+        --font-body-weight-bold: {{ settings.type_body_font.weight | plus: 300 | at_most: 1000 }};
+
+        --font-heading-family: {{ settings.type_header_font.family }}, {{ settings.type_header_font.fallback_families }};
+        --font-heading-style: {{ settings.type_header_font.style }};
+        --font-heading-weight: {{ settings.type_header_font.weight }};
+
+        --font-body-scale: {{ settings.body_scale | divided_by: 100.0 }};
+        --font-heading-scale: {{ settings.heading_scale | times: 1.0 | divided_by: settings.body_scale }};
+
+        --media-padding: {{ settings.media_padding }}px;
+        --media-border-opacity: {{ settings.media_border_opacity | divided_by: 100.0 }};
+        --media-border-width: {{ settings.media_border_thickness }}px;
+        --media-radius: {{ settings.media_radius }}px;
+        --media-shadow-opacity: {{ settings.media_shadow_opacity | divided_by: 100.0 }};
+        --media-shadow-horizontal-offset: {{ settings.media_shadow_horizontal_offset }}px;
+        --media-shadow-vertical-offset: {{ settings.media_shadow_vertical_offset }}px;
+        --media-shadow-blur-radius: {{ settings.media_shadow_blur }}px;
+        --media-shadow-visible: {% if settings.media_shadow_opacity > 0 %}1{% else %}0{% endif %};
+
+        --page-width: {{ settings.page_width | divided_by: 10 }}rem;
+        --page-width-margin: {% if settings.page_width == '1600' %}2{% else %}0{% endif %}rem;
+
+        --product-card-image-padding: {{ settings.card_image_padding | divided_by: 10.0 }}rem;
+        --product-card-corner-radius: {{ settings.card_corner_radius | divided_by: 10.0 }}rem;
+        --product-card-text-alignment: {{ settings.card_text_alignment }};
+        --product-card-border-width: {{ settings.card_border_thickness | divided_by: 10.0 }}rem;
+        --product-card-border-opacity: {{ settings.card_border_opacity | divided_by: 100.0 }};
+        --product-card-shadow-opacity: {{ settings.card_shadow_opacity | divided_by: 100.0 }};
+        --product-card-shadow-visible: {% if settings.card_shadow_opacity > 0 %}1{% else %}0{% endif %};
+        --product-card-shadow-horizontal-offset: {{ settings.card_shadow_horizontal_offset | divided_by: 10.0 }}rem;
+        --product-card-shadow-vertical-offset: {{ settings.card_shadow_vertical_offset | divided_by: 10.0 }}rem;
+        --product-card-shadow-blur-radius: {{ settings.card_shadow_blur | divided_by: 10.0 }}rem;
+
+        --collection-card-image-padding: {{ settings.collection_card_image_padding | divided_by: 10.0 }}rem;
+        --collection-card-corner-radius: {{ settings.collection_card_corner_radius | divided_by: 10.0 }}rem;
+        --collection-card-text-alignment: {{ settings.collection_card_text_alignment }};
+        --collection-card-border-width: {{ settings.collection_card_border_thickness | divided_by: 10.0 }}rem;
+        --collection-card-border-opacity: {{ settings.collection_card_border_opacity | divided_by: 100.0 }};
+        --collection-card-shadow-opacity: {{ settings.collection_card_shadow_opacity | divided_by: 100.0 }};
+        --collection-card-shadow-visible: {% if settings.collection_card_shadow_opacity > 0 %}1{% else %}0{% endif %};
+        --collection-card-shadow-horizontal-offset: {{ settings.collection_card_shadow_horizontal_offset | divided_by: 10.0 }}rem;
+        --collection-card-shadow-vertical-offset: {{ settings.collection_card_shadow_vertical_offset | divided_by: 10.0 }}rem;
+        --collection-card-shadow-blur-radius: {{ settings.collection_card_shadow_blur | divided_by: 10.0 }}rem;
+
+        --blog-card-image-padding: {{ settings.blog_card_image_padding | divided_by: 10.0 }}rem;
+        --blog-card-corner-radius: {{ settings.blog_card_corner_radius | divided_by: 10.0 }}rem;
+        --blog-card-text-alignment: {{ settings.blog_card_text_alignment }};
+        --blog-card-border-width: {{ settings.blog_card_border_thickness | divided_by: 10.0 }}rem;
+        --blog-card-border-opacity: {{ settings.blog_card_border_opacity | divided_by: 100.0 }};
+        --blog-card-shadow-opacity: {{ settings.blog_card_shadow_opacity | divided_by: 100.0 }};
+        --blog-card-shadow-visible: {% if settings.blog_card_shadow_opacity > 0 %}1{% else %}0{% endif %};
+        --blog-card-shadow-horizontal-offset: {{ settings.blog_card_shadow_horizontal_offset | divided_by: 10.0 }}rem;
+        --blog-card-shadow-vertical-offset: {{ settings.blog_card_shadow_vertical_offset | divided_by: 10.0 }}rem;
+        --blog-card-shadow-blur-radius: {{ settings.blog_card_shadow_blur | divided_by: 10.0 }}rem;
+
+        --badge-corner-radius: {{ settings.badge_corner_radius | divided_by: 10.0 }}rem;
+
+        --popup-border-width: {{ settings.popup_border_thickness }}px;
+        --popup-border-opacity: {{ settings.popup_border_opacity | divided_by: 100.0 }};
+        --popup-corner-radius: {{ settings.popup_corner_radius }}px;
+        --popup-shadow-opacity: {{ settings.popup_shadow_opacity | divided_by: 100.0 }};
+        --popup-shadow-horizontal-offset: {{ settings.popup_shadow_horizontal_offset }}px;
+        --popup-shadow-vertical-offset: {{ settings.popup_shadow_vertical_offset }}px;
+        --popup-shadow-blur-radius: {{ settings.popup_shadow_blur }}px;
+
+        --drawer-border-width: {{ settings.drawer_border_thickness }}px;
+        --drawer-border-opacity: {{ settings.drawer_border_opacity | divided_by: 100.0 }};
+        --drawer-shadow-opacity: {{ settings.drawer_shadow_opacity | divided_by: 100.0 }};
+        --drawer-shadow-horizontal-offset: {{ settings.drawer_shadow_horizontal_offset }}px;
+        --drawer-shadow-vertical-offset: {{ settings.drawer_shadow_vertical_offset }}px;
+        --drawer-shadow-blur-radius: {{ settings.drawer_shadow_blur }}px;
+
+        --spacing-sections-desktop: {{ settings.spacing_sections }}px;
+        --spacing-sections-mobile: {% if settings.spacing_sections < 24 %}{{ settings.spacing_sections }}{% else %}{{ settings.spacing_sections | times: 0.7 | round | at_least: 20 }}{% endif %}px;
+
+        --grid-desktop-vertical-spacing: {{ settings.spacing_grid_vertical }}px;
+        --grid-desktop-horizontal-spacing: {{ settings.spacing_grid_horizontal }}px;
+        --grid-mobile-vertical-spacing: {{ settings.spacing_grid_vertical | divided_by: 2 }}px;
+        --grid-mobile-horizontal-spacing: {{ settings.spacing_grid_horizontal | divided_by: 2 }}px;
+
+        --text-boxes-border-opacity: {{ settings.text_boxes_border_opacity | divided_by: 100.0 }};
+        --text-boxes-border-width: {{ settings.text_boxes_border_thickness }}px;
+        --text-boxes-radius: {{ settings.text_boxes_radius }}px;
+        --text-boxes-shadow-opacity: {{ settings.text_boxes_shadow_opacity | divided_by: 100.0 }};
+        --text-boxes-shadow-visible: {% if settings.text_boxes_shadow_opacity > 0 %}1{% else %}0{% endif %};
+        --text-boxes-shadow-horizontal-offset: {{ settings.text_boxes_shadow_horizontal_offset }}px;
+        --text-boxes-shadow-vertical-offset: {{ settings.text_boxes_shadow_vertical_offset }}px;
+        --text-boxes-shadow-blur-radius: {{ settings.text_boxes_shadow_blur }}px;
+
+        --buttons-radius: {{ settings.buttons_radius }}px;
+        --buttons-radius-outset: {% if settings.buttons_radius > 0 %}{{ settings.buttons_radius | plus: settings.buttons_border_thickness }}{% else %}0{% endif %}px;
+        --buttons-border-width: {% if settings.buttons_border_opacity > 0 %}{{ settings.buttons_border_thickness }}{% else %}0{% endif %}px;
+        --buttons-border-opacity: {{ settings.buttons_border_opacity | divided_by: 100.0 }};
+        --buttons-shadow-opacity: {{ settings.buttons_shadow_opacity | divided_by: 100.0 }};
+        --buttons-shadow-visible: {% if settings.buttons_shadow_opacity > 0 %}1{% else %}0{% endif %};
+        --buttons-shadow-horizontal-offset: {{ settings.buttons_shadow_horizontal_offset }}px;
+        --buttons-shadow-vertical-offset: {{ settings.buttons_shadow_vertical_offset }}px;
+        --buttons-shadow-blur-radius: {{ settings.buttons_shadow_blur }}px;
+        --buttons-border-offset: {% if settings.buttons_radius > 0 or settings.buttons_shadow_opacity > 0 %}0.3{% else %}0{% endif %}px;
+
+        --inputs-radius: {{ settings.inputs_radius }}px;
+        --inputs-border-width: {{ settings.inputs_border_thickness }}px;
+        --inputs-border-opacity: {{ settings.inputs_border_opacity | divided_by: 100.0 }};
+        --inputs-shadow-opacity: {{ settings.inputs_shadow_opacity | divided_by: 100.0 }};
+        --inputs-shadow-horizontal-offset: {{ settings.inputs_shadow_horizontal_offset }}px;
+        --inputs-margin-offset: {% if settings.inputs_shadow_vertical_offset != 0 and settings.inputs_shadow_opacity > 0 %}{{ settings.inputs_shadow_vertical_offset | abs }}{% else %}0{% endif %}px;
+        --inputs-shadow-vertical-offset: {{ settings.inputs_shadow_vertical_offset }}px;
+        --inputs-shadow-blur-radius: {{ settings.inputs_shadow_blur }}px;
+        --inputs-radius-outset: {% if settings.inputs_radius > 0 %}{{ settings.inputs_radius | plus: settings.inputs_border_thickness }}{% else %}0{% endif %}px;
+
+        --variant-pills-radius: {{ settings.variant_pills_radius }}px;
+        --variant-pills-border-width: {{ settings.variant_pills_border_thickness }}px;
+        --variant-pills-border-opacity: {{ settings.variant_pills_border_opacity | divided_by: 100.0 }};
+        --variant-pills-shadow-opacity: {{ settings.variant_pills_shadow_opacity | divided_by: 100.0 }};
+        --variant-pills-shadow-horizontal-offset: {{ settings.variant_pills_shadow_horizontal_offset }}px;
+        --variant-pills-shadow-vertical-offset: {{ settings.variant_pills_shadow_vertical_offset }}px;
+        --variant-pills-shadow-blur-radius: {{ settings.variant_pills_shadow_blur }}px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: inherit;
+      }
+
+      html {
+        box-sizing: border-box;
+        font-size: calc(var(--font-body-scale) * 62.5%);
+        height: 100%;
+      }
+
+      body {
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        grid-template-columns: 100%;
+        min-height: 100%;
+        margin: 0;
+        font-size: 1.5rem;
+        letter-spacing: 0.06rem;
+        line-height: calc(1 + 0.8 / var(--font-body-scale));
+        font-family: var(--font-body-family);
+        font-style: var(--font-body-style);
+        font-weight: var(--font-body-weight);
+      }
+
+      @media screen and (min-width: 750px) {
+        body {
+          font-size: 1.6rem;
+        }
+      }
+    {% endstyle %}
+
+    {{ 'base.css' | asset_url | stylesheet_tag }}
+    {{ 'blocky-lys.css' | asset_url | stylesheet_tag }}
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    {{ 'ms-sitewide.css' | asset_url | stylesheet_tag }}
+    {% render 'ms-promo' %}
+
+    {%- unless settings.type_body_font.system? -%}
+      {% comment %}theme-check-disable AssetPreload{% endcomment %}
+      <link rel="preload" as="font" href="{{ settings.type_body_font | font_url }}" type="font/woff2" crossorigin>
+      {% comment %}theme-check-enable AssetPreload{% endcomment %}
+    {%- endunless -%}
+    {%- unless settings.type_header_font.system? -%}
+      {% comment %}theme-check-disable AssetPreload{% endcomment %}
+      <link rel="preload" as="font" href="{{ settings.type_header_font | font_url }}" type="font/woff2" crossorigin>
+      {% comment %}theme-check-enable AssetPreload{% endcomment %}
+    {%- endunless -%}
+
+    {%- if localization.available_countries.size > 1 or localization.available_languages.size > 1 -%}
+      {{ 'component-localization-form.css' | asset_url | stylesheet_tag: preload: true }}
+      <script src="{{ 'localization-form.js' | asset_url }}" defer="defer"></script>
+    {%- endif -%}
+
+    {%- if settings.predictive_search_enabled -%}
+      <link
+        rel="stylesheet"
+        href="{{ 'component-predictive-search.css' | asset_url }}"
+        media="print"
+        onload="this.media='all'"
+      >
+    {%- endif -%}
+
+    <script>
+      if (Shopify.designMode) {
+        document.documentElement.classList.add('shopify-design-mode');
+      }
+    </script>
+
+    {% comment %} <script>window.MSAttrConfig = { decorateHosts: ['CHECKOUT-DOMAIN'] };</script>
+<script src="{{ 'ms-attribution.js' | asset_url }}" defer></script> {% endcomment %}
+  </head>
+
+  <body class="gradient{% if settings.animations_hover_elements != 'none' %} animate--hover-{{ settings.animations_hover_elements }}{% endif %}">
+    <a class="skip-to-content-link button visually-hidden" href="#MainContent">
+      {{ 'accessibility.skip_to_text' | t }}
+    </a>
+
+    {%- if settings.cart_type == 'drawer' -%}
+      {%- render 'cart-drawer' -%}
+    {%- endif -%}
+
+    {% render 'country-lock' %}
+    {%- if template.name == '404' -%}{%- render '404-country-rescue' -%}{%- endif -%}
+
+    {% sections 'header-group' %}
+
+    <main id="MainContent" class="content-for-layout focus-none" role="main" tabindex="-1">
+      {{ content_for_layout }}
+    </main>
+
+    {% sections 'footer-group' %}
+
+    <ul hidden>
+      <li id="a11y-refresh-page-message">{{ 'accessibility.refresh_page' | t }}</li>
+      <li id="a11y-new-window-message">{{ 'accessibility.link_messages.new_window' | t }}</li>
+    </ul>
+
+    <script>
+      window.shopUrl = '{{ request.origin }}';
+      window.routes = {
+        cart_add_url: '{{ routes.cart_add_url }}',
+        cart_change_url: '{{ routes.cart_change_url }}',
+        cart_update_url: '{{ routes.cart_update_url }}',
+        cart_url: '{{ routes.cart_url }}',
+        predictive_search_url: '{{ routes.predictive_search_url }}',
+      };
+
+      window.cartStrings = {
+        error: `{{ 'sections.cart.cart_error' | t }}`,
+        quantityError: `{{ 'sections.cart.cart_quantity_error_html' | t: quantity: '[quantity]' }}`,
+      };
+
+      window.variantStrings = {
+        addToCart: `{{ 'products.product.add_to_cart' | t }}`,
+        soldOut: `{{ 'products.product.sold_out' | t }}`,
+        unavailable: `{{ 'products.product.unavailable' | t }}`,
+        unavailable_with_option: `{{ 'products.product.value_unavailable' | t: option_value: '[value]' }}`,
+      };
+
+      window.quickOrderListStrings = {
+        itemsAdded: `{{ 'sections.quick_order_list.items_added.other' | t: quantity: '[quantity]' }}`,
+        itemAdded: `{{ 'sections.quick_order_list.items_added.one' | t: quantity: '[quantity]' }}`,
+        itemsRemoved: `{{ 'sections.quick_order_list.items_removed.other' | t: quantity: '[quantity]' }}`,
+        itemRemoved: `{{ 'sections.quick_order_list.items_removed.one' | t: quantity: '[quantity]' }}`,
+        viewCart: `{{- 'sections.quick_order_list.view_cart' | t -}}`,
+        each: `{{- 'sections.quick_order_list.each' | t: money: '[money]' }}`,
+        min_error: `{{- 'sections.quick_order_list.min_error' | t: min: '[min]' }}`,
+        max_error: `{{- 'sections.quick_order_list.max_error' | t: max: '[max]' }}`,
+        step_error: `{{- 'sections.quick_order_list.step_error' | t: step: '[step]' }}`,
+      };
+
+      window.accessibilityStrings = {
+        imageAvailable: `{{ 'products.product.media.image_available' | t: index: '[index]' }}`,
+        shareSuccess: `{{ 'general.share.success_message' | t }}`,
+        pauseSlideshow: `{{ 'sections.slideshow.pause_slideshow' | t }}`,
+        playSlideshow: `{{ 'sections.slideshow.play_slideshow' | t }}`,
+        recipientFormExpanded: `{{ 'recipient.form.expanded' | t }}`,
+        recipientFormCollapsed: `{{ 'recipient.form.collapsed' | t }}`,
+        countrySelectorSearchCount: `{{ 'localization.country_results_count' | t: count: '[count]' }}`,
+      };
+    </script>
+
+    {%- if settings.predictive_search_enabled -%}
+      <script src="{{ 'predictive-search.js' | asset_url }}" defer="defer"></script>
+    {%- endif -%}
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" rel="stylesheet" />
+    <script>
+(function () {
+  // Only UK (GBP) shoppers get the £ version. Everyone else keeps the $ text set in Essential Cart.
+  var cur = (window.Shopify && Shopify.currency && Shopify.currency.active) || '';
+  if (cur !== 'GBP') return;
+
+  // Swaps each amount on its own, so it still works if the app splits the text around the "|".
+  var SWAPS = [
+    ['Orders $50+', 'Orders £50+'],
+    ['Above $100+', 'Above £100+']
+  ];
+
+  function fix(node) {
+    var v = node.nodeValue, out = v;
+    SWAPS.forEach(function (s) { out = out.split(s[0]).join(s[1]); });
+    if (out !== v) node.nodeValue = out;
+  }
+  function swap(root) {
+    if (root.nodeType === 3) return fix(root);
+    if (root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) fix(n);
+  }
+  function start() {
+    swap(document.body);
+    // The cart drawer is drawn by the app after the page loads, so watch for it opening or re-rendering.
+    new MutationObserver(function (list) {
+      list.forEach(function (m) {
+        if (m.type === 'characterData') fix(m.target);
+        m.addedNodes.forEach(swap);
+      });
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_w7eYKdEDa6Cf8Q");whop.track("page");</script>
+
+{%- comment -%}
+  Essential Cart drawer / cart page "Checkout" -> your branded checkout page (checkout.madespecial.store),
+  where the buyer enters contact + delivery details and pays with Whop's secure payment form.
+  Kaching + Essential discounts stay as they are; the server re-prices the cart with Shopify.
+  Paste in theme.liquid just before </body>. Set ENDPOINT to https://<your checkout domain>/api/checkout-session.
+  RedTrack's click and the Clarity session are copied onto checkout.madespecial.store from here.
+{%- endcomment -%}
+
+<link rel="preconnect" href="https://checkout.madespecial.store">
+<link rel="dns-prefetch" href="https://checkout.madespecial.store">
+<div id="wh-load" role="status" aria-live="polite" hidden>
+  <div class="wh-box">
+    <div class="wh-spin" aria-hidden="true"></div>
+    <p id="wh-msg">Taking you to secure checkout…</p>
+    <button type="button" id="wh-close" hidden>Close</button>
+  </div>
+</div>
+<style>
+  body:has(.vsl-section) .blocky-announcement-bar, body:has(.vsl-section) .header-wrapper, body:has(.vsl-section) .footer{
+    display: none;
+  }
+  #wh-load{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+  #wh-load[hidden]{display:none}
+  #wh-load .wh-box{background:#fff;color:#1a1a1a;border-radius:14px;padding:24px 22px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);font:15px/1.45 inherit}
+  #wh-load .wh-spin{width:34px;height:34px;margin:0 auto 12px;border:3px solid #e3e3e3;border-top-color:#1a1a1a;border-radius:50%;animation:whspin .8s linear infinite}
+  #wh-load.err .wh-spin{display:none}
+  #wh-load.err #wh-msg{color:#c0262d}
+  #wh-load p{margin:0}
+  #wh-close{margin-top:14px;padding:10px 18px;border:0;border-radius:8px;background:#1a1a1a;color:#fff;font:inherit;cursor:pointer}
+  @keyframes whspin{to{transform:rotate(360deg)}}
+  /* Shopify "Buy it now" / express buttons skip the cart and Whop: hidden so every order goes through our checkout */
+  .wh-x{display:flex;gap:8px;margin:10px 0 0;width:100%}
+  .wh-x button{flex:1;height:44px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .wh-x button svg{height:30px;width:auto}
+  .wh-x button:hover{border-color:#9ca3af}
+  .shopify-payment-button, shopify-accelerated-checkout, shopify-accelerated-checkout-cart, .additional-checkout-buttons, .dynamic-checkout__content { display: none !important; }
+</style>
+<script>
+(function () {
+  var ENDPOINT = 'https://checkout.madespecial.store/api/checkout-session';
+  // Checkout buttons: Essential Cart drawer, theme drawer, cart page. Any button/link with the class "whop-checkout"
+  // (or a class containing it) is caught too, and as a last resort any button whose text says "Checkout".
+  var SEL = '.whop-checkout, [class*="whop-checkout"], [data-whop-checkout], .es-checkout-button, .es-checkout-btn, [class*="es-checkout"], ' +
+            '[name="checkout"], a[href^="/checkout"], a[href*="/checkout?"], a[href*="/checkouts/"], button[onclick*="checkout"], form[action*="/checkout"] [type="submit"], .cart__checkout-button';
+  function checkoutButton(t) {
+    if (!t || !t.closest || t.closest('#wh-load')) return null;
+    var el = t.closest(SEL); if (el) return el;
+    var c = t.closest('button, a, input[type="submit"], [role="button"]'); if (!c) return null;
+    var txt = (c.value || c.textContent || '').replace(/\s+/g, ' ').trim();
+    if (txt.length > 40 || !/\bcheck\s?-?out\b/i.test(txt)) return null;
+    var h = c.tagName === 'A' ? (c.getAttribute('href') || '') : '';
+    if (h && !/checkout|^#|^javascript/i.test(h)) return null; // a "checkout" link to some other page
+    return c;
+  }
+  // Express buttons under the Essential drawer's checkout button and the cart page's checkout button.
+  // They open our checkout with that wallet ready (Shopify's own Shop Pay / G Pay buttons can't use Whop).
+  var EXPRESS = true;          // false = don't show them
+  var EXPRESS_PAYPAL = true;   // PayPal is approved on the Whop account
+  var ICON = {"apple_pay": "<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" role=\"img\" x=\"0\" y=\"0\" width=\"57\" height=\"36\" viewBox=\"0 0 165.521 105.965\" xml:space=\"preserve\" aria-hidden=\"true\"><path fill=\"#000\" d=\"M150.698 0H14.823c-.566 0-1.133 0-1.698.003-.477.004-.953.009-1.43.022-1.039.028-2.087.09-3.113.274a10.51 10.51 0 0 0-2.958.975 9.932 9.932 0 0 0-4.35 4.35 10.463 10.463 0 0 0-.975 2.96C.113 9.611.052 10.658.024 11.696a70.22 70.22 0 0 0-.022 1.43C0 13.69 0 14.256 0 14.823v76.318c0 .567 0 1.132.002 1.699.003.476.009.953.022 1.43.028 1.036.09 2.084.275 3.11a10.46 10.46 0 0 0 .974 2.96 9.897 9.897 0 0 0 1.83 2.52 9.874 9.874 0 0 0 2.52 1.83c.947.483 1.917.79 2.96.977 1.025.183 2.073.245 3.112.273.477.011.953.017 1.43.02.565.004 1.132.004 1.698.004h135.875c.565 0 1.132 0 1.697-.004.476-.002.952-.009 1.431-.02 1.037-.028 2.085-.09 3.113-.273a10.478 10.478 0 0 0 2.958-.977 9.955 9.955 0 0 0 4.35-4.35c.483-.947.789-1.917.974-2.96.186-1.026.246-2.074.274-3.11.013-.477.02-.954.022-1.43.004-.567.004-1.132.004-1.699V14.824c0-.567 0-1.133-.004-1.699a63.067 63.067 0 0 0-.022-1.429c-.028-1.038-.088-2.085-.274-3.112a10.4 10.4 0 0 0-.974-2.96 9.94 9.94 0 0 0-4.35-4.35A10.52 10.52 0 0 0 156.939.3c-1.028-.185-2.076-.246-3.113-.274a71.417 71.417 0 0 0-1.431-.022C151.83 0 151.263 0 150.698 0z\" /><path fill=\"#FFF\" d=\"M150.698 3.532l1.672.003c.452.003.905.008 1.36.02.793.022 1.719.065 2.583.22.75.135 1.38.34 1.984.648a6.392 6.392 0 0 1 2.804 2.807c.306.6.51 1.226.645 1.983.154.854.197 1.783.218 2.58.013.45.019.9.02 1.36.005.557.005 1.113.005 1.671v76.318c0 .558 0 1.114-.004 1.682-.002.45-.008.9-.02 1.35-.022.796-.065 1.725-.221 2.589a6.855 6.855 0 0 1-.645 1.975 6.397 6.397 0 0 1-2.808 2.807c-.6.306-1.228.511-1.971.645-.881.157-1.847.2-2.574.22-.457.01-.912.017-1.379.019-.555.004-1.113.004-1.669.004H14.801c-.55 0-1.1 0-1.66-.004a74.993 74.993 0 0 1-1.35-.018c-.744-.02-1.71-.064-2.584-.22a6.938 6.938 0 0 1-1.986-.65 6.337 6.337 0 0 1-1.622-1.18 6.355 6.355 0 0 1-1.178-1.623 6.935 6.935 0 0 1-.646-1.985c-.156-.863-.2-1.788-.22-2.578a66.088 66.088 0 0 1-.02-1.355l-.003-1.327V14.474l.002-1.325a66.7 66.7 0 0 1 .02-1.357c.022-.792.065-1.717.222-2.587a6.924 6.924 0 0 1 .646-1.981c.304-.598.7-1.144 1.18-1.623a6.386 6.386 0 0 1 1.624-1.18 6.96 6.96 0 0 1 1.98-.646c.865-.155 1.792-.198 2.586-.22.452-.012.905-.017 1.354-.02l1.677-.003h135.875\" /><g><g><path fill=\"#000\" d=\"M43.508 35.77c1.404-1.755 2.356-4.112 2.105-6.52-2.054.102-4.56 1.355-6.012 3.112-1.303 1.504-2.456 3.959-2.156 6.266 2.306.2 4.61-1.152 6.063-2.858\" /><path fill=\"#000\" d=\"M45.587 39.079c-3.35-.2-6.196 1.9-7.795 1.9-1.6 0-4.049-1.8-6.698-1.751-3.447.05-6.645 2-8.395 5.1-3.598 6.2-.95 15.4 2.55 20.45 1.699 2.5 3.747 5.25 6.445 5.151 2.55-.1 3.549-1.65 6.647-1.65 3.097 0 3.997 1.65 6.696 1.6 2.798-.05 4.548-2.5 6.247-5 1.95-2.85 2.747-5.6 2.797-5.75-.05-.05-5.396-2.101-5.446-8.251-.05-5.15 4.198-7.6 4.398-7.751-2.399-3.548-6.147-3.948-7.447-4.048\" /></g><g><path fill=\"#000\" d=\"M78.973 32.11c7.278 0 12.347 5.017 12.347 12.321 0 7.33-5.173 12.373-12.529 12.373h-8.058V69.62h-5.822V32.11h14.062zm-8.24 19.807h6.68c5.07 0 7.954-2.729 7.954-7.46 0-4.73-2.885-7.434-7.928-7.434h-6.706v14.894z\" /><path fill=\"#000\" d=\"M92.764 61.847c0-4.809 3.665-7.564 10.423-7.98l7.252-.442v-2.08c0-3.04-2.001-4.704-5.562-4.704-2.938 0-5.07 1.507-5.51 3.82h-5.252c.157-4.86 4.731-8.395 10.918-8.395 6.654 0 10.995 3.483 10.995 8.89v18.663h-5.38v-4.497h-.13c-1.534 2.937-4.914 4.782-8.579 4.782-5.406 0-9.175-3.222-9.175-8.057zm17.675-2.417v-2.106l-6.472.416c-3.64.234-5.536 1.585-5.536 3.95 0 2.288 1.975 3.77 5.068 3.77 3.95 0 6.94-2.522 6.94-6.03z\" /><path fill=\"#000\" d=\"M120.975 79.652v-4.496c.364.051 1.247.103 1.715.103 2.573 0 4.029-1.09 4.913-3.899l.52-1.663-9.852-27.293h6.082l6.863 22.146h.13l6.862-22.146h5.927l-10.216 28.67c-2.34 6.577-5.017 8.735-10.683 8.735-.442 0-1.872-.052-2.261-.157z\" /></g></g></svg>", "google_pay": "<svg xmlns=\"http://www.w3.org/2000/svg\" role=\"img\" viewBox=\"0 0 38 24\" width=\"57\" height=\"36\" aria-hidden=\"true\"><path d=\"M35 0H3C1.3 0 0 1.3 0 3v18c0 1.7 1.4 3 3 3h32c1.7 0 3-1.3 3-3V3c0-1.7-1.4-3-3-3z\" fill=\"#000\" opacity=\".07\"/><path d=\"M35 1c1.1 0 2 .9 2 2v18c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V3c0-1.1.9-2 2-2h32\" fill=\"#FFF\"/><path d=\"M18.093 11.976v3.2h-1.018v-7.9h2.691a2.447 2.447 0 0 1 1.747.692 2.28 2.28 0 0 1 .11 3.224l-.11.116c-.47.447-1.098.69-1.747.674l-1.673-.006zm0-3.732v2.788h1.698c.377.012.741-.135 1.005-.404a1.391 1.391 0 0 0-1.005-2.354l-1.698-.03zm6.484 1.348c.65-.03 1.286.188 1.778.613.445.43.682 1.03.65 1.649v3.334h-.969v-.766h-.049a1.93 1.93 0 0 1-1.673.931 2.17 2.17 0 0 1-1.496-.533 1.667 1.667 0 0 1-.613-1.324 1.606 1.606 0 0 1 .613-1.336 2.746 2.746 0 0 1 1.698-.515c.517-.02 1.03.093 1.49.331v-.208a1.134 1.134 0 0 0-.417-.901 1.416 1.416 0 0 0-.98-.368 1.545 1.545 0 0 0-1.319.717l-.895-.564a2.488 2.488 0 0 1 2.182-1.06zM23.29 13.52a.79.79 0 0 0 .337.662c.223.176.5.269.785.263.429-.001.84-.17 1.146-.472.305-.286.478-.685.478-1.103a2.047 2.047 0 0 0-1.324-.374 1.716 1.716 0 0 0-1.03.294.883.883 0 0 0-.392.73zm9.286-3.75l-3.39 7.79h-1.048l1.281-2.728-2.224-5.062h1.103l1.612 3.885 1.569-3.885h1.097z\" fill=\"#5F6368\"/><path d=\"M13.986 11.284c0-.308-.024-.616-.073-.92h-4.29v1.747h2.451a2.096 2.096 0 0 1-.9 1.373v1.134h1.464a4.433 4.433 0 0 0 1.348-3.334z\" fill=\"#4285F4\"/><path d=\"M9.629 15.721a4.352 4.352 0 0 0 3.01-1.097l-1.466-1.14a2.752 2.752 0 0 1-4.094-1.44H5.577v1.17a4.53 4.53 0 0 0 4.052 2.507z\" fill=\"#34A853\"/><path d=\"M7.079 12.05a2.709 2.709 0 0 1 0-1.735v-1.17H5.577a4.505 4.505 0 0 0 0 4.075l1.502-1.17z\" fill=\"#FBBC04\"/><path d=\"M9.629 8.44a2.452 2.452 0 0 1 1.74.68l1.3-1.293a4.37 4.37 0 0 0-3.065-1.183 4.53 4.53 0 0 0-4.027 2.5l1.502 1.171a2.715 2.715 0 0 1 2.55-1.875z\" fill=\"#EA4335\"/></svg>", "paypal": "<svg viewBox=\"0 0 38 24\" xmlns=\"http://www.w3.org/2000/svg\" width=\"57\" height=\"36\" role=\"img\" aria-hidden=\"true\"><path opacity=\".07\" d=\"M35 0H3C1.3 0 0 1.3 0 3v18c0 1.7 1.4 3 3 3h32c1.7 0 3-1.3 3-3V3c0-1.7-1.4-3-3-3z\"/><path fill=\"#fff\" d=\"M35 1c1.1 0 2 .9 2 2v18c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V3c0-1.1.9-2 2-2h32\"/><path fill=\"#003087\" d=\"M23.9 8.3c.2-1 0-1.7-.6-2.3-.6-.7-1.7-1-3.1-1h-4.1c-.3 0-.5.2-.6.5L14 15.6c0 .2.1.4.3.4H17l.4-3.4 1.8-2.2 4.7-2.1z\"/><path fill=\"#3086C8\" d=\"M23.9 8.3l-.2.2c-.5 2.8-2.2 3.8-4.6 3.8H18c-.3 0-.5.2-.6.5l-.6 3.9-.2 1c0 .2.1.4.3.4H19c.3 0 .5-.2.5-.4v-.1l.4-2.4v-.1c0-.2.3-.4.5-.4h.3c2.1 0 3.7-.8 4.1-3.2.2-1 .1-1.8-.4-2.4-.1-.5-.3-.7-.5-.8z\"/><path fill=\"#012169\" d=\"M23.3 8.1c-.1-.1-.2-.1-.3-.1-.1 0-.2 0-.3-.1-.3-.1-.7-.1-1.1-.1h-3c-.1 0-.2 0-.2.1-.2.1-.3.2-.3.4l-.7 4.4v.1c0-.3.3-.5.6-.5h1.3c2.5 0 4.1-1 4.6-3.8v-.2c-.1-.1-.3-.2-.5-.2h-.1z\"/></svg>"};
+  var SHOPPER_COUNTRY = {{ localization.country.iso_code | default: 'US' | json }};
+
+  // RedTrack click, UTMs and subs from cookies, storage and the page URL. They go on the checkout
+  // session. Cookies on madespecial.store are not visible on checkout.madespecial.store, so the
+  // checkout writes the click id back into its own URL and rtkclickid-store cookie.
+  // Network click ids, Triple Whale (tw_*, cmpid), landing URL and referrer. Same set lib/pricing.js refuses to trim.
+  var TRACK = /clickid|^_*ref_id$|^rtk|^utm_|^sub\d{1,2}$|^_ax|^tw_|^cmpid$|^ttclid$|^_ttp$|^sccid$|^_scid$|^sc_click_id$|^epik$|^_fbp$|^_fbc$|^aleid$|^alart$|^axwrt$|^landing_site$|^landing_page$|^landing_url$|^first_landing_page$|^referring_site$|^referring_url$|^referrer$/i;
+  // A real tracking value is a short ID or text: skip data blobs, JSON and binary that other apps keep in storage
+  var GOOD = function (k, v) { return v.length <= (/landing|referr/i.test(k) ? 1000 : 300) && !/^data:|^[\[{]/.test(v) && !/[\u0000-\u001f\u007f]/.test(v); };
+  function cookieVal(name) {
+    try {
+      var parts = document.cookie.split(';'), last = '';
+      for (var i = 0; i < parts.length; i++) {
+        var c = parts[i], n = c.indexOf('=');
+        if (n > 0 && decodeURIComponent(c.slice(0, n).trim()) === name) last = decodeURIComponent(c.slice(n + 1).trim());
+      }
+      return !last || last === 'undefined' ? '' : last;
+    } catch (e) { return ''; }
+  }
+  // First page of this tab is the landing page. Stored before checkout so the cart page is not the landing page.
+  function rememberTouch() {
+    var landing = '', ref = '';
+    try { landing = sessionStorage.getItem('ms-landing') || ''; } catch (e) {}
+    try { ref = sessionStorage.getItem('ms-ref') || ''; } catch (e) {}
+    if (!landing) {
+      landing = String(location.href || '').split('#')[0].slice(0, 1000);
+      try { sessionStorage.setItem('ms-landing', landing); } catch (e) {}
+    }
+    
+    if (!ref) {
+      ref = String(document.referrer || '').slice(0, 1000);
+      if (ref) { try { sessionStorage.setItem('ms-ref', ref); } catch (e) {} }
+    }
+    return { landing_site: landing, referring_site: ref };
+  }
+  rememberTouch();
+  function trackingData() {
+    var t = {};
+    function put(k, v) { if (k && v && TRACK.test(k) && GOOD(k, String(v))) t[k] = String(v); }
+    try { document.cookie.split(';').forEach(function (c) { var i = c.indexOf('='); if (i > 0) put(decodeURIComponent(c.slice(0, i).trim()), decodeURIComponent(c.slice(i + 1).trim())); }); } catch (e) {}
+    try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); put(k, localStorage.getItem(k)); } } catch (e) {}
+    try { new URLSearchParams(location.search).forEach(function (v, k) { put(k, v); }); } catch (e) {}
+    return t;
+  }
+
+  var box = document.getElementById('wh-load'), msg = document.getElementById('wh-msg'), closeBtn = document.getElementById('wh-close'), busy = false;
+  var MSG = {
+    price_mismatch: 'Your cart was just updated. Please check your cart and try again.',
+    empty_cart: 'Your cart is empty.',
+    cart_invalid: 'An item in your cart is no longer available. Please update your cart.'
+  };
+  function show(text, isErr) { msg.textContent = text; box.classList.toggle('err', !!isErr); closeBtn.hidden = !isErr; box.hidden = false; }
+  closeBtn.onclick = function () { box.hidden = true; };
+  window.addEventListener('pageshow', function () { busy = false; if (!box.classList.contains('err')) box.hidden = true; }); // back button from checkout (keeps an error message visible)
+
+  // ---- speed: wake the checkout server and download the checkout's scripts before the shopper clicks ----
+  // The store and checkout.madespecial.store are the same site, so files downloaded here are reused by the checkout page.
+  var CART_COUNT = {{ cart.item_count | default: 0 }};
+  var warmedAt = 0, prefetched = false;
+  function warm() {
+    if (Date.now() - warmedAt < 60000) return; warmedAt = Date.now(); // at most once a minute
+    try { fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"warmup":1}', keepalive: true }).catch(function () {}); } catch (e) {}
+  }
+  function prefetch() {
+    if (prefetched) return; prefetched = true;
+    ['https://cdn.whop.com/elements/amber/elements.js', 'https://cdn.jsdelivr.net/npm/libphonenumber-js@1.12.43/bundle/libphonenumber-min.js'].forEach(function (u) {
+      var l = document.createElement('link'); l.rel = 'prefetch'; l.as = 'script'; l.href = u; l.crossOrigin = 'anonymous'; document.head.appendChild(l);
+    });
+  }
+  function ready() { warm(); prefetch(); }
+  var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 1200); };
+  idle(function () { warm(); if (CART_COUNT > 0) prefetch(); }, { timeout: 2500 });
+  // The shopper is heading to checkout: cart drawer touched, checkout hovered/pressed, or something added to the cart
+  ['pointerover', 'touchstart', 'focusin'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('[data-essential-cart-element]') || checkoutButton(t) || t.closest('a[href$="/cart"], [name="add"], form[action*="/cart/add"] [type="submit"]')) ready();
+    }, { passive: true, capture: true });
+  });
+  // Back from the checkout server with a problem (cart changed, item unavailable): show the same message as before
+  try {
+    var qp = new URLSearchParams(location.search), ce = qp.get('checkout_error');
+    if (ce) { show(MSG[ce] || 'Checkout is unavailable right now. Please try again in a moment.', true); qp.delete('checkout_error');
+      history.replaceState(null, '', location.pathname + (qp.toString() ? '?' + qp : '') + location.hash); }
+  } catch (e) {}
+
+  // Essential Cart drawer: let Essential finish its own steps first (add or remove Shipping protection, upsells,
+  // agreement checkbox), then take over at its official "before checkout" event with the final cart.
+  document.addEventListener('essential-cart:before-checkout', function (e) { e.preventDefault(); go(); });
+
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.closest && e.target.closest('[data-essential-cart-element]')) return; // Essential handles it (event above)
+    if (!checkoutButton(e.target)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    go();
+  }, true);
+
+  async function go(opts) {
+    opts = opts || {};
+    if (busy) return; busy = true;
+    show('Taking you to secure checkout…');
+    try {
+      var cart = await (await fetch('/cart.js', { cache: 'no-store' })).json();
+      if (!cart.item_count) throw { code: 'empty_cart' };
+      var tracking = trackingData();
+      var touch = rememberTouch();
+      var cartAttr = cart.attributes || {};
+      var landing = cartAttr.landing_site || cartAttr.landing_page || touch.landing_site;
+      var ref = cartAttr.referring_site || cartAttr.referrer || touch.referring_site;
+      if (!tracking.landing_site && !tracking.landing_page && !tracking.landing_url && landing) tracking.landing_site = landing;
+      if (!tracking.referring_site && !tracking.referrer && !tracking.referring_url && ref) tracking.referring_site = ref;
+      var clck = cookieVal('_clck'), clsk = cookieVal('_clsk');
+      // Sent as a normal form post: the browser navigates straight to the checkout (no extra round trips)
+      var payload = JSON.stringify({
+          items: cart.items.map(function (i) { return { variant_id: i.variant_id, quantity: i.quantity, properties: i.properties || {} }; }),
+          attributes: cart.attributes || {},
+          discount_codes: (cart.discount_codes || []).filter(function (c) { return c.applicable !== false; }).map(function (c) { return c.code; }),
+          total_price: cart.total_price,
+          currency: cart.currency,
+          market_country: (window.Shopify && Shopify.country) || SHOPPER_COUNTRY, // the Shopify Market whose currency the drawer shows
+          tracking: tracking,
+          clarity: { clck: clck, clsk: clsk },
+          consent: (function () { try { var p = window.Shopify && Shopify.customerPrivacy; return p ? { analytics: p.analyticsProcessingAllowed(), marketing: p.marketingAllowed() } : null; } catch (e) { return null; } })()
+      });
+      var f = document.createElement('form');
+      f.method = 'POST'; f.action = ENDPOINT + (opts.x ? '?x=' + encodeURIComponent(opts.x) : ''); f.style.display = 'none';
+      var inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'payload'; inp.value = payload; f.appendChild(inp);
+      document.body.appendChild(f);
+      try { if (window.clarity) clarity('event', 'go_to_checkout'); } catch (e) {}
+      f.submit();
+    } catch (err) {
+      console.error('Whop checkout', err);
+      show(MSG[err && err.code] || 'Checkout is unavailable right now. Please try again in a moment.', true);
+      busy = false;
+    }
+  }
+  // ---- express row ----
+  function walletList() {
+    var w = [];
+    if (EXPRESS_PAYPAL) w.push(['paypal_express', 'PayPal', ICON.paypal]);
+    try { if (window.ApplePaySession && ApplePaySession.canMakePayments() || /Macintosh|iPhone|iPad|iPod/.test(navigator.userAgent)) w.push(['apple_pay', 'Apple Pay', ICON.apple_pay]); } catch (e) {}
+    if (!/iPhone|iPad|iPod/.test(navigator.userAgent)) w.push(['google_pay', 'Google Pay', ICON.google_pay]);
+    return w;
+  }
+  function expressRow() {
+    var row = document.createElement('div'); row.className = 'wh-x';
+    walletList().forEach(function (w) {
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Express checkout with ' + w[1]); b.innerHTML = w[2];
+      b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); go({ x: w[0] }); });
+      row.appendChild(b);
+    });
+    return row.children.length ? row : null;
+  }
+  var placing = false;
+  function placeExpress() {
+    placing = false; if (!EXPRESS) return;
+    document.querySelectorAll('[data-essential-cart-element="cart-drawer-checkout-button"], form[action*="/cart"] [name="checkout"]').forEach(function (btn) {
+      var next = btn.nextElementSibling; if (next && next.classList.contains('wh-x')) return;
+      var row = expressRow(); if (row) btn.insertAdjacentElement('afterend', row);
+    });
+  }
+  if (EXPRESS) {
+    new MutationObserver(function () { if (!placing) { placing = true; requestAnimationFrame(placeExpress); } }).observe(document.documentElement, { childList: true, subtree: true });
+    placeExpress();
+  }
+
+  // Cart forms submitted with the keyboard (no click)
+  document.addEventListener('submit', function (e) {
+    var f = e.target; if (!f || !f.matches || !f.matches('form[action*="/cart"], form[action*="/checkout"]')) return;
+    var sub = e.submitter; if (!(sub && sub.name === 'checkout') && !/checkout/.test(f.getAttribute('action') || '')) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    go();
+  }, true);
+})();
+</script>
+<script>
+  // AppLovin add_to_cart. The Shopify Axon app only hears Shopify's product_added_to_cart event.
+  // This theme adds with fetch(/cart/add.js) and Essential's /essential-sticky-cart/add, and that
+  // event is not published, so AppLovin never saw the add. Page views stay on the Shopify app.
+  // RedTrack's own script reports "addtocart" with the click id as the event id, the same id it
+  // already used for viewcontent, so a duplicate-by-event-id rule drops it. This sends AddToCart
+  // with its own id and the cart value.
+  (function () {
+    var KEY = '39e4030b-05d4-4ccf-a868-d6a93ec89d02';
+    var RT = 'https://trk.madespecial.store/postback';
+    if (!window.axon) {
+      var ax = window.axon = function () { ax.performOperation ? ax.performOperation.apply(ax, arguments) : ax.operationQueue.push(arguments); };
+      ax.operationQueue = []; ax.ts = Date.now(); ax.eventKey = KEY;
+      ['https://s.axon.ai/pixel.js', 'https://c.albss.com/p/l/loader.iife.js'].forEach(function (src) {
+        var s = document.createElement('script'); s.async = true; s.src = src;
+        var n = document.getElementsByTagName('script')[0];
+        if (n && n.parentNode) n.parentNode.insertBefore(s, n); else document.head.appendChild(s);
+      });
+      axon('init');
+    }
+    var recent = {};
+    function clickId() {
+      try { var s = sessionStorage.getItem('rtkclickid'); if (s && s !== 'undefined') return s; } catch (e) {}
+      var m = document.cookie.match(/(?:^|; )rtkclickid-store=([^;]*)/);
+      if (!m || !m[1] || m[1] === 'undefined') return '';
+      try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; }
+    }
+    function itemsFrom(data) {
+      var rows = [];
+      if (!data || typeof data !== 'object') return rows;
+      if (data.variant_id || (data.id && data.quantity && (data.product_id || data.product_title || data.title))) rows = [data];
+      else if (Array.isArray(data.items)) rows = data.items;
+      return rows.map(function (it) {
+        var id = String(it.variant_id || it.id || '');
+        if (!id) return null;
+        var cents = Number(it.final_price != null ? it.final_price : it.price);
+        var image = typeof it.image === 'string' ? it.image : (it.featured_image && it.featured_image.url) || '';
+        if (image.indexOf('//') === 0) image = 'https:' + image;
+        var item = {
+          item_id: id,
+          item_variant_id: id,
+          item_name: String(it.product_title || it.title || '').slice(0, 120),
+          price: isFinite(cents) ? Math.round(cents) / 100 : 0,
+          quantity: Number(it.quantity) || 1
+        };
+        if (/\.(png|jpe?g)(\?|$)/i.test(image)) item.image_url = image;
+        return item;
+      }).filter(Boolean);
+    }
+    function report(items, currency) {
+      if (!items.length) return;
+      var key = items.map(function (it) { return it.item_id + 'x' + it.quantity; }).join(',');
+      var now = Date.now();
+      if (recent[key] && now - recent[key] < 2500) return;
+      recent[key] = now;
+      var value = 0;
+      items.forEach(function (it) { value += it.price * it.quantity; });
+      value = Math.round(value * 100) / 100;
+      var cur = currency || (window.Shopify && Shopify.currency && Shopify.currency.active) || 'USD';
+      var id = clickId();
+      var dedupe = (id || 'cart') + ':addtocart:' + items[0].item_id + ':' + now;
+      try { axon('track', 'add_to_cart', { currency: cur, value: value, items: items }, { dedupe_id: dedupe }); } catch (e) {}
+      if (!id) return;
+      // The store script sends "addtocart". The Shopify guide says "AddToCart".
+      // One RedTrack type only: AddToCart (the type RedTrack maps). The lowercase copy double-counted.
+      ['AddToCart'].forEach(function (type) {
+        try {
+          var eventId = dedupe + ':' + type;
+          var u = new URL(RT);
+          u.searchParams.set('clickid', id);
+          u.searchParams.set('type', type);
+          u.searchParams.set('eventid', eventId);
+          u.searchParams.set('rdtk_event_id', eventId);
+          u.searchParams.set('sum', value.toFixed(2));
+          u.searchParams.set('currency', cur);
+          var img = new Image(); img.src = u.toString();
+        } catch (e) {}
+      });
+    }
+    function take(url, data, currency) {
+      var path = String(url || '').split('?')[0];
+      if (!/\/cart\/add(\.js)?$/.test(path) && !/\/essential-sticky-cart\/add$/.test(path)) return;
+      report(itemsFrom(data), currency || (data && data.currency));
+    }
+    if (window.fetch) {
+      var orig = window.fetch;
+      window.fetch = function () {
+        var req = arguments[0];
+        var url = typeof req === 'string' ? req : (req && req.url) || '';
+        var res = orig.apply(this, arguments);
+        if (res && res.then) res.then(function (r) {
+          if (!/\/cart\/add(\.js)?$|\/essential-sticky-cart\/add$/.test(String(r.url || url).split('?')[0])) return;
+          try { r.clone().json().then(function (data) { take(r.url || url, data); }).catch(function () {}); } catch (e) {}
+        }).catch(function () {});
+        return res;
+      };
+    }
+    var open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      this.addEventListener('load', function () {
+        if (this.responseType && this.responseType !== '' && this.responseType !== 'text') return;
+        try { take(url, JSON.parse(this.responseText)); } catch (e) {}
+      });
+      return open.apply(this, arguments);
+    };
+  })();
+</script>
+
+{%- comment -%}
+  Spanish text for the Essential Sticky Cart bar — only on steel-tongue-rain-drum-es.
+  Paste into theme.liquid just before </body>, or into a "Custom Liquid" block on the product template.
+{%- endcomment -%}
+{%- if product and product.handle == 'steel-tongue-rain-drum-es' -%}
+<script>
+(function () {
+  var MAP = {
+    "Add To Cart – Save Up To 30%": "Añadir al carrito – Ahorra hasta un 30%",
+    "Steel Tongue Rain Drum – 9-Note": "Tambor de lluvia de acero – 9 notas",
+    "Regular price:": "Precio habitual:",
+    "Sale price:": "Precio de oferta:",
+    "Sold out": "Agotado"
+  };
+  function translate(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), node;
+    while ((node = walker.nextNode())) {
+      var t = node.nodeValue.trim();
+      if (MAP[t]) node.nodeValue = node.nodeValue.replace(t, MAP[t]);
+    }
+  }
+  function start() {
+    var bar = document.getElementById('sticky-cart-portal');
+    if (!bar) return false;
+    translate(bar);
+    new MutationObserver(function () { translate(bar); })
+      .observe(bar, { childList: true, subtree: true, characterData: true });
+    return true;
+  }
+  if (!start()) {
+    var wait = new MutationObserver(function () { if (start()) wait.disconnect(); });
+    wait.observe(document.documentElement, { childList: true, subtree: true });
+  }
+})();
+</script>
+{%- endif -%}
+  {% render 'ms-pdp-compare' %}{% render 'ms-pdp-names' %}
+ </body>
+</html>

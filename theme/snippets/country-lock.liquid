@@ -1,0 +1,78 @@
+{%- comment -%}
+  BKY COUNTRY LOCK  (render once from layout/theme.liquid, right after <body>)
+  ----------------------------------------------------------------------------
+  Locks a product URL to one country/currency, whatever template or ?v= value
+  is used. Works on the product page AND on the 404 page Shopify shows when a
+  product isn't sold in the visitor's current market.
+
+  MAP: product-handle:COUNTRY_CODE, comma separated. UK = GB.
+  Every ?v= persona of a handle gets that handle's country.
+{%- endcomment -%}
+{%- liquid
+  assign bky_map = 'steel-tongue-rain-drum:US,steel-tongue-rain-drum-es:US,steel-tongue-rain-drum-uk:GB'
+
+  assign bky_handle = ''
+  if request.page_type == 'product' and product
+    assign bky_handle = product.handle
+  elsif request.path contains '/products/'
+    assign bky_handle = request.path | split: '/products/' | last | split: '/' | first
+  endif
+
+  assign bky_cc = ''
+  if bky_handle != blank
+    assign bky_pairs = bky_map | split: ','
+    for bky_pair in bky_pairs
+      assign bky_bits = bky_pair | strip | split: ':'
+      assign bky_key = bky_bits[0] | strip
+      if bky_key == bky_handle
+        assign bky_cc = bky_bits[1] | strip | upcase
+        break
+      endif
+    endfor
+  endif
+  if template.suffix contains 'margaret' or template.suffix == 'margar-47657-template' or template.suffix contains 'evelyn'
+    assign bky_cc = ''
+    endif
+    if localization.country.iso_code == 'AU' or localization.country.iso_code == 'NZ'
+      assign bky_cc = ''
+      endif
+-%}
+
+{%- if bky_cc != blank and request.design_mode == false -%}
+  <!-- bky-country-lock: handle={{ bky_handle }} target={{ bky_cc }} current={{ localization.country.iso_code }} -->
+  
+
+  {%- if localization.country.iso_code != bky_cc -%}
+    <style id="bky-cl-hide">html { visibility: hidden !important; }</style>
+    {%- form 'localization', id: 'bky-country-lock' -%}
+      <input type="hidden" name="country_code" value="{{ bky_cc }}">
+      <input type="hidden" name="return_to" value="{{ request.path }}">
+    {%- endform -%}
+    <script>
+      (function () {
+        var KEY = 'bkyLock:' + {{ bky_cc | json }};
+        var unhide = function () {
+          var s = document.getElementById('bky-cl-hide');
+          if (s) s.parentNode.removeChild(s);
+        };
+        var f = document.getElementById('bky-country-lock');
+        if (!f) { unhide(); return; }
+        /* Loop guard: one attempt per 30 s per country, so a market or catalog
+           problem shows the page instead of reloading forever. */
+        try {
+          var last = Number(sessionStorage.getItem(KEY) || 0);
+          if (Date.now() - last < 30000) { unhide(); return; }
+          sessionStorage.setItem(KEY, String(Date.now()));
+        } catch (e) { unhide(); return; }
+        /* Come back to the exact URL, keeping ?v=, UTMs and click IDs. */
+        f.querySelectorAll('[name="return_to"]').forEach(function (i) {
+          i.value = location.pathname + location.search;
+        });
+        f.submit();
+        setTimeout(unhide, 4000);
+      })();
+    </script>
+  {%- else -%}
+    <script>try { sessionStorage.removeItem({{ 'bkyLock:' | append: bky_cc | json }}); } catch (e) {}</script>
+  {%- endif -%}
+{%- endif -%}

@@ -1,0 +1,2 @@
+{%- comment -%} 5 small stars. {% render 'ms-stars', s: 15 %} {%- endcomment -%}
+<span class="stars" aria-hidden="true">{%- for i in (1..5) -%}{% render 'ms-ic', i: 'star', s: s %}{%- endfor -%}</span>

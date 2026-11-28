@@ -1,0 +1,55 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "name": "t:sections.footer.name",
+  "type": "footer",
+  "sections": {
+    "footer": {
+      "type": "footer",
+      "blocks": {
+        "link_list_Fhdw8K": {
+          "type": "link_list",
+          "settings": {
+            "heading": "Links",
+            "menu": "footer"
+          }
+        },
+        "text_RP9BNp": {
+          "type": "text",
+          "settings": {
+            "heading": "Made Special",
+            "subtext": "<p>Special crafts for quiet, grounded moments. Free shipping with tracking and a 30-day return policy on every order.</p>"
+          }
+        }
+      },
+      "block_order": [
+        "link_list_Fhdw8K",
+        "text_RP9BNp"
+      ],
+      "settings": {
+        "color_scheme": "scheme-2",
+        "newsletter_enable": false,
+        "newsletter_heading": "Subscribe to our emails",
+        "enable_follow_on_shop": true,
+        "show_social": true,
+        "enable_country_selector": true,
+        "enable_language_selector": true,
+        "payment_enable": true,
+        "show_policy": true,
+        "margin_top": 0,
+        "padding_top": 44,
+        "padding_bottom": 60
+      }
+    }
+  },
+  "order": [
+    "footer"
+  ]
+}

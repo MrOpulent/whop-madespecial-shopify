@@ -1,0 +1,53 @@
+{%- comment -%}
+  t164u: PDP "Which drum?" compare (6-inch and 10-inch pages).
+  Override layer so the protected product files are not re-saved:
+  - circles sit on the same column grid as the table (CSS below, true scale kept)
+  - new names in the header and circle labels
+  - the first column's price comes live from steel-tongue-rain-drum-4-inch (it showed the 6-inch price)
+{%- endcomment -%}
+{%- if template.name == 'product' -%}
+{%- assign msc_p = '' -%}
+{%- if product.handle == 'steel-tongue-rain-drum' -%}{%- assign msc_p = 'pro' -%}{%- elsif product.handle == '10-inch-xl-pro-drum' -%}{%- assign msc_p = 'plus' -%}{%- endif -%}
+{%- if msc_p != '' -%}
+{%- assign msc_9 = all_products['steel-tongue-rain-drum-4-inch'] -%}
+{%- comment -%} t182u: $99.00 struck reference price next to the Pocket price (display only, USD) {%- endcomment -%}
+{%- assign msc_was = '' -%}{%- if msc_9 != blank and cart.currency.iso_code == 'USD' -%}{%- assign msc_cmp = msc_9.compare_at_price | default: 0 -%}{%- if msc_cmp <= msc_9.price -%}{%- assign msc_was = 9900 | money -%}{%- endif -%}{%- endif -%}
+<style>
+#compare .scale{display:grid!important;grid-template-columns:26% 37% 37%;gap:0!important;justify-content:stretch!important;justify-items:center;align-items:end}
+#compare .scale::before{content:"Drawn to scale";grid-column:1;grid-row:1;justify-self:start;align-self:end;padding:0 0 34px 14px;font:600 11px/1.35 var(--font-body-family,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:#7E5F33;max-width:9ch}
+#compare .scale figure{grid-row:1;margin:0;min-width:0;width:100%;justify-self:stretch;display:flex;flex-direction:column;align-items:center;text-align:center}
+#compare .scale figure:nth-of-type(1){grid-column:2}
+#compare .scale figure:nth-of-type(2){grid-column:3}
+#compare .scale svg{display:block;height:auto;max-width:none}
+#compare .scale figcaption{white-space:nowrap}
+#compare table.cmp{table-layout:fixed}
+#compare table.cmp s.ms-was{margin-left:6px;font-weight:400;opacity:.55;white-space:nowrap}
+#compare table.cmp tr > :nth-child(1){width:26%}
+#compare table.cmp tr > :nth-child(2),#compare table.cmp tr > :nth-child(3){width:37%;text-align:center}
+#compare table.cmp tr > :nth-child(1){text-align:left}
+/* true scale: 4 in : 6 in = 72 : 101 px, 4 in : 10 in = 72 : 168 px; shrink both together on narrow screens */
+{%- if msc_p == 'plus' -%}
+#compare .scale figure:nth-of-type(2) svg{width:min(168px,88%)}
+#compare .scale figure:nth-of-type(1) svg{width:min(72px,37.7%)}
+{%- else -%}
+#compare .scale figure:nth-of-type(2) svg{width:min(101px,88%)}
+#compare .scale figure:nth-of-type(1) svg{width:min(72px,62.7%)}
+{%- endif -%}
+@media (max-width:749px){#compare .scale::before{padding-left:8px;font-size:10px;padding-bottom:30px}#compare .scale figcaption{font-size:12px}}
+</style>
+<script>
+(function(){
+  var sec=document.getElementById('compare'); if(!sec) return;
+  var big={{ msc_p | json }}=='plus' ? {n:'The Plus Drum (XL)',s:'Plus (XL)'} : {n:'The Pro Drum (L)',s:'Pro (L)'};
+  var h=sec.querySelector('.sec-head h2'); if(h && /original/i.test(h.textContent)) h.innerHTML='The Pocket Drum, <em>or the '+big.n.replace(/^The /,'').replace(/ \(.*\)$/,'')+'?</em>';
+  var th=sec.querySelectorAll('table.cmp thead th'); if(th.length===3){ th[1].textContent='The Pocket Drum (M)'; th[2].textContent=big.n; }
+  var f=sec.querySelectorAll('.scale figcaption');
+  function cap(el,lab){ if(!el) return; var b=el.querySelector('b'); var notes=(el.textContent.match(/·\s*(\d+ notes)/)||[])[1]; el.innerHTML=''; if(b) el.appendChild(b); el.appendChild(document.createTextNode(lab+(notes?' · '+notes:''))); }
+  cap(f[0],'Pocket (M)'); cap(f[1],big.s);
+  {%- if msc_9 != blank %}
+  sec.querySelectorAll('table.cmp tr').forEach(function(r){ var c=r.children; if(c.length===3 && /^\s*Price\s*$/.test(c[0].textContent)) c[1].innerHTML={{ msc_9.price | money | json }}{% if msc_was != '' %}+' <s class="ms-was">'+{{ msc_was | json }}+'</s>'{% endif %}; });
+  {%- endif %}
+})();
+</script>
+{%- endif -%}
+{%- endif -%}

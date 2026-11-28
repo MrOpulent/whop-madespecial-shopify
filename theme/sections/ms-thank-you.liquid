@@ -1,0 +1,401 @@
+{%- comment -%}
+  MadeSpecial – Thank You page (customers land here after paying on Whop).
+  The gift upsell links straight to a Whop checkout link (section setting),
+  because the theme sends every Shopify checkout to Whop by cart quantity.
+  Visitors without a successful Whop payment in the URL (payment_id / receipt_id = pay_…,
+  status or checkout_status = success) see an "order first" screen instead, and their cart is left alone.
+{%- endcomment -%}
+
+{%- liquid
+  assign p = section.settings.product
+  assign whop = section.settings.whop_link
+  assign show_upsell = false
+  if p != blank and whop != blank
+    assign show_upsell = true
+  endif
+  if p != blank
+    assign gift_img = p.featured_image
+    if p.images.size > 1
+      assign gift_img = p.images[1]
+    endif
+    assign has_compare = false
+    if p.compare_at_price > p.price
+      assign has_compare = true
+      assign save_amt = p.compare_at_price | minus: p.price
+      assign save_pct = save_amt | times: 100 | divided_by: p.compare_at_price
+    endif
+  endif
+-%}
+
+<section
+  class="ms-ty"
+  id="ms-ty-{{ section.id }}"
+  {% if request.design_mode %}data-state="{{ section.settings.editor_state }}"{% endif %}
+>
+  <div class="ms-ty__rain" aria-hidden="true">
+    {%- for i in (1..18) -%}
+      {%- liquid
+        assign left = i | times: 37 | modulo: 100
+        assign delay = i | times: 7 | modulo: 10
+        assign dur = i | modulo: 4 | plus: 4
+      -%}
+      <span style="left:{{ left }}%;animation-delay:-{{ delay }}s;animation-duration:{{ dur }}s;"></span>
+    {%- endfor -%}
+  </div>
+
+  {%- liquid
+    assign shop_url = section.settings.shop_url
+    if shop_url == blank
+      assign main_product = all_products['steel-tongue-rain-drum']
+      if main_product != blank
+        assign shop_url = main_product.url
+      else
+        assign shop_url = routes.all_products_collection_url
+      endif
+    endif
+  -%}
+  <div class="ms-ty__wrap ms-ty__panel" data-ty-panel="none">
+    <div class="ms-ty__empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="72" height="72" focusable="false">
+        <path d="M9 16h30l-2.6 21.5a3 3 0 0 1-3 2.5H14.6a3 3 0 0 1-3-2.5L9 16z" fill="none" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M17 16v-2a7 7 0 0 1 14 0v2" fill="none" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="ms-ty__title">{{ section.settings.empty_heading }}</h1>
+    <div class="ms-ty__sub">{{ section.settings.empty_text }}</div>
+    <a class="ms-ty__cta ms-ty__cta--empty" href="{{ shop_url }}">{{ section.settings.empty_button }}</a>
+    {%- if section.settings.empty_help != blank -%}
+      <p class="ms-ty__empty-help">{{ section.settings.empty_help }}</p>
+    {%- endif -%}
+  </div>
+
+  <div class="ms-ty__wrap ms-ty__panel" data-ty-panel="ok">
+    <div class="ms-ty__check" aria-hidden="true">
+      <svg viewBox="0 0 88 88" width="88" height="88">
+        <circle class="ms-ty__check-circle" cx="44" cy="44" r="40" fill="none" stroke-width="5"/>
+        <path class="ms-ty__check-tick" d="M27 45 l12 12 l23 -25" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <h1 class="ms-ty__title">{{ section.settings.heading }}</h1>
+    <div class="ms-ty__sub">{{ section.settings.subheading }}</div>
+
+    {%- if page.content != blank -%}
+      <div class="ms-ty__page-content rte">{{ page.content }}</div>
+    {%- endif -%}
+
+    <ol class="ms-ty__steps" aria-label="Order progress">
+      <li class="is-done"><span class="ms-ty__dot">✓</span><span>{{ section.settings.step_1 }}</span></li>
+      <li><span class="ms-ty__dot">2</span><span>{{ section.settings.step_2 }}</span></li>
+      <li><span class="ms-ty__dot">3</span><span>{{ section.settings.step_3 }}</span></li>
+      <li><span class="ms-ty__dot">4</span><span>{{ section.settings.step_4 }}</span></li>
+    </ol>
+
+    {%- if show_upsell -%}
+      <div class="ms-ty__card" id="ms-ty-gift">
+        <span class="ms-ty__badge">{{ section.settings.badge }}</span>
+        <h2 class="ms-ty__card-title">
+          {{ section.settings.upsell_heading_prefix }}
+          <span class="ms-ty__recipient" data-ms-recipient>{{ section.settings.recipient_1 }}</span>
+        </h2>
+        <p class="ms-ty__card-sub">{{ section.settings.upsell_text }}</p>
+
+        <div class="ms-ty__chips" role="group" aria-label="Who is the gift for?">
+          {%- assign recipients = section.settings.recipient_1 | append: '|' | append: section.settings.recipient_2 | append: '|' | append: section.settings.recipient_3 | append: '|' | append: section.settings.recipient_4 | split: '|' -%}
+          {%- for r in recipients -%}
+            {%- if r != blank -%}
+              <button type="button" class="ms-ty__chip{% if forloop.first %} is-active{% endif %}" data-ms-chip="{{ r | escape }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ r }}</button>
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+
+        {%- if gift_img != blank -%}
+          <div class="ms-ty__media">
+            <img
+              data-ms-main
+              src="{{ gift_img | image_url: width: 900 }}"
+              srcset="{{ gift_img | image_url: width: 450 }} 450w, {{ gift_img | image_url: width: 900 }} 900w"
+              sizes="(min-width: 750px) 420px, 85vw"
+              width="900" height="900"
+              alt="{{ gift_img.alt | default: p.title | escape }}"
+              loading="lazy">
+          </div>
+          {%- if p.images.size > 1 -%}
+            <div class="ms-ty__thumbs">
+              {%- for img in p.images limit: 4 -%}
+                <button type="button" class="ms-ty__thumb{% if img.id == gift_img.id %} is-active{% endif %}" data-ms-thumb="{{ img | image_url: width: 900 }}" aria-label="Show image {{ forloop.index }}">
+                  <img src="{{ img | image_url: width: 140 }}" width="70" height="70" alt="" loading="lazy">
+                </button>
+              {%- endfor -%}
+            </div>
+          {%- endif -%}
+        {%- endif -%}
+
+        <p class="ms-ty__product">{{ p.title }}</p>
+
+        <div class="ms-ty__price">
+          {%- if has_compare -%}
+            <s class="ms-ty__compare">{{ p.compare_at_price | money }}</s>
+          {%- endif -%}
+          <span class="ms-ty__now">{{ p.price | money }}</span>
+          {%- if has_compare -%}
+            <span class="ms-ty__save">Save {{ save_pct }}%</span>
+          {%- endif -%}
+        </div>
+
+        {%- if section.settings.show_description and p.description != blank -%}
+          <div class="ms-ty__desc">{{ p.description }}</div>
+        {%- endif -%}
+
+        <a class="ms-ty__cta" href="{{ whop }}">{{ section.settings.cta_label }}</a>
+        <p class="ms-ty__fine">{{ section.settings.fine_print }}</p>
+
+        <ul class="ms-ty__trust">
+          {%- if section.settings.trust_1 != blank -%}<li>{{ section.settings.trust_1 }}</li>{%- endif -%}
+          {%- if section.settings.trust_2 != blank -%}<li>{{ section.settings.trust_2 }}</li>{%- endif -%}
+          {%- if section.settings.trust_3 != blank -%}<li>{{ section.settings.trust_3 }}</li>{%- endif -%}
+        </ul>
+
+        <a class="ms-ty__nothanks" href="{{ routes.root_url }}">{{ section.settings.decline_label }}</a>
+      </div>
+    {%- elsif request.design_mode -%}
+      <div class="ms-ty__notice">
+        The gift upsell is hidden. Pick a product and paste the Whop checkout link in this section's settings to show it.
+      </div>
+    {%- endif -%}
+
+    <div class="ms-ty__closing">
+      <p>{{ section.settings.help_text }}</p>
+      <a class="ms-ty__secondary" href="{{ routes.root_url }}">{{ section.settings.home_label }}</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  #ms-ty-{{ section.id }} {
+    --ms-accent: var(--color-button);
+    --ms-accent-text: var(--color-button-text);
+    --ms-fg: var(--color-foreground);
+    --ms-bg: var(--color-background);
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+    padding: {{ section.settings.padding_top }}px 1.6rem {{ section.settings.padding_bottom }}px;
+    background: linear-gradient(180deg, rgba(var(--ms-accent), .10) 0%, rgb(var(--ms-bg)) 38rem);
+  }
+  #ms-ty-{{ section.id }} .ms-ty__wrap { position: relative; z-index: 1; max-width: 72rem; margin: 0 auto; }
+
+  /* Only one panel shows: "ok" after a successful Whop payment, "none" otherwise */
+  #ms-ty-{{ section.id }} .ms-ty__panel { display: none; }
+  #ms-ty-{{ section.id }}[data-state="ok"] [data-ty-panel="ok"],
+  #ms-ty-{{ section.id }}[data-state="none"] [data-ty-panel="none"] { display: block; }
+  #ms-ty-{{ section.id }}[data-state="none"] .ms-ty__rain { display: none; }
+  #ms-ty-{{ section.id }} .ms-ty__empty-icon { display: inline-flex; margin-bottom: 1.6rem; stroke: rgba(var(--ms-fg), .55); }
+  #ms-ty-{{ section.id }} .ms-ty__cta--empty { margin-top: 3.2rem; }
+  #ms-ty-{{ section.id }} .ms-ty__empty-help { margin: 2rem auto 0; max-width: 46rem; font-size: 1.4rem; color: rgba(var(--ms-fg), .65); }
+
+  /* Rain: the one signature motion, tied to the product */
+  #ms-ty-{{ section.id }} .ms-ty__rain { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  #ms-ty-{{ section.id }} .ms-ty__rain span {
+    position: absolute; top: -12rem; width: 2px; height: 7rem; border-radius: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(var(--ms-accent), .35));
+    animation: msTyFall linear infinite;
+  }
+  @keyframes msTyFall { to { transform: translateY(120vh); } }
+
+  /* Confirmation check draws itself once on load */
+  #ms-ty-{{ section.id }} .ms-ty__check { display: inline-flex; margin-bottom: 1.6rem; }
+  #ms-ty-{{ section.id }} .ms-ty__check-circle { stroke: rgb(var(--ms-accent)); stroke-dasharray: 252; stroke-dashoffset: 252; animation: msTyDraw .9s ease-out .1s forwards; }
+  #ms-ty-{{ section.id }} .ms-ty__check-tick { stroke: rgb(var(--ms-accent)); stroke-dasharray: 60; stroke-dashoffset: 60; animation: msTyDraw .5s ease-out .9s forwards; }
+  @keyframes msTyDraw { to { stroke-dashoffset: 0; } }
+
+  #ms-ty-{{ section.id }} .ms-ty__title { margin: 0 auto 1.4rem; max-width: 18ch; font-family: var(--font-heading-family); font-weight: var(--font-heading-weight); font-size: clamp(3rem, 6vw, 5rem); line-height: 1.12; color: rgb(var(--ms-fg)); letter-spacing: 0; }
+  #ms-ty-{{ section.id }} .ms-ty__sub { margin: 0 auto; max-width: 52rem; font-size: 1.7rem; line-height: 1.6; color: rgba(var(--ms-fg), .78); }
+  #ms-ty-{{ section.id }} .ms-ty__sub p { margin: 0; }
+  #ms-ty-{{ section.id }} .ms-ty__page-content { max-width: 52rem; margin: 2rem auto 0; }
+
+  /* Order progress (a real sequence, so numbered) */
+  #ms-ty-{{ section.id }} .ms-ty__steps { list-style: none; padding: 0; margin: 3.6rem auto 0; max-width: 64rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; position: relative; }
+  #ms-ty-{{ section.id }} .ms-ty__steps::before { content: ""; position: absolute; top: 1.8rem; left: 12.5%; right: 12.5%; height: 2px; background: rgba(var(--ms-fg), .12); }
+  #ms-ty-{{ section.id }} .ms-ty__steps li { position: relative; display: flex; flex-direction: column; align-items: center; gap: .8rem; font-size: 1.35rem; line-height: 1.35; color: rgba(var(--ms-fg), .7); }
+  #ms-ty-{{ section.id }} .ms-ty__dot { width: 3.6rem; height: 3.6rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 1.4rem; background: rgb(var(--ms-bg)); border: 2px solid rgba(var(--ms-fg), .18); color: rgba(var(--ms-fg), .55); position: relative; z-index: 1; }
+  #ms-ty-{{ section.id }} .ms-ty__steps li.is-done { color: rgb(var(--ms-fg)); font-weight: 600; }
+  #ms-ty-{{ section.id }} .ms-ty__steps li.is-done .ms-ty__dot { background: rgb(var(--ms-accent)); border-color: rgb(var(--ms-accent)); color: rgb(var(--ms-accent-text)); box-shadow: 0 0 0 .6rem rgba(var(--ms-accent), .15); }
+
+  /* Gift card */
+  #ms-ty-{{ section.id }} .ms-ty__card { position: relative; max-width: 56rem; margin: 5.6rem auto 0; padding: 4.4rem 2.4rem 3.2rem; border-radius: 2.4rem; background: rgb(var(--ms-bg)); border: 1px solid rgba(var(--ms-accent), .3); box-shadow: 0 2.4rem 6rem rgba(var(--ms-fg), .10); }
+  #ms-ty-{{ section.id }} .ms-ty__badge { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; padding: .8rem 1.8rem; border-radius: 99rem; font-size: 1.4rem; font-weight: 700; background: rgb(var(--ms-accent)); color: rgb(var(--ms-accent-text)); }
+  #ms-ty-{{ section.id }} .ms-ty__card-title { margin: 0 0 .8rem; font-family: var(--font-heading-family); font-size: clamp(2.4rem, 4.5vw, 3.2rem); line-height: 1.2; color: rgb(var(--ms-fg)); }
+  #ms-ty-{{ section.id }} .ms-ty__recipient { display: inline-block; text-decoration: underline; text-decoration-color: rgb(var(--ms-accent)); text-decoration-thickness: .3rem; text-underline-offset: .5rem; transition: opacity .2s, transform .2s; }
+  #ms-ty-{{ section.id }} .ms-ty__recipient.is-swap { opacity: 0; transform: translateY(.6rem); }
+  #ms-ty-{{ section.id }} .ms-ty__card-sub { margin: 0 auto 1.8rem; max-width: 42rem; color: rgba(var(--ms-fg), .75); }
+
+  #ms-ty-{{ section.id }} .ms-ty__chips { display: flex; flex-wrap: wrap; justify-content: center; gap: .8rem; margin-bottom: 2.2rem; }
+  #ms-ty-{{ section.id }} .ms-ty__chip { cursor: pointer; padding: .8rem 1.6rem; border-radius: 99rem; font: inherit; font-size: 1.4rem; background: transparent; color: rgb(var(--ms-fg)); border: 1.5px solid rgba(var(--ms-fg), .2); transition: border-color .2s, background-color .2s; }
+  #ms-ty-{{ section.id }} .ms-ty__chip:hover { border-color: rgb(var(--ms-accent)); }
+  #ms-ty-{{ section.id }} .ms-ty__chip.is-active { background: rgba(var(--ms-accent), .12); border-color: rgb(var(--ms-accent)); font-weight: 600; }
+
+  #ms-ty-{{ section.id }} .ms-ty__media { max-width: 42rem; margin: 0 auto; border-radius: 1.8rem; overflow: hidden; aspect-ratio: 1 / 1; background: rgba(var(--ms-fg), .04); }
+  #ms-ty-{{ section.id }} .ms-ty__media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .25s; }
+  #ms-ty-{{ section.id }} .ms-ty__thumbs { display: flex; justify-content: center; gap: .8rem; margin-top: 1.2rem; }
+  #ms-ty-{{ section.id }} .ms-ty__thumb { padding: 0; cursor: pointer; width: 6.4rem; height: 6.4rem; border-radius: 1rem; overflow: hidden; border: 2px solid transparent; background: none; opacity: .65; transition: opacity .2s, border-color .2s; }
+  #ms-ty-{{ section.id }} .ms-ty__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #ms-ty-{{ section.id }} .ms-ty__thumb.is-active, #ms-ty-{{ section.id }} .ms-ty__thumb:hover { border-color: rgb(var(--ms-accent)); opacity: 1; }
+
+  #ms-ty-{{ section.id }} .ms-ty__product { margin: 2rem 0 .6rem; font-weight: 700; font-size: 1.8rem; color: rgb(var(--ms-fg)); }
+  #ms-ty-{{ section.id }} .ms-ty__price { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.6rem; }
+  #ms-ty-{{ section.id }} .ms-ty__compare { font-size: 1.8rem; color: rgba(var(--ms-fg), .5); }
+  #ms-ty-{{ section.id }} .ms-ty__now { font-size: 3.2rem; font-weight: 800; color: rgb(var(--ms-fg)); }
+  #ms-ty-{{ section.id }} .ms-ty__save { padding: .4rem 1rem; border-radius: .8rem; font-size: 1.3rem; font-weight: 700; background: rgba(var(--ms-accent), .14); color: rgb(var(--ms-fg)); }
+
+  #ms-ty-{{ section.id }} .ms-ty__desc { max-width: 40rem; margin: 0 auto 2.4rem; font-size: 1.5rem; line-height: 1.55; color: rgba(var(--ms-fg), .8); }
+  #ms-ty-{{ section.id }} .ms-ty__desc p { margin: 0 0 .6rem; }
+
+  #ms-ty-{{ section.id }} .ms-ty__cta { display: block; width: 100%; max-width: 42rem; margin: 0 auto; padding: 1.9rem 2.4rem; border-radius: max(var(--buttons-radius), 1.2rem); background: rgb(var(--ms-accent)); color: rgb(var(--ms-accent-text)); font-size: 1.8rem; font-weight: 700; text-decoration: none; box-shadow: 0 1.2rem 3rem rgba(var(--ms-accent), .35); transition: transform .2s, box-shadow .2s; }
+  #ms-ty-{{ section.id }} .ms-ty__cta:hover { transform: translateY(-2px); box-shadow: 0 1.6rem 3.6rem rgba(var(--ms-accent), .45); }
+  #ms-ty-{{ section.id }} .ms-ty__cta:focus-visible, #ms-ty-{{ section.id }} .ms-ty__chip:focus-visible, #ms-ty-{{ section.id }} .ms-ty__thumb:focus-visible { outline: 3px solid rgb(var(--ms-fg)); outline-offset: 3px; }
+  #ms-ty-{{ section.id }} .ms-ty__fine { margin: 1rem 0 0; font-size: 1.3rem; color: rgba(var(--ms-fg), .6); }
+
+  #ms-ty-{{ section.id }} .ms-ty__trust { list-style: none; padding: 0; margin: 2rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: .8rem 2rem; font-size: 1.35rem; color: rgba(var(--ms-fg), .75); }
+  #ms-ty-{{ section.id }} .ms-ty__trust li::before { content: "✓"; margin-right: .5rem; color: rgb(var(--ms-accent)); font-weight: 700; }
+  #ms-ty-{{ section.id }} .ms-ty__nothanks { display: inline-block; margin-top: 2rem; font-size: 1.35rem; color: rgba(var(--ms-fg), .55); text-decoration: underline; text-underline-offset: .3rem; }
+
+  #ms-ty-{{ section.id }} .ms-ty__notice { max-width: 56rem; margin: 4rem auto 0; padding: 1.6rem; border: 2px dashed rgba(var(--ms-fg), .3); border-radius: 1.2rem; font-size: 1.4rem; }
+
+  #ms-ty-{{ section.id }} .ms-ty__closing { margin-top: 4.8rem; }
+  #ms-ty-{{ section.id }} .ms-ty__closing p { margin: 0 auto 1.6rem; max-width: 46rem; color: rgba(var(--ms-fg), .7); }
+  #ms-ty-{{ section.id }} .ms-ty__secondary { display: inline-block; padding: 1.2rem 2.8rem; border-radius: max(var(--buttons-radius), 1.2rem); border: 1.5px solid rgb(var(--ms-fg)); color: rgb(var(--ms-fg)); text-decoration: none; font-weight: 600; transition: background-color .2s, color .2s; }
+  #ms-ty-{{ section.id }} .ms-ty__secondary:hover { background: rgb(var(--ms-fg)); color: rgb(var(--ms-bg)); }
+
+  @media screen and (max-width: 749px) {
+    #ms-ty-{{ section.id }} { padding-top: {{ section.settings.padding_top | times: 0.6 | round }}px; }
+    #ms-ty-{{ section.id }} .ms-ty__steps { grid-template-columns: repeat(2, 1fr); row-gap: 2rem; }
+    #ms-ty-{{ section.id }} .ms-ty__steps::before { display: none; }
+    #ms-ty-{{ section.id }} .ms-ty__card { padding: 4rem 1.6rem 2.8rem; margin-top: 4.8rem; }
+    #ms-ty-{{ section.id }} .ms-ty__badge { font-size: 1.25rem; padding: .7rem 1.4rem; }
+    #ms-ty-{{ section.id }} .ms-ty__sub { font-size: 1.55rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #ms-ty-{{ section.id }} .ms-ty__rain { display: none; }
+    #ms-ty-{{ section.id }} *, #ms-ty-{{ section.id }} *::before, #ms-ty-{{ section.id }} *::after { animation: none !important; transition: none !important; }
+    #ms-ty-{{ section.id }} .ms-ty__check-circle, #ms-ty-{{ section.id }} .ms-ty__check-tick { stroke-dashoffset: 0; }
+  }
+</style>
+<noscript><style>#ms-ty-{{ section.id }} [data-ty-panel="ok"] { display: block; }</style></noscript>
+
+<script>
+  (function () {
+    var root = document.getElementById('ms-ty-{{ section.id }}');
+    if (!root) return;
+    var designMode = !!(window.Shopify && Shopify.designMode);
+
+    // Whop sends: ?receipt_id=pay_…&payment_id=pay_…&checkout_status=success&status=success&state_id=chs_…
+    var q = new URLSearchParams(window.location.search);
+    var payId = q.get('payment_id') || q.get('receipt_id') || '';
+    var paid = /^pay_[A-Za-z0-9]{6,}$/.test(payId) &&
+      (q.get('status') === 'success' || q.get('checkout_status') === 'success');
+
+    if (!designMode) root.setAttribute('data-state', paid ? 'ok' : 'none');
+    if (!paid && !designMode) return; // no valid payment: show "order first", leave the cart untouched
+
+    // Gift recipient chips: swap the name in the heading
+    var label = root.querySelector('[data-ms-recipient]');
+    root.querySelectorAll('[data-ms-chip]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        root.querySelectorAll('[data-ms-chip]').forEach(function (c) {
+          c.classList.remove('is-active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        chip.classList.add('is-active');
+        chip.setAttribute('aria-pressed', 'true');
+        if (!label) return;
+        label.classList.add('is-swap');
+        setTimeout(function () {
+          label.textContent = chip.getAttribute('data-ms-chip');
+          label.classList.remove('is-swap');
+        }, 180);
+      });
+    });
+
+    // Image thumbnails
+    var main = root.querySelector('[data-ms-main]');
+    root.querySelectorAll('[data-ms-thumb]').forEach(function (t) {
+      t.addEventListener('click', function () {
+        if (!main) return;
+        main.removeAttribute('srcset');
+        main.style.opacity = 0;
+        setTimeout(function () {
+          main.src = t.getAttribute('data-ms-thumb');
+          main.style.opacity = 1;
+        }, 150);
+        root.querySelectorAll('[data-ms-thumb]').forEach(function (x) { x.classList.remove('is-active'); });
+        t.classList.add('is-active');
+      });
+    });
+
+    {%- if section.settings.clear_cart %}
+    // The order was paid on Whop, so empty the leftover Shopify cart
+    if (paid && !designMode) {
+      fetch('{{ routes.cart_clear_url }}.js', { method: 'POST', credentials: 'same-origin' }).catch(function () {});
+    }
+    {%- endif %}
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "MS Thank you",
+  "tag": "div",
+  "class": "section",
+  "settings": [
+    { "type": "header", "content": "Confirmation" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Thank you! Your rain drum is on its way" },
+    { "type": "richtext", "id": "subheading", "label": "Subheading", "default": "<p>Your payment went through and your order is in. Your receipt is in your email.</p>" },
+    { "type": "text", "id": "step_1", "label": "Step 1 (done)", "default": "Order confirmed" },
+    { "type": "text", "id": "step_2", "label": "Step 2", "default": "Quality-checked before dispatch" },
+    { "type": "text", "id": "step_3", "label": "Step 3", "default": "Packed with care" },
+    { "type": "text", "id": "step_4", "label": "Step 4", "default": "On its way to you" },
+
+    { "type": "header", "content": "Gift upsell" },
+    { "type": "product", "id": "product", "label": "Upsell product" },
+    { "type": "url", "id": "whop_link", "label": "Whop checkout link", "info": "Required. The upsell stays hidden until this is set. Use a Whop plan priced the same as the product." },
+    { "type": "text", "id": "badge", "label": "Badge", "default": "Thank-you gift price" },
+    { "type": "text", "id": "upsell_heading_prefix", "label": "Heading (before recipient)", "default": "Send one to" },
+    { "type": "text", "id": "recipient_1", "label": "Recipient chip 1", "default": "the grandkids" },
+    { "type": "text", "id": "recipient_2", "label": "Recipient chip 2", "default": "Mom" },
+    { "type": "text", "id": "recipient_3", "label": "Recipient chip 3", "default": "a friend" },
+    { "type": "text", "id": "recipient_4", "label": "Recipient chip 4", "default": "a neighbor" },
+    { "type": "text", "id": "upsell_text", "label": "Text", "default": "A gift they'll hear every time it rains. One more drum, at a price only for customers." },
+    { "type": "checkbox", "id": "show_description", "label": "Show product description", "default": true },
+    { "type": "text", "id": "cta_label", "label": "Button label", "default": "Add a gift drum" },
+    { "type": "text", "id": "fine_print", "label": "Fine print", "default": "One-time secure payment. Ships separately from your first order." },
+    { "type": "text", "id": "trust_1", "label": "Trust point 1", "default": "Precision-cut steel tongues" },
+    { "type": "text", "id": "trust_2", "label": "Trust point 2", "default": "Weather-hardened steel" },
+    { "type": "text", "id": "trust_3", "label": "Trust point 3", "default": "Secure checkout" },
+    { "type": "text", "id": "decline_label", "label": "Decline link", "default": "No thanks, I'm all set" },
+
+    { "type": "header", "content": "Closing" },
+    { "type": "text", "id": "help_text", "label": "Help text", "default": "Questions about your order? Reply to your confirmation email and we'll help." },
+    { "type": "text", "id": "home_label", "label": "Home button", "default": "Back to the store" },
+
+    { "type": "header", "content": "No payment found screen" },
+    { "type": "paragraph", "content": "Shown when someone opens this page without a successful Whop payment in the URL." },
+    { "type": "text", "id": "empty_heading", "label": "Heading", "default": "Order your rain drum first" },
+    { "type": "richtext", "id": "empty_text", "label": "Text", "default": "<p>This page confirms your order after payment. We couldn't find a completed payment here yet.</p>" },
+    { "type": "text", "id": "empty_button", "label": "Button label", "default": "Shop the rain drum" },
+    { "type": "url", "id": "shop_url", "label": "Button link", "info": "Defaults to the Steel Tongue Rain Drum product page if left empty." },
+    { "type": "text", "id": "empty_help", "label": "Help line", "default": "Already paid? Check your email for your Whop receipt, or contact us and we'll help." },
+    { "type": "select", "id": "editor_state", "label": "Preview in theme editor", "options": [
+      { "value": "ok", "label": "Thank you screen" },
+      { "value": "none", "label": "No payment found screen" }
+    ], "default": "ok" },
+
+    { "type": "header", "content": "Behavior and spacing" },
+    { "type": "checkbox", "id": "clear_cart", "label": "Empty Shopify cart on page load", "info": "Recommended: the order was paid on Whop, so items left in the Shopify cart would confuse customers.", "default": false },
+    { "type": "range", "id": "padding_top", "label": "Top padding", "min": 0, "max": 120, "step": 4, "unit": "px", "default": 72 },
+    { "type": "range", "id": "padding_bottom", "label": "Bottom padding", "min": 0, "max": 120, "step": 4, "unit": "px", "default": 80 }
+  ],
+  "presets": [{ "name": "MS Thank you" }]
+}
+{% endschema %}

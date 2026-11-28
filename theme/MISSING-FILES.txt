@@ -1,0 +1,47 @@
+Live theme files not in this snapshot (md5-verified export of theme 190039490742)
+These still need to be pulled from Shopify (connector payload limits).
+They can be filled from Online Store > Themes > 6-inch L preview (copy of AR Final, 27 Nov) > Download theme file,
+or a follow-up export. 7 of 27 parts of a remaining-files archive are already staged under /workspace/cro/github-push/meta/c3parts20/.
+
+locales/cs.schema.json
+locales/da.schema.json
+locales/de.schema.json
+locales/en.default.schema.json
+locales/es.schema.json
+locales/fi.schema.json
+locales/fr.schema.json
+locales/it.schema.json
+locales/ja.schema.json
+locales/ko.schema.json
+locales/nb.schema.json
+locales/nl.schema.json
+locales/pl.schema.json
+locales/pt-BR.schema.json
+locales/pt-PT.schema.json
+locales/sv.schema.json
+locales/th.schema.json
+locales/tr.schema.json
+locales/vi.schema.json
+locales/zh-CN.schema.json
+locales/zh-TW.schema.json
+sections/bky-video-testimonials.liquid
+sections/blocky-main-product.liquid
+sections/blocky-testimonials.liquid
+sections/featured-product.liquid
+sections/main-product.liquid
+templates/product.au-margaret.json
+templates/product.ca-margaret.json
+templates/product.evelyn.json
+templates/product.margar-15852-template.json
+templates/product.margar-43263-template.json
+templates/product.margaret.json
+templates/product.marger-47657-d-template.json
+templates/product.marger-47657-d-usa-templa.json
+templates/product.maria.json
+templates/product.martha-73435-template.json
+templates/product.nz-margaret.json
+templates/product.usa-margaret-es.json
+templates/product.usa-margaret.json
+templates/product.v2.json
+templates/product.xl-pro-rainsong.json
+templates/product.xl-pro.json

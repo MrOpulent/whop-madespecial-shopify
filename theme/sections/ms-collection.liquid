@@ -1,0 +1,165 @@
+{%- comment -%}
+  MadeSpecial collection landing page (ms-collection), modelled on a traffic landing page rather than a plain grid.
+  Works as a collection template (collection.ms.json) or a page template (page.collection-ms.json): the three drums are read by handle.
+  part "top": slim header + promises, the three drums, gift finder, comparison, 5 reasons, what's in the box, customer videos, reviews heading
+  part "bottom": guarantee, FAQ, final call to action, mobile sticky bar
+{%- endcomment -%}
+{%- liquid
+  assign p9 = all_products['steel-tongue-rain-drum-4-inch']
+  assign p6 = all_products['steel-tongue-rain-drum']
+  assign pxl = all_products['10-inch-xl-pro-drum']
+  assign xl_img = pxl.media[2].preview_image | default: pxl.featured_image
+  assign maxoff = 0
+  for pp in (1..3)
+    case pp
+      when 1
+        assign q = p9.selected_or_first_available_variant
+      when 2
+        assign q = p6.selected_or_first_available_variant
+      else
+        assign q = pxl.selected_or_first_available_variant
+    endcase
+    if q.compare_at_price > q.price
+      assign o = q.compare_at_price | minus: q.price | times: 100.0 | divided_by: q.compare_at_price | floor
+      if o > maxoff
+        assign maxoff = o
+      endif
+    endif
+  endfor
+-%}
+{%- if section.settings.part == 'top' -%}
+{% render 'ms-head' %}
+<div class="ms ms-page ms-coll">
+  <header class="chead">
+    <div class="wrap">
+      <p class="k">{% if maxoff > 0 %}This Christmas · save up to {{ maxoff }}%{% else %}This Christmas{% endif %}</p>
+      <h1>The rain drum <em>for everyone on your list.</em></h1>
+      <p class="lede">Three hand-tuned steel drums that play themselves when it rains. Pick by who it’s for: we’ll help.</p>
+      {% render 'ms-rating', p9: p9, p6: p6, pxl: pxl %}
+      <ul class="ticks3" style="margin-top:14px">
+        <li>{% render 'ms-ic', i: 'check', s: 17 %}Free tracked shipping</li>
+        <li>{% render 'ms-ic', i: 'check', s: 17 %}30-day money-back guarantee</li>
+        <li>{% render 'ms-ic', i: 'check', s: 17 %}Ship straight to them</li>
+      </ul>
+    </div>
+  </header>
+
+  <section class="sec" id="ms-shop" style="padding-top:12px;padding-bottom:56px">
+    <div class="wrap">
+      <div class="grid3" data-sticky-after>
+        {% render 'ms-card', p: p9, badge: 'Stocking filler', name: 'The Pocket Drum (M)', size: '4-inch · 9 notes', best: 'grandkids, friends and stockings', t1: 'Plays itself in the rain', t2: 'Nine notes in one scale: no wrong note', t3: 'Mallet included for dry days', cta: 'See the Pocket Drum' %}
+        {% render 'ms-card', p: p6, ribbon: 'Our main gift', badge: 'New', name: 'The Pro Drum (L)', size: '6-inch · 11 notes', best: 'Mom, Grandma and the main gift', t1: 'Eleven numbered notes and a guide book', t2: 'Soft mallets: a light tap is enough', t3: '6 free extras in the box', extra: 'Sets of 2, 3 or 4 save more on the next page.', cta: 'See the Pro Drum', feat: true %}
+        {% render 'ms-card', p: pxl, img: xl_img, badge: 'Biggest sound', name: 'The Plus Drum (XL)', size: '10-inch · 11 notes', best: 'garden lovers, or a gift to yourself', t1: 'Our deepest, longest ring', t2: 'Padded carrying bag included', t3: '7 free extras in the box', cta: 'See the Plus Drum' %}
+      </div>
+      <div class="sets" data-rv>{% render 'ms-ic', i: 'gift', s: 20 %}<span><b>Buying for more than one?</b> Choose “Keep one, give one” or a family set on the drum’s page. Every drum comes with its own free extras.</span></div>
+    </div>
+  </section>
+
+  {% render 'ms-finder', p9: p9, p6: p6, pxl: pxl, uid: 'cf' %}
+
+  <section class="sec" id="ms-compare">
+    <div class="wrap">
+      <div class="sec-head" data-rv><p class="k">Side by side</p><h2>Which rain drum <em>should you choose?</em></h2></div>
+      <div class="sizes" aria-label="Drawn to scale: The Pocket Drum (M) 4-inch, The Pro Drum (L) 6-inch, The Plus Drum (XL) 10-inch" data-rv>
+        <p class="sz-note" aria-hidden="true">Drawn<br>to scale</p>
+        <figure class="sz-m"><svg viewBox="0 0 58 58" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="29" cy="29" r="27.5"/><circle cx="29" cy="29" r="6" opacity=".6"/></svg><figcaption><b>4 in</b>Pocket (M)</figcaption></figure>
+        <figure class="sz-l"><svg viewBox="0 0 86 86" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="43" cy="43" r="41.5"/><circle cx="43" cy="43" r="9" opacity=".6"/></svg><figcaption><b>6 in</b>Pro (L)</figcaption></figure>
+        <figure class="sz-xl"><svg viewBox="0 0 142 142" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="71" cy="71" r="69.5"/><circle cx="71" cy="71" r="15" opacity=".6"/></svg><figcaption><b>10 in</b>Plus (XL)</figcaption></figure>
+      </div>
+      <div class="cmpw" data-rv>
+        <table class="cmp">
+          <thead><tr><th scope="col"><span class="visually-hidden">Feature</span></th>
+            <th scope="col">{{ p9.featured_image | image_url: width: 160 | image_tag: loading: 'lazy', alt: '' }}The Pocket Drum (M)<small>Stocking filler</small></th>
+            <th scope="col" class="hl">{{ p6.featured_image | image_url: width: 160 | image_tag: loading: 'lazy', alt: '' }}The Pro Drum (L)<small>Our main gift</small></th>
+            <th scope="col">{{ xl_img | image_url: width: 160 | image_tag: loading: 'lazy', alt: '' }}The Plus Drum (XL)<small>Biggest sound</small></th></tr></thead>
+          <tbody>
+            <tr><td>Size</td><td class="num">4-inch</td><td class="hl num">6-inch</td><td class="num">10-inch</td></tr>
+            <tr><td>Notes</td><td class="num">9</td><td class="hl num">11, numbered</td><td class="num">11, numbered</td></tr>
+            <tr><td>Sound</td><td>Bright and light</td><td class="hl">Fuller, two more notes</td><td>Deepest, longest ring</td></tr>
+            <tr><td>Plays in the rain</td><td class="yes">{% render 'ms-ic', i: 'circlecheck', s: 20 %}</td><td class="hl yes">{% render 'ms-ic', i: 'circlecheck', s: 20 %}</td><td class="yes">{% render 'ms-ic', i: 'circlecheck', s: 20 %}</td></tr>
+            <tr><td>In the box</td><td>Mallet</td><td class="hl">6 free extras, incl. guide book</td><td>7 free extras, incl. padded bag</td></tr>
+            <tr><td>Best for</td><td>Grandkids, friends, stockings</td><td class="hl">Mom, Grandma</td><td>Garden lovers, or you</td></tr>
+            <tr><td>Price</td><td>{% render 'ms-price', p: p9, hide_off: true %}</td><td class="hl">{% render 'ms-price', p: p6, hide_off: true %}</td><td>{% render 'ms-price', p: pxl, hide_off: true %}</td></tr>
+            <tr><td></td><td><a class="go" href="{{ p9.url }}" aria-label="Shop The Pocket Drum (M)">Shop Now</a></td><td class="hl"><a class="go" href="{{ p6.url }}" aria-label="Shop The Pro Drum (L)">Shop Now</a></td><td><a class="go" href="{{ pxl.url }}" aria-label="Shop The Plus Drum (XL)">Shop Now</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="ms-reasons" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head" data-rv><p class="k">The gift guide</p><h2>5 reasons it’s the easiest gift <em>on your list.</em></h2></div>
+      <div class="reasons">
+        {%- assign rs = 'rainsong-porch-rain.jpg~The drum on a garden table in light rain beside a mug of tea~It plays itself when it rains.~Set it on the porch rail or a garden table. Steady rain lands on the tuned notes and turns into a soft, bell-like melody.|rainsong-kit-book.jpg~The numbered guide book, open~No lessons. No wrong notes.~Every note sits in one scale, so nothing sounds wrong. On the 6-inch and 10-inch, the guide book writes songs as numbers: tap them in order.|rainsong-kit-mallets.jpg~A pair of soft-headed mallets~Gentle on older hands.~The notes are wide and numbered, and a light tap with the soft mallet or a fingertip is enough.|rainsong-flatlay-keep-give.jpg~Two rain drums and their extras laid out with gift boxes~It arrives ready to give.~Free extras in the box, free tracked shipping, and you can send it straight to their door: just add their address at checkout.|rainsong-hands-gift.jpg~Hands passing a wrapped gift box~Thirty days to decide.~If they don’t love it, return it within 30 days of delivery for a full refund of the item price.' | split: '|' -%}
+        {%- for r in rs -%}{%- assign f = r | split: '~' -%}
+        <article class="reason" data-rv>
+          <div class="ph"><img src="{{ f[0] | file_img_url: '900x' }}" alt="{{ f[1] }}" width="900" height="675" loading="lazy" decoding="async"></div>
+          <div class="tx"><span class="no num">{{ forloop.index }}</span><h3>{{ f[2] }}</h3><p>{{ f[3] }}</p></div>
+        </article>
+        {%- endfor -%}
+      </div>
+      <p style="text-align:center;margin:32px 0 0"><a class="btn" href="#ms-shop" data-scroll="ms-shop">Choose your drum {% render 'ms-ic', i: 'arrow', s: 18 %}</a></p>
+    </div>
+  </section>
+
+  <section class="sec band" id="ms-kit">
+    <div class="wrap kit">
+      <div class="ph kitv" data-rv><video class="kitv__v" data-auto data-src="https://cdn.shopify.com/videos/c/vp/ff33bb7fbec041b194bd2078743b41c7/ff33bb7fbec041b194bd2078743b41c7.HD-1080p-2.5Mbps-102989583.mp4" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="none" poster="{{ 'rainsong6-kit-package-v2.jpg' | file_img_url: '1100x' }}" width="1080" height="1080" aria-label="Unboxing the Pro Drum (L) kit: the drum and its six free extras"></video></div>
+      <div data-rv>
+        <p class="k">What’s in the box</p>
+        <h2>One drum. <em>Six extras, free.</em></h2>
+        <p class="lede" style="margin-top:14px">Every Pro Drum (L) kit includes:</p>
+        <ul style="color:var(--ink)">
+          <li>{% render 'ms-ic', i: 'gift', s: 18 %}Numbered guide book</li>
+          <li>{% render 'ms-ic', i: 'gift', s: 18 %}2-in-1 mallets</li>
+          <li>{% render 'ms-ic', i: 'gift', s: 18 %}2 mallet rests</li>
+          <li>{% render 'ms-ic', i: 'gift', s: 18 %}Finger picks</li>
+          <li>{% render 'ms-ic', i: 'gift', s: 18 %}Number stickers</li>
+          <li>{% render 'ms-ic', i: 'gift', s: 18 %}Travel bag</li>
+        </ul>
+        <p class="note" style="color:rgba(247,243,236,.7)">The Plus Drum (XL) comes with seven extras, including a padded carrying bag. The Pocket Drum (M) comes with a mallet.</p>
+        <a class="btn" href="{{ p6.url }}">See the Pro Drum {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+      </div>
+    </div>
+  </section>
+
+  {% render 'ms-ugc' %}
+
+  <section class="sec" id="ms-reviews" style="padding-bottom:20px">
+    <div class="wrap"><div class="sec-head" style="margin-bottom:0" data-rv><p class="k">Reviews</p><h2>From people <em>who’ve heard it.</em></h2>{% render 'ms-rating', p9: p9, p6: p6, pxl: pxl %}</div></div>
+  </section>
+</div>
+<style>.ms-coll #ms-reviews .rate{justify-content:center;margin-top:14px}.ms-coll .chead .rate{margin:0}@media (min-width:750px){.ms-coll .chead .rate{justify-content:center}}.ms .kit li{background:rgba(247,243,236,.06);border-color:rgba(247,243,236,.16);color:var(--paper)}.ms .kit li .ic{color:var(--gold-lt)}.ms .visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}</style>
+{%- else -%}
+<div class="ms ms-page ms-coll">
+  <div style="height:24px"></div>
+  {% render 'ms-guarantee' %}
+  {% render 'ms-faq', extra: true %}
+  <section class="final">
+    <div class="bg"><img src="{{ 'rainsong-under-tree.jpg' | file_img_url: '1600x' }}" alt="" loading="lazy" decoding="async" width="1600" height="1200"></div>
+    <div class="in" data-rv>
+      <p class="k">This Christmas</p>
+      <h2>Give them <em>the sound of the rain.</em></h2>
+      <p class="lede">Pick their drum, add their address at checkout, and we’ll do the rest.</p>
+      <a class="btn" href="#ms-shop" data-scroll="ms-shop">Choose your drum {% render 'ms-ic', i: 'arrow', s: 18 %}</a>
+      <div class="mini"><span>{% render 'ms-ic', i: 'truck', s: 16 %} Free shipping</span><span>{% render 'ms-ic', i: 'shield', s: 16 %} 30-day money-back</span><span>{% render 'ms-ic', i: 'clock', s: 16 %} Ships in 2–3 days</span></div>
+    </div>
+  </section>
+  <div class="msticky" aria-hidden="true">
+    <div class="t"><b>Not sure which drum?</b>Tap who it’s for and we’ll pick</div>
+    <a class="btn" href="#ms-finder" data-scroll="ms-finder">Gift finder</a>
+  </div>
+</div>
+{%- endif -%}
+{% schema %}
+{
+  "name": "MS collection",
+  "tag": "section",
+  "class": "ms-sec",
+  "settings": [
+    { "type": "select", "id": "part", "label": "Part", "options": [ { "value": "top", "label": "Top (header to reviews heading)" }, { "value": "bottom", "label": "Bottom (guarantee, FAQ, final CTA)" } ], "default": "top" }
+  ],
+  "presets": [ { "name": "MS collection" } ]
+}
+{% endschema %}

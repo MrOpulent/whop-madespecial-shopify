@@ -1,0 +1,15 @@
+{%- comment -%} Live price from Shopify (current market currency). Compare-at and % off only when the product has a compare-at price. {%- endcomment -%}
+{%- liquid
+  assign v = p.selected_or_first_available_variant
+  assign pr = v.price
+  assign cmp = v.compare_at_price | default: 0
+  comment
+    t182u: Pocket Drum shows a $99.00 struck reference price (display only; the product has no compare-at). USD only. To remove: delete to the endif.
+  endcomment
+  assign ms_ov = false
+  if p.handle == "steel-tongue-rain-drum-4-inch" and cmp <= pr and cart.currency.iso_code == "USD"
+    assign cmp = 9900
+    assign ms_ov = true
+  endif
+-%}
+<span class="mpr"><b class="num">{{ pr | money }}</b>{%- if cmp > pr -%}<s class="num">{{ cmp | money }}</s>{%- unless hide_off or ms_ov -%}<em class="num">{{ cmp | minus: pr | times: 100.0 | divided_by: cmp | round }}% off</em>{%- endunless -%}{%- endif -%}</span>
