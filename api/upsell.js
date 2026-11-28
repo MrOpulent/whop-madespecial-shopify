@@ -57,6 +57,27 @@ function hiResImage(url) {
   return String(url).replace(/([?&](?:width|height)=)\d+/g, "$1800");
 }
 
+// Zero-decimal currencies: round to a whole unit instead of .99
+const WHOLE = new Set(["JPY", "KRW", "VND", "CLP", "ISK", "UGX", "PYG", "RWF", "XAF", "XOF", "XPF", "BIF", "DJF", "GNF", "KMF", "VUV"]);
+export function roundStorefront(cents, currency) {
+  if (WHOLE.has(String(currency).toUpperCase())) return Math.max(100, Math.round(cents / 100) * 100);
+  return Math.max(99, Math.round((cents - 99) / 100) * 100 + 99); // nearest N.99
+}
+// An offer priced only in the shop currency (cfg.price.USD, cfg.msrp.USD) for a buyer in another currency: same discount
+// off that buyer's converted regular price (p.total / p.shopTotal is Shopify's conversion for this exact line).
+export function convertedOffer(cfg, p) {
+  const refFixed = Math.round(Number(cfg.price?.[p.shopCurrency]) || 0);
+  const refMsrp = Math.round(Number(cfg.msrp?.[p.shopCurrency]) || 0);
+  if (!(refFixed > 0) || !(p.shopTotal > 0) || !(p.total > 0)) return null;
+  const refCeiling = refMsrp > p.shopTotal ? refMsrp : p.shopTotal;
+  if (!(refFixed < refCeiling)) return null;
+  const rate = p.total / p.shopTotal;
+  const ceiling = Math.round(refCeiling * rate);
+  let t = roundStorefront(refFixed * rate, p.currency);
+  if (t >= ceiling) return null;
+  return { t, ceiling, msrp: refMsrp > p.shopTotal ? ceiling : 0, off: Math.round((1 - t / ceiling) * 100), st: Math.round(p.shopTotal * t / p.total) };
+}
+
 // Checks the order really was paid in this checkout, then prices the offer with Shopify
 async function load(sTok, paymentId, step, declinedSet, acceptedSet) {
   const s = readSession(String(sTok || ""));
@@ -73,13 +94,18 @@ async function load(sTok, paymentId, step, declinedSet, acceptedSet) {
   const p = await priceCart({ items: [{ variant_id: Number(cfg.variant_id), quantity: qty }], market_country: s.mk, ship_country: s.mk }, { checkDrawer: false });
   const [v, q, u, su] = p.lines[0];
   let t = Math.round(p.total * (100 - pct) / 100), st = Math.round(p.shopTotal * (100 - pct) / 100), off = pct;
-  const msrp = Math.round(Number(cfg.msrp?.[p.currency]) || 0);
+  let msrp = Math.round(Number(cfg.msrp?.[p.currency]) || 0);
   const fixed = Math.round(Number(cfg.price?.[p.currency]) || 0);
   // advertised compare-at (msrp) is the ceiling when it is higher than Shopify's current selling total
-  const ceiling = msrp > p.total ? msrp : p.total;
+  let ceiling = msrp > p.total ? msrp : p.total;
   if (fixed > 0 && fixed < ceiling) { // fixed price in the checkout currency; never above the advertised compare
     t = fixed; st = p.currency === p.shopCurrency ? fixed : Math.round((p.shopTotal || p.total) * fixed / (p.total || fixed));
     off = Math.round((1 - fixed / ceiling) * 100);
+  } else if (!fixed && p.currency !== p.shopCurrency) {
+    // No fixed price for this currency (AUD, CAD, EUR, ...): apply the offer's shop-currency (USD) price as the same
+    // percentage off the buyer's own converted regular price, rounded like the storefront (.99).
+    const d = convertedOffer(cfg, p);
+    if (d) { t = d.t; st = d.st; off = d.off; msrp = d.msrp; ceiling = d.ceiling; }
   }
   const compare = msrp > t ? msrp : p.total;
   const next = list[step + 1];
