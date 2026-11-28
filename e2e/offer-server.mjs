@@ -16,8 +16,10 @@ const DRUM = process.argv[4] === "6inch" ? "6inch" : "xl";
 // Title, UK fixed price (£79.99) and Teal variant image of the 6-inch L in Shopify (the photo is still a 10-inch one).
 const SHOP = { [XL]: { GBP: 13999, USD: 17999, title: "Margaret’s Hand-Tuned Steel Drum’s (10 Inches + 11 Tones)" }, [NINE]: { GBP: 2299, USD: 2999, title: "Add 1 More Rain Drum" },
   [SIX]: { GBP: 7999, USD: 9999, title: "*NEW* Hand Tuned Rain Drum (6 inch - L)", options: ["Color: Teal"], image: "https://cdn.shopify.com/s/files/1/0793/6360/4662/files/rainsong-hero-xmas.jpg?v=1795555539&width=800" } };
+// AUD has no fixed price anywhere: Shopify Markets converts the USD price (rate as seen on order #7517: $99.99 -> A$152.64)
+const priceIn = (v, cur) => SHOP[v][cur] ?? Math.round(SHOP[v].USD * 1.52655);
 mock.module("../lib/pricing.js", { exports: { priceCart: async (b) => {
-  const it = b.items[0], cur = b.market_country === "GB" ? "GBP" : "USD", u = SHOP[it.variant_id][cur];
+  const it = b.items[0], cur = { GB: "GBP", AU: "AUD" }[b.market_country] || "USD", u = priceIn(it.variant_id, cur);
   return { currency: cur, shopCurrency: "USD", total: u * it.quantity, shopTotal: SHOP[it.variant_id].USD * it.quantity, lines: [[it.variant_id, it.quantity, u, SHOP[it.variant_id].USD]],
     display: [{ title: SHOP[it.variant_id].title, options: SHOP[it.variant_id].options || [], image: SHOP[it.variant_id].image || "", qty: it.quantity }] };
 } } });
@@ -25,9 +27,9 @@ const { createSession } = await import("../lib/session.js");
 const { default: upsell } = await import("../api/upsell.js");
 
 let scenario = "success", payments = {}, keys = {}, creates = 0;
-const MK = process.env.E2E_MARKET === "US" ? "US" : "GB", CUR = MK === "US" ? "USD" : "GBP";
+const MK = ["US", "AU"].includes(process.env.E2E_MARKET) ? process.env.E2E_MARKET : "GB", CUR = { US: "USD", AU: "AUD", GB: "GBP" }[MK];
 const D = DRUM === "6inch" ? SIX : XL;
-const order = { l: [[D, 1, SHOP[D][CUR], SHOP[D].USD]], c: CUR, t: SHOP[D][CUR] };
+const order = { l: [[D, 1, priceIn(D, CUR), SHOP[D].USD]], c: CUR, t: priceIn(D, CUR) };
 const reset = () => { payments = { pay_parent: { id: "pay_parent", status: "paid", paid_at: new Date().toISOString(), member_id: "mber_1", payment_method_id: "payt_1", metadata: { order: JSON.stringify(order) } } }; keys = {}; creates = 0; };
 reset();
 const statusOf = (p) => {
